@@ -14,7 +14,7 @@ public class AdvanceBoardJob {
     private static final Logger log = LoggerFactory.getLogger(AdvanceBoardJob.class);
     private final GameService gameService;
 
-    @Scheduled(fixedRate = 2000)
+    @Scheduled(fixedRate = 5000)
     public void advance() {
        gameService.setNextState();
        log.info("Advancing Board");

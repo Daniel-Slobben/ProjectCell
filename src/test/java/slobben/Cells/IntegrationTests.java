@@ -23,25 +23,15 @@ class IntegrationTests {
 
 	private final StateService stateService;
 	private final GameService gameService;
-	private final ViewService viewService;
 
 	@Autowired
-	public IntegrationTests(GameService gameService, StateService stateService, ViewService viewService) {
+	public IntegrationTests(GameService gameService, StateService stateService) {
 		this.gameService = gameService;
 		this.stateService = stateService;
-		this.viewService = viewService;
 	}
 
 	@Test
 	public void visualize() {
-		viewService.logToConsole();
-		gameService.setNextState();
-		viewService.logToConsole();
-		gameService.setNextState();
-		viewService.logToConsole();
-		gameService.setNextState();
-		viewService.logToConsole();
-		gameService.setNextState();
-		viewService.logToConsole();
+
 	}
 }

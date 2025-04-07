@@ -8,12 +8,12 @@ import slobben.Cells.database.model.Cell;
 import slobben.Cells.database.repository.CellRepository;
 import slobben.Cells.enums.CellState;
 import slobben.Cells.state.State;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 import static slobben.Cells.enums.CellState.DEAD;
 
@@ -22,13 +22,13 @@ import static slobben.Cells.enums.CellState.DEAD;
 public class StateService {
 
     private final CellRepository cellRepository;
-    private int currentGeneration = 0;
     private final MongoTemplate mongoTemplate;
-
     private final int sizeX;
     private final int sizeY;
+    private final int blockSize;
+    private int currentGeneration = 0;
 
-    public StateService(CellRepository cellRepository, MongoTemplate mongoTemplate, @Value("${properties.size.x}") int sizeX, @Value("${properties.size.y}") int sizeY) {
+    public StateService(CellRepository cellRepository, MongoTemplate mongoTemplate, @Value("${properties.size.blockSize}") int blockSize, @Value("${properties.size.x}") int sizeX, @Value("${properties.size.y}") int sizeY) {
         this.mongoTemplate = mongoTemplate;
 
         // TODO: mogelijk maken om een restart te doen en daarop verder te gaan
@@ -36,35 +36,41 @@ public class StateService {
         this.cellRepository = cellRepository;
         this.sizeX = sizeX;
         this.sizeY = sizeY;
-
-        final int rowBatchSize = 20;
+        this.blockSize = blockSize;
 
         ExecutorService executor = Executors.newFixedThreadPool(12);
-        for (int x = 0; x < sizeX; x++) {
-            executeBatch(executor, x, rowBatchSize);
-            x += rowBatchSize -1;
+        int blockAmountX = sizeX / blockSize;
+        int blockAmountY = sizeY / blockSize;
+        long timer = System.currentTimeMillis();
+
+        for (int blockX = 0; blockX < blockAmountX; blockX++) {
+            for (int blockY = 0; blockY < blockAmountY; blockY++) {
+                int finalBlockX = blockX;
+                int finalBlockY = blockY;
+                executor.execute(() -> {
+                    ArrayList<Cell> cells = new ArrayList<>();
+                    for (int x = 0; x < blockSize; x++) {
+                        for (int y = 0; y < blockSize; y++) {
+                            cells.add(new Cell(getCurrentGeneration(), x + (blockSize * finalBlockX), y + (blockSize * finalBlockY), DEAD));
+                        }
+                    }
+                    cellRepository.saveAll(cells);
+                    System.out.println("saved block: x: " + finalBlockX + " y: " + finalBlockY);
+                });
+            }
         }
         executor.close();
-        System.out.println("total document count: " + cellRepository.count());
+        System.out.println("Time taken: " + (System.currentTimeMillis() - timer));
     }
 
-    private void executeBatch(ExecutorService executor, int x, int rowBatchSize) {
-        executor.execute(() -> {
-            List<Cell> xList = new ArrayList<>();
-
-            for (int i = 0; i < rowBatchSize; i++) {
-                int currentX = x + i;
-                for (int y = 0; y < sizeY; y++) {
-                    xList.add(new Cell(currentGeneration, currentX, y, DEAD));
-                }
-            }
-            cellRepository.saveAll(xList);
-            System.out.println("Saved at row: " + (x + rowBatchSize));
-        });
-    }
 
     public State getLatestState(int x, int y, int size) {
-        List<Cell> flatCells = cellRepository.findSubsetMatrix(currentGeneration, x - (size / 2), x + (size / 2), y - (size / 2), y + (size / 2));
+        int xMin = x - (size / 2);
+        int xMax = x + (size / 2);
+        int yMin = y - (size / 2);
+        int yMax = y + (size / 2);
+        System.out.println("xmin: " + xMin + " xmax: " + xMax + " ymin: " + yMin + " ymax: " + yMax);
+        List<Optional<Cell>> flatCells = cellRepository.getMatrix(currentGeneration, xMin, xMax, yMin, yMax);
         Cell[][] partialMap = new Cell[size][size];
 
         for (int i = 0; i < size; i++) {
@@ -73,10 +79,13 @@ public class StateService {
             }
         }
 
-        flatCells.forEach(cell -> {
-            int xIndex = cell.getX() - (x - (size / 2));
-            int yIndex = cell.getY() - (y - (size / 2));
-            partialMap[xIndex][yIndex] = cell;
+        flatCells.forEach(optionalCell -> {
+            if (optionalCell.isPresent()) {
+                Cell cell = optionalCell.get();
+                int xIndex = cell.getX() - (x - (size / 2));
+                int yIndex = cell.getY() - (y - (size / 2));
+                partialMap[xIndex][yIndex] = cell;
+            }
         });
 
         return new State(partialMap);
