@@ -15,16 +15,18 @@ public class GenerationService {
     private final GameService gameService;
 
     public GenerationService(StateService stateService, GameService gameService) {
-       this.stateService = stateService;
-       this.gameService = gameService;
+        this.stateService = stateService;
+        this.gameService = gameService;
 
-       this.run();
+        this.run();
     }
 
     private void run() {
         while(running) {
-            log.info("Starting run: " + stateService.getCurrentGeneration());
+            long timer = System.currentTimeMillis();
+            log.info("Starting run. Time: {} Generation: {}", timer, stateService.getCurrentGeneration());
             gameService.setNextState();
+            log.info("Ending run. Time Taken: {}ms", System.currentTimeMillis() - timer);
         }
     }
 

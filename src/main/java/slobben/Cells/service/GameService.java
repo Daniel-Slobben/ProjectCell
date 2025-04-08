@@ -1,6 +1,7 @@
 package slobben.Cells.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slobben.Cells.database.model.Block;
 import slobben.Cells.database.model.Cell;
@@ -18,6 +19,7 @@ import java.util.concurrent.Executors;
 import static slobben.Cells.enums.CellState.*;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class GameService {
 
@@ -30,6 +32,7 @@ public class GameService {
         //TODO: De volledige kaart opdelen in stukjes.
         // Die multithreaded afhalen door per stukje de cells op te halen in de database
 
+        int generation = stateService.getCurrentGeneration();
         final int blockSize = stateService.getBlockSize();
         final int blockSizeWithBorder = blockSize + 2;
         int blockAmountX = stateService.getSizeX() / blockSize;
@@ -38,6 +41,7 @@ public class GameService {
         ExecutorService executor = Executors.newFixedThreadPool(48);
         for (int blockX = 0; blockX < blockAmountX; blockX++) {
             for (int blockY = 0; blockY < blockAmountY; blockY++) {
+                long generateTimer = System.currentTimeMillis();
 
                 Optional<Block> optionalBlock = blockRepository.findFirstByXAndYOrderByGenerationDesc(blockX, blockY);
                 assert optionalBlock.isPresent();
@@ -45,6 +49,8 @@ public class GameService {
                 block.setGeneration(block.getGeneration() + 1);
                 blockRepository.save(block);
 
+                int finalBlockX = blockX;
+                int finalBlockY = blockY;
                 executor.execute(() -> {
                     ArrayList<Cell> newCells = new ArrayList<>();
                     ArrayList<Cell> removedCells = new ArrayList<>();
@@ -82,8 +88,12 @@ public class GameService {
                                 }
                             }
                         }
+                        log.info("Calculated Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - generateTimer);
+                        log.info("Starting to save Block X: {}, Y: {}", finalBlockX, finalBlockY);
+                        long saveTimer = System.currentTimeMillis();
                         cellRepository.saveAll(newCells);
                         cellRepository.deleteAll(removedCells);
+                        log.info("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - saveTimer);
                     }
                 });
             }
