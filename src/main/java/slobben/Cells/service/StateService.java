@@ -1,6 +1,7 @@
 package slobben.Cells.service;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import static slobben.Cells.enums.CellState.DEAD;
 
 @Service
 @Getter
+@Slf4j
 public class StateService {
 
     private final CellRepository cellRepository;
@@ -30,9 +32,8 @@ public class StateService {
 
     public StateService(CellRepository cellRepository, MongoTemplate mongoTemplate, @Value("${properties.size.blockSize}") int blockSize, @Value("${properties.size.x}") int sizeX, @Value("${properties.size.y}") int sizeY) {
         this.mongoTemplate = mongoTemplate;
+        mongoTemplate.dropCollection(Cell.class);
 
-        // TODO: mogelijk maken om een restart te doen en daarop verder te gaan
-        cellRepository.deleteAll();
         this.cellRepository = cellRepository;
         this.sizeX = sizeX;
         this.sizeY = sizeY;
@@ -41,36 +42,43 @@ public class StateService {
         ExecutorService executor = Executors.newFixedThreadPool(12);
         int blockAmountX = sizeX / blockSize;
         int blockAmountY = sizeY / blockSize;
-        long timer = System.currentTimeMillis();
+        long totalTimerSetup = System.currentTimeMillis();
 
         for (int blockX = 0; blockX < blockAmountX; blockX++) {
             for (int blockY = 0; blockY < blockAmountY; blockY++) {
                 int finalBlockX = blockX;
                 int finalBlockY = blockY;
                 executor.execute(() -> {
+                    long addTimer = System.currentTimeMillis();
+                    log.info("Starting to generate Block X: {}, Y: {}", finalBlockY, finalBlockY);
                     ArrayList<Cell> cells = new ArrayList<>();
                     for (int x = 0; x < blockSize; x++) {
                         for (int y = 0; y < blockSize; y++) {
                             cells.add(new Cell(getCurrentGeneration(), x + (blockSize * finalBlockX), y + (blockSize * finalBlockY), DEAD));
                         }
                     }
+                    log.info("Generated Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - addTimer);
+                    long saveTimer = System.currentTimeMillis();
+                    log.info("Starting to save Block X: {}, Y: {}", finalBlockY, finalBlockY);
                     cellRepository.saveAll(cells);
-                    System.out.println("saved block: x: " + finalBlockX + " y: " + finalBlockY);
+                    log.info("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - saveTimer);
                 });
             }
         }
         executor.close();
-        System.out.println("Time taken: " + (System.currentTimeMillis() - timer));
+        System.out.println("Time taken: " + (System.currentTimeMillis() - totalTimerSetup));
     }
 
 
     public State getLatestState(int x, int y, int size) {
+        long retrieveTimer = System.currentTimeMillis();
         int xMin = x - (size / 2);
         int xMax = x + (size / 2);
         int yMin = y - (size / 2);
         int yMax = y + (size / 2);
-        System.out.println("xmin: " + xMin + " xmax: " + xMax + " ymin: " + yMin + " ymax: " + yMax);
+        log.info("Retrieving cells: xmin: {}, xmax: {}, ymin: {}, ymax{}, size: {}", xMin, xMax, yMin, yMax, size);
         List<Optional<Cell>> flatCells = cellRepository.getMatrix(currentGeneration, xMin, xMax, yMin, yMax);
+        log.info("Retrieved Cells from mongodb: Time Taken: {} : xmin: {}, xmax: {}, ymin: {}, ymax{}, size: {}", System.currentTimeMillis() - retrieveTimer, xMin, xMax, yMin, yMax, size);
         Cell[][] partialMap = new Cell[size][size];
 
         for (int i = 0; i < size; i++) {
@@ -78,6 +86,8 @@ public class StateService {
                 partialMap[i][j] = new Cell(x - (size / 2) + i, y - (size / 2) + j, CellState.EMPTY);
             }
         }
+
+        log.info("generatedPartialMap Time Taken: {} : xmin: {}, xmax: {}, ymin: {}, ymax{}, size: {}", System.currentTimeMillis() - retrieveTimer, xMin, xMax, yMin, yMax, size);
 
         flatCells.forEach(optionalCell -> {
             if (optionalCell.isPresent()) {
@@ -87,6 +97,7 @@ public class StateService {
                 partialMap[xIndex][yIndex] = cell;
             }
         });
+        log.info("Added Flatcells Time Taken: {} : xmin: {}, xmax: {}, ymin: {}, ymax{}, size: {}", System.currentTimeMillis() - retrieveTimer, xMin, xMax, yMin, yMax, size);
 
         return new State(partialMap);
     }
