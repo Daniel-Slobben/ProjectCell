@@ -12,7 +12,8 @@ import slobben.Cells.database.model.Cell;
 import slobben.Cells.enums.CellState;
 import slobben.Cells.service.InputService;
 import slobben.Cells.service.StateService;
-import slobben.Cells.state.State;
+
+import java.util.List;
 
 @Controller
 @AllArgsConstructor
@@ -23,14 +24,14 @@ public class CellController {
     private final InputService inputService;
 
     @GetMapping("state/{x}/{y}/{size}")
-    public ResponseEntity<State> getState(@PathVariable("x") int x, @PathVariable("y") int y, @PathVariable("size") int size) {
+    public ResponseEntity<Cell[][]> getState(@PathVariable("x") int x, @PathVariable("y") int y, @PathVariable("size") int size) {
         log.info("Received request for x: {}, y: {} and size: {}", x, y, size);
-        return ResponseEntity.ok(stateService.getLatestState(x, y, size));
+        return ResponseEntity.ok(stateService.getMatrixState(x, y, size));
     }
 
-    @PutMapping("cell/{x}/{y}/{cellState}")
-    public ResponseEntity<Void> setCell(@PathVariable("x") int x, @PathVariable("y") int y, CellState cellState) {
-        inputService.setCellInOverlay(new Cell(-1, x, y, cellState));
-        return ResponseEntity.ok().build();
-    }
+//    @PutMapping("cell/{x}/{y}/toggle}")
+//    public ResponseEntity<Void> setCell(@PathVariable("x") int x, @PathVariable("y") int y, CellState cellState) {
+//        inputService.setCellInOverlay(new Cell(x, y));
+//        return ResponseEntity.ok().build();
+//    }
 }

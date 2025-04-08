@@ -2,12 +2,15 @@ package slobben.Cells.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import slobben.Cells.database.model.Block;
+import slobben.Cells.database.model.Cell;
+import slobben.Cells.database.repository.BlockRepository;
 import slobben.Cells.database.repository.CellRepository;
 import slobben.Cells.enums.CellState;
-import slobben.Cells.database.model.Cell;
-import slobben.Cells.state.State;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -20,59 +23,89 @@ public class GameService {
 
     private final StateService stateService;
     private final CellRepository cellRepository;
+    private final BlockRepository blockRepository;
     private final Random random = new Random();
 
     public void setNextState() {
         //TODO: De volledige kaart opdelen in stukjes.
         // Die multithreaded afhalen door per stukje de cells op te halen in de database
 
-        int generation = stateService.getCurrentGeneration();
         final int blockSize = stateService.getBlockSize();
+        final int blockSizeWithBorder = blockSize + 2;
         int blockAmountX = stateService.getSizeX() / blockSize;
         int blockAmountY = stateService.getSizeY() / blockSize;
 
-        ExecutorService executor = Executors.newFixedThreadPool(12);
+        ExecutorService executor = Executors.newFixedThreadPool(48);
         for (int blockX = 0; blockX < blockAmountX; blockX++) {
             for (int blockY = 0; blockY < blockAmountY; blockY++) {
-                int finalBlockX = blockX;
-                int finalBlockY = blockY;
-                    ArrayList<Cell> cells = new ArrayList<>();
-                    int middleOfBlockX = finalBlockX * blockSize + (blockSize / 2);
-                    int middleOfBlockY = finalBlockY * blockSize + (blockSize / 2);
-                    System.out.println("X: " + middleOfBlockX);
-                    System.out.println("Y: " + middleOfBlockY);
-                    Cell[][] latestMap = stateService.getLatestState(middleOfBlockX, middleOfBlockY, blockSize + 2).state();
-                    for (int x = 0; x < blockSize; x++) {
-                        for (int y = 0; y < blockSize; y++) {
-                            int actualX = finalBlockX * blockSize + x;
-                            int actualY = finalBlockY * blockSize + y;
 
-                            int neighboursAlive = getAliveNeighbourCount(3, x + 1, y + 1, latestMap);
-                            cells.add(applyConwayGameOfLifeRules(latestMap[x + 1][y + 1].getCellState(), actualX, actualY, neighboursAlive, generation + 1));
+                Optional<Block> optionalBlock = blockRepository.findFirstByXAndYOrderByGenerationDesc(blockX, blockY);
+                assert optionalBlock.isPresent();
+                Block block = optionalBlock.get();
+                block.setGeneration(block.getGeneration() + 1);
+                blockRepository.save(block);
+
+                executor.execute(() -> {
+                    ArrayList<Cell> newCells = new ArrayList<>();
+                    ArrayList<Cell> removedCells = new ArrayList<>();
+
+                    int middleOfBlockX = block.getX() * blockSize + (blockSize / 2);
+                    int middleOfBlockY = block.getY() * blockSize + (blockSize / 2);
+                    List<Cell> cells = stateService.getLatestState(middleOfBlockX, middleOfBlockY, blockSizeWithBorder);
+                    if (!cells.isEmpty()) {
+
+                        // there are alive cells, lets initialize matrix
+                        Cell[][] partialMap = new Cell[blockSizeWithBorder][blockSizeWithBorder];
+                        cells.forEach(cell -> {
+                            int xIndex = cell.getX() - (middleOfBlockX - (blockSizeWithBorder / 2));
+                            int yIndex = cell.getY() - (middleOfBlockY - (blockSizeWithBorder / 2));
+                            partialMap[xIndex][yIndex] = cell;
+                        });
+
+                        // and check every cell
+                        for (int x = 0; x < blockSize; x++) {
+                            for (int y = 0; y < blockSize; y++) {
+                                Cell oldCell = partialMap[x + 1][y + 1];
+                                int neighboursAlive = getAliveNeighbourCount(3, x + 1, y + 1, partialMap);
+
+                                // cell to check is dead
+                                if (oldCell == null) {
+                                    if (applyConwayGameOfLifeRules(DEAD, neighboursAlive).equals(ALIVE)) {
+                                        newCells.add(new Cell(x + (blockSize * block.getX()), y + (blockSize * block.getY())));
+                                    }
+                                }
+                                // cell to check is alive
+                                else {
+                                    if (applyConwayGameOfLifeRules(ALIVE, neighboursAlive).equals(DEAD)) {
+                                        removedCells.add(oldCell);
+                                    }
+                                }
+                            }
                         }
+                        cellRepository.saveAll(newCells);
+                        cellRepository.deleteAll(removedCells);
                     }
-                    cellRepository.saveAll(cells);
-                    System.out.println("saved block: x: " + finalBlockX + " y: " + finalBlockY);
+                });
             }
         }
         executor.close();
         stateService.incrementGeneration();
     }
 
-    private Cell applyConwayGameOfLifeRules(CellState cellState, int x, int y, int aliveCounter, int generation) {
+    private CellState applyConwayGameOfLifeRules(CellState cellState, int aliveCounter) {
         if (cellState == ALIVE) {
             if (aliveCounter < 2) {
-                return new Cell(generation, x, y, DEAD);
+                return DEAD;
             } else if (aliveCounter == 2 || aliveCounter == 3) {
-                return new Cell(generation, x, y, ALIVE);
+                return ALIVE;
             } else {
-                return new Cell(generation, x, y, DEAD);
+                return DEAD;
             }
         } else {
             if (aliveCounter == 3) {
-                return new Cell(generation, x, y, ALIVE);
+                return ALIVE;
             } else {
-                return new Cell(generation, x, y, DEAD);
+                return DEAD;
             }
         }
     }
@@ -84,14 +117,13 @@ public class GameService {
                 int xBuurman = x + (i - 1);
                 int yBuurman = y + (j - 1);
 
-                CellState cellState = map[xBuurman][yBuurman].getCellState();
-                    if (cellState == ALIVE) {
+                // alleen buurman/buurvrouw cellen
+                if (!(xBuurman == x && yBuurman == y)) {
+                    Cell cell = map[xBuurman][yBuurman];
+                    if (cell != null) {
                         aliveCounter++;
-                    } else if (cellState == EMPTY) {
-                        if (random.nextBoolean()) {
-                            aliveCounter++;
-                        }
                     }
+                }
             }
         }
         return aliveCounter;

@@ -25,28 +25,29 @@ public class InputService {
     }
 
     public ArrayList<Cell> getNextStateOverlay() {
-        ArrayList<Cell> overlayCellList = new ArrayList<>();
-        Map<String, List<Cell>> groupedOverlay = nextStateOverlay
-                .stream()
-                .collect(Collectors.groupingBy(this::getGroupingByKey, Collectors.mapping((Cell cell) -> cell, Collectors.toList())));
-
-        groupedOverlay.forEach((key, cells) -> {
-            int aliveCount = 0;
-            int deadCount = 0;
-            for (Cell cell: cells) {
-                if (cell.getCellState().equals(CellState.ALIVE)) {
-                    aliveCount++;
-                } else {
-                    deadCount++;
-                }
-            }
-            if (aliveCount >= deadCount) {
-                overlayCellList.add(new Cell(-1, cells.getFirst().getX(), cells.getFirst().getY(), CellState.ALIVE));
-            } else {
-                overlayCellList.add(new Cell(-1, cells.getFirst().getX(), cells.getFirst().getY(), CellState.ALIVE));
-            }
-        });
-        return overlayCellList;
+//        ArrayList<Cell> overlayCellList = new ArrayList<>();
+//        Map<String, List<Cell>> groupedOverlay = nextStateOverlay
+//                .stream()
+//                .collect(Collectors.groupingBy(this::getGroupingByKey, Collectors.mapping((Cell cell) -> cell, Collectors.toList())));
+//
+//        groupedOverlay.forEach((key, cells) -> {
+//            int aliveCount = 0;
+//            int deadCount = 0;
+//            for (Cell cell: cells) {
+//                if (cell.getCellState().equals(CellState.ALIVE)) {
+//                    aliveCount++;
+//                } else {
+//                    deadCount++;
+//                }
+//            }
+//            if (aliveCount >= deadCount) {
+//                overlayCellList.add(new Cell(-1, cells.getFirst().getX(), cells.getFirst().getY(), CellState.ALIVE));
+//            } else {
+//                overlayCellList.add(new Cell(-1, cells.getFirst().getX(), cells.getFirst().getY(), CellState.ALIVE));
+//            }
+//        });
+//        return overlayCellList;
+        return null;
     }
 
     public void resetOverlay() {
