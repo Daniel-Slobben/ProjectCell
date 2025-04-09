@@ -16,8 +16,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 @ExtendWith(SpringExtension.class)
 @ComponentScan("slobben.Cells.service")
 @TestPropertySource(properties = {
-		"properties.size.x = 5",
-		"properties.size.y = 5"
+		"properties.size.x = 32000",
+		"properties.size.y = 32000"
 })
 class IntegrationTests {
 

@@ -22,33 +22,30 @@
     const ctx = canvas.getContext("2d");
 
     const cellSize = 10; // Each cell is 10x10 pixels
-    let size = 500;
-    let x  = 100;
-    let y = 100;
+    let size = 1000;
+    let x  = 500;
+    let y = 500;
 
     canvas.width = size * cellSize;
     canvas.height = size * cellSize;
 
     // Fetch grid state from backend
     function fetchGrid() {
-        fetch(`/state/${x}/${y}/${size}`) // Expect JSON response
+        fetch(`/state/${x}/${y}/${size}`)
             .then(response => response.json())
-            .then(data => drawGrid(data.state)) // Read "state" array
+            .then(data => drawGrid(data))
             .catch(err => console.error("Error fetching grid:", err));
     }
 
-    // Draw the grid using the `CellState` enum
     function drawGrid(gridData) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         for (let y = 0; y < size; y++) {
             for (let x = 0; x < size; x++) {
                 const cell = gridData[x][y]; // Extract cell object
-                const state = cell.cellState; // Get state as string
 
-                if (state === "ALIVE") ctx.fillStyle = "black";
-                else if (state === "DEAD") ctx.fillStyle = "white";
-                else ctx.fillStyle = "gray"; // EMPTY
+                if (cell === null) ctx.fillStyle = "white";
+                else ctx.fillStyle = "black";
 
                 ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
                 ctx.strokeStyle = "#ccc";
@@ -66,7 +63,7 @@
             .then(() => fetchGrid()); // Refresh grid after change
     });
 
-    setInterval(fetchGrid, 3000);
+    setInterval(fetchGrid, 30000);
     fetchGrid(); // Initial load
 </script>
 
