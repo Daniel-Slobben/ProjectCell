@@ -6,17 +6,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import slobben.Cells.service.GameService;
+import slobben.Cells.service.GenerationService;
 
 @Component
 @AllArgsConstructor
 public class AdvanceBoardJob {
 
     private static final Logger log = LoggerFactory.getLogger(AdvanceBoardJob.class);
-    private final GameService gameService;
+    private final GenerationService generationService;
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 1000)
     public void advance() {
-       gameService.setNextState();
-       log.info("Advancing Board");
+        log.info("scheduled trigger");
+        generationService.run();
     }
 }

@@ -17,11 +17,9 @@ public class GenerationService {
     public GenerationService(StateService stateService, GameService gameService) {
         this.stateService = stateService;
         this.gameService = gameService;
-
-        this.run();
     }
 
-    private void run() {
+    public void run() {
         while(running) {
             long timer = System.currentTimeMillis();
             log.info("Starting run. Generation: {}", stateService.getCurrentGeneration());
