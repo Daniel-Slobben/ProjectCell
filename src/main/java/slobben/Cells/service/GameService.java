@@ -37,7 +37,7 @@ public class GameService {
                 int finalBlockX = blockX;
                 int finalBlockY = blockY;
 
-                log.info("Starting to calculate Block X: {}, Y: {}", finalBlockY, finalBlockY);
+                log.debug("Starting to calculate Block X: {}, Y: {}", finalBlockY, finalBlockY);
                 ArrayList<Cell> cells = new ArrayList<>();
                 int middleOfBlockX = finalBlockX * blockSize + (blockSize / 2);
                 int middleOfBlockY = finalBlockY * blockSize + (blockSize / 2);
@@ -51,11 +51,11 @@ public class GameService {
                         cells.add(applyConwayGameOfLifeRules(latestMap[x + 1][y + 1].getCellState(), actualX, actualY, neighboursAlive, generation + 1));
                     }
                 }
-                log.info("Calculated Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - generateTimer);
-                log.info("Starting to save Block X: {}, Y: {}", finalBlockY, finalBlockY);
+                log.debug("Calculated Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - generateTimer);
+                log.debug("Starting to save Block X: {}, Y: {}", finalBlockY, finalBlockY);
                 long saveTimer = System.currentTimeMillis();
                 cellRepository.saveAll(cells);
-                log.info("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - saveTimer);
+                log.debug("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - saveTimer);
             }
         }
         executor.close();
@@ -90,10 +90,6 @@ public class GameService {
                 CellState cellState = map[xBuurman][yBuurman].getCellState();
                 if (cellState == ALIVE) {
                     aliveCounter++;
-                } else if (cellState == EMPTY) {
-                    if (random.nextBoolean()) {
-                        aliveCounter++;
-                    }
                 }
             }
         }
