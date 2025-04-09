@@ -43,9 +43,7 @@ public class GameService {
             for (int blockY = 0; blockY < blockAmountY; blockY++) {
                 long generateTimer = System.currentTimeMillis();
 
-                Optional<Block> optionalBlock = blockRepository.findFirstByXAndYOrderByGenerationDesc(blockX, blockY);
-                assert optionalBlock.isPresent();
-                Block block = optionalBlock.get();
+                Block block  = blockRepository.findByXAndY(blockX, blockY);
                 block.setGeneration(block.getGeneration() + 1);
                 blockRepository.save(block);
 
@@ -88,12 +86,12 @@ public class GameService {
                                 }
                             }
                         }
-                        log.debug("Calculated Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - generateTimer);
+                        log.info("Calculated Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - generateTimer);
                         log.debug("Starting to save Block X: {}, Y: {}", finalBlockX, finalBlockY);
                         long saveTimer = System.currentTimeMillis();
                         cellRepository.saveAll(newCells);
                         cellRepository.deleteAll(removedCells);
-                        log.debug("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - saveTimer);
+                        log.info("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - saveTimer);
                     }
                 });
             }

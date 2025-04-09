@@ -7,15 +7,10 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-@Document(collection = "cells")
-@CompoundIndex(name = "x_y_idx", def = "{'x': 1, 'y': 1}")
 @Getter
 @Setter
-@NoArgsConstructor
 public class Cell {
 
-    @Id
-    private String id;
     private int x;
     private int y;
 
