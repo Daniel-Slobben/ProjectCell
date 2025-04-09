@@ -88,12 +88,12 @@ public class GameService {
                                 }
                             }
                         }
-                        log.info("Calculated Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - generateTimer);
-                        log.info("Starting to save Block X: {}, Y: {}", finalBlockX, finalBlockY);
+                        log.debug("Calculated Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - generateTimer);
+                        log.debug("Starting to save Block X: {}, Y: {}", finalBlockX, finalBlockY);
                         long saveTimer = System.currentTimeMillis();
                         cellRepository.saveAll(newCells);
                         cellRepository.deleteAll(removedCells);
-                        log.info("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - saveTimer);
+                        log.debug("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockX, finalBlockY, System.currentTimeMillis() - saveTimer);
                     }
                 });
             }

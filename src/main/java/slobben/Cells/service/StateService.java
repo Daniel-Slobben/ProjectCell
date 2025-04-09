@@ -55,20 +55,24 @@ public class StateService {
                 int finalBlockY = blockY;
                 blockRepository.save(new Block(finalBlockX, finalBlockY, 0));
                 executor.execute(() -> {
-                    long addTimer = System.currentTimeMillis();
-                    log.info("Starting to generate Block X: {}, Y: {}", finalBlockY, finalBlockY);
-                    ArrayList<Cell> cells = new ArrayList<>();
-                    for (int x = 0; x < blockSize; x++) {
-                        for (int y = 0; y < blockSize; y++) {
-                            cells.add(new Cell(getCurrentGeneration(), x + (blockSize * finalBlockX), y + (blockSize * finalBlockY), DEAD));
-                        }
-                    }
-                    log.info("Generated Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - addTimer);
-                    long saveTimer = System.currentTimeMillis();
-                    log.info("Starting to save Block X: {}, Y: {}", finalBlockY, finalBlockY);
-                    cellRepository.saveAll(cells);
-                    log.info("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - saveTimer);
                     Random random = new Random();
+                    ArrayList<Cell> cells = new ArrayList<>();
+                    if (random.nextInt(0, 10) == 0)  {
+                        long addTimer = System.currentTimeMillis();
+                        log.debug("Starting to generate Block X: {}, Y: {}", finalBlockY, finalBlockY);
+                        for (int x = 0; x < blockSize; x++) {
+                            for (int y = 0; y < blockSize; y++) {
+                                if (random.nextBoolean()) {
+                                    cells.add(new Cell(x + (blockSize * finalBlockX), y + (blockSize * finalBlockY)));
+                                }
+                            }
+                        }
+                        log.debug("Generated Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - addTimer);
+                    }
+                    long saveTimer = System.currentTimeMillis();
+                    log.debug("Starting to save Block X: {}, Y: {}", finalBlockY, finalBlockY);
+                    cellRepository.saveAll(cells);
+                    log.debug("Saved Block X: {}, Y: {}, Time taken: {}ms", finalBlockY, finalBlockY, System.currentTimeMillis() - saveTimer);
                     List<Cell> newCells = new ArrayList<>();
 
                     cellRepository.saveAll(newCells);
@@ -86,7 +90,7 @@ public class StateService {
         int yMin = y - (size / 2);
         int yMax = y + (size / 2);
         List<Cell> cells = cellRepository.getMatrix(xMin, xMax, yMin, yMax);
-        log.info("Retrieved Cells from mongodb: Time Taken: {} : xmin: {}, xmax: {}, ymin: {}, ymax{}, size: {}", System.currentTimeMillis() - retrieveTimer, xMin, xMax, yMin, yMax, size);
+        log.debug("Retrieved Cells from mongodb: Time Taken: {} : xmin: {}, xmax: {}, ymin: {}, ymax{}, size: {}", System.currentTimeMillis() - retrieveTimer, xMin, xMax, yMin, yMax, size);
         return cells;
     }
 
