@@ -2,6 +2,7 @@ package slobben.Cells.service;
 
 import lombok.AllArgsConstructor;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -19,12 +20,14 @@ public class GenerationService {
         this.gameService = gameService;
     }
 
+    @SneakyThrows
     public void run() {
         while(running) {
             long timer = System.currentTimeMillis();
-//            log.info("Starting run. Generation: {}", stateService.getCurrentGeneration());
-//            gameService.setNextState();
-//            log.info("Ending run. Time Taken: {}ms", System.currentTimeMillis() - timer);
+            Thread.sleep(250);
+            log.info("Starting run. Generation: {}", stateService.getCurrentGeneration());
+            gameService.setNextState();
+            log.info("Ending run. Time Taken: {}ms", System.currentTimeMillis() - timer);
         }
     }
 

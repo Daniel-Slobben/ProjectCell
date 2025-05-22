@@ -7,7 +7,9 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @CompoundIndex(name = "x_y", def = "{'x': 1, 'y': 1}")
 @NoArgsConstructor
@@ -21,7 +23,7 @@ public class Block {
     private int x;
     private int y;
     private int generation;
-    private List<Cell> cells;
+    private Map<Integer, Map<Integer, Cell>> cells;
 
     public Block(int x, int y, int generation) {
         this.x = x;

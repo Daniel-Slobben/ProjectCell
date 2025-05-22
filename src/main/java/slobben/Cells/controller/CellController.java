@@ -23,10 +23,10 @@ public class CellController {
     private final StateService stateService;
     private final InputService inputService;
 
-    @GetMapping("state/{x}/{y}/{size}")
-    public ResponseEntity<Cell[][]> getState(@PathVariable("x") int x, @PathVariable("y") int y, @PathVariable("size") int size) {
-        log.info("Received request for x: {}, y: {} and size: {}", x, y, size);
-        return ResponseEntity.ok(stateService.getMatrixState(x, y, size));
+    @GetMapping("state/{x}/{y}")
+    public ResponseEntity<Cell[][]> getBlock(@PathVariable("x") int x, @PathVariable("y") int y) {
+        log.info("Received request for x: {}, y: {}", x, y);
+        return ResponseEntity.ok(stateService.getBlock(x, y));
     }
 
 //    @PutMapping("cell/{x}/{y}/toggle}")
