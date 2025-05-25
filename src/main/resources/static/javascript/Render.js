@@ -1,17 +1,21 @@
 const canvas = document.getElementById("gridCanvas");
 const ctx = canvas.getContext("2d");
 
+const teleportButton = document.getElementById("teleportButton");
+const xViewValue = document.getElementById("BlockXAmount");
+const yViewValue = document.getElementById("BlockYAmount");
+
 const cellSize = 10; // Each cell is 10x10 pixels
-let size = 12;
+let size = 100;
 let x  = 1;
 let y = 1;
 
 canvas.width = size * cellSize;
 canvas.height = size * cellSize;
 
-function setView(x, y) {
-    this.x = x;
-    this.y = y;
+function setView(newX, newY) {
+    x = parseInt(newX);
+    y = parseInt(newY);
     fetchGrid();
 }
 
@@ -48,7 +52,12 @@ canvas.addEventListener("click", function(event) {
         .then(() => fetchGrid()); // Refresh grid after change
 });
 
+teleportButton.addEventListener("click", function() {
+   setView(xViewValue.value, yViewValue.value);
+})
+
 setInterval(fetchGrid, 1000);
-document.getElementById("blockXAmount").value = x;
-document.getElementById("blockYAmount").value = x;
+document.getElementById("BlockXAmount").value = x;
+document.getElementById("BlockYAmount").value = y;
+
 fetchGrid();
