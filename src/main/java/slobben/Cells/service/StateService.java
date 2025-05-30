@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -92,12 +93,12 @@ public class StateService {
         log.info("Starting Stitch for generation {}", currentGeneration);
         ExecutorService executor = Executors.newFixedThreadPool(24);
         long totalTimerSetup = System.currentTimeMillis();
-        Map<String, Map<Integer, Map<Integer, Cell>>> borderCellMap = new HashMap<>();
+        Map<String, Map<Integer, Map<Integer, Cell>>> borderCellMap = new ConcurrentHashMap<>();
 
         // Initialize empty maps per block
         for (int blockX = 0; blockX < blockAmount; blockX++) {
             for (int blockY = 0; blockY < blockAmount; blockY++) {
-                borderCellMap.put(key(blockX, blockY), new HashMap<>());
+                borderCellMap.put(key(blockX, blockY), new ConcurrentHashMap<>());
             }
         }
 
@@ -178,7 +179,7 @@ public class StateService {
         for (var xEntry : source.entrySet()) {
             int x = xEntry.getKey();
             Map<Integer, Cell> innerSource = xEntry.getValue();
-            Map<Integer, Cell> innerTarget = target.computeIfAbsent(x, k -> new HashMap<>());
+            Map<Integer, Cell> innerTarget = target.computeIfAbsent(x, k -> new ConcurrentHashMap<>());
             innerTarget.putAll(innerSource);
         }
     }
@@ -200,7 +201,7 @@ public class StateService {
                 break;
             }
             case "0,-1": {
-                copyColumn(cells, result, 0, blockSize + 1);
+                copyColumn(cells, result, 1, blockSize + 1);
                 break;
             }
             case "0,1": {
@@ -273,6 +274,17 @@ public class StateService {
             }
         }
         return partialMap;
+    }
+
+    public Cell[][] getBlockWithoutBorder(int x, int y) {
+       var mapWithBorder = getBlock(x, y);
+       Cell[][] map = new Cell[blockSize][blockSize];
+       for (int i = 1; i < blockSizeWithBorder - 1; i++) {
+           for (int j = 1; j < blockSizeWithBorder - 1; j++) {
+               map[i-1][j-1] = mapWithBorder[i][j];
+           }
+       }
+       return map;
     }
 
     public void incrementGeneration() {

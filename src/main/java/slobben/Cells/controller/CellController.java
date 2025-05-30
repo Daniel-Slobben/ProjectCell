@@ -26,7 +26,7 @@ public class CellController {
     @GetMapping("state/{x}/{y}")
     public ResponseEntity<Cell[][]> getBlock(@PathVariable("x") int x, @PathVariable("y") int y) {
         log.info("Received request for x: {}, y: {}", x, y);
-        return ResponseEntity.ok(stateService.getBlock(x, y));
+        return ResponseEntity.ok(stateService.getBlockWithoutBorder(x, y));
     }
 
 //    @PutMapping("cell/{x}/{y}/toggle}")

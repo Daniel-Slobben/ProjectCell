@@ -9,7 +9,6 @@ import slobben.Cells.database.model.Cell;
 import slobben.Cells.database.repository.BlockRepository;
 import slobben.Cells.database.repository.CellRepository;
 import slobben.Cells.enums.CellState;
-import slobben.Cells.service.StateService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +53,7 @@ public class GameService {
                         Cell[][] partialMap = stateService.getBlock(finalBlockX, finalBlockY);
 
                         // Run game rules
-                        for (int x = 1; x < blockSize + 1; x++) {
+                        for (int x = 1; x < blockSize+ 1; x++) {
                             int carryOver1 = -1;
                             int carryOver2 = -1;
 
@@ -129,27 +128,42 @@ public class GameService {
                 for (int i = 0; i < size; i++) {
                     int xB = x + (i - 1);
                     int yB = y + (j - 1);
-                    if (!(xB == x && yB == y)) {
-                        Cell cell = map[xB][yB];
-                        if (cell != null) {
-                            if (j == 0) aliveCounter++;
-                            else if (j == 1) newCarryOver1++;
-                            else if (j == 2 && i != 1) newCarryOver2++;
+                    Cell cell = map[xB][yB];
+                    if (cell != null) {
+                        if (j == 0) {
+                            aliveCounter++;
+                        }
+                        else if (j == 1) {
+                            if (!(xB == x && yB == y)) {
+                                aliveCounter++;
+                            }
+                            newCarryOver1++;
+                        }
+                        else if (j == 2) {
+                            aliveCounter++;
+                            if (i != 1) {
+                                newCarryOver2++;
+                            }
                         }
                     }
                 }
             }
-            return new int[]{aliveCounter + newCarryOver1 + newCarryOver2, newCarryOver1, newCarryOver2};
+            return new int[]{aliveCounter, newCarryOver1, newCarryOver2};
         } else {
             int j = 2;
             newCarryOver1 = carryOver2;
+            if (map[x][y] != null) {
+                newCarryOver1++;
+            }
             for (int i = 0; i < size; i++) {
                 int xB = x + (i - 1);
                 int yB = y + (j - 1);
                 Cell cell = map[xB][yB];
                 if (cell != null) {
                     aliveCounter++;
-                    if (i != 1) newCarryOver2++;
+                    if (i != 1) {
+                        newCarryOver2++;
+                    }
                 }
             }
             return new int[]{aliveCounter + carryOver1 + carryOver2, newCarryOver1, newCarryOver2};

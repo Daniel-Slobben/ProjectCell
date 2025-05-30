@@ -24,7 +24,6 @@ public class GenerationService {
     public void run() {
         while(running) {
             long timer = System.currentTimeMillis();
-            Thread.sleep(250);
             log.info("Starting run. Generation: {}", stateService.getCurrentGeneration());
             gameService.setNextState();
             log.info("Ending run. Time Taken: {}ms", System.currentTimeMillis() - timer);
