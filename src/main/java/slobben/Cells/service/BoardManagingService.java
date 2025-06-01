@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Getter
 @Slf4j
-public class StateService {
+public class BoardManagingService {
 
     private final BlockRepository blockRepository;
     private final MongoTemplate mongoTemplate;
@@ -33,7 +33,7 @@ public class StateService {
     private final int blockSizeWithBorder;
     private int currentGeneration = 0;
 
-    public StateService(BlockRepository blockRepository, MongoTemplate mongoTemplate, @Value("${properties.size.blockSize}") int blockSize, @Value("${properties.size.x}") int sizeX, @Value("${properties.size.y}") int sizeY) {
+    public BoardManagingService(BlockRepository blockRepository, MongoTemplate mongoTemplate, @Value("${properties.size.blockSize}") int blockSize, @Value("${properties.size.x}") int sizeX, @Value("${properties.size.y}") int sizeY) {
         this.mongoTemplate = mongoTemplate;
 
         this.blockRepository = blockRepository;
@@ -66,7 +66,7 @@ public class StateService {
                         log.debug("Starting to generate Block X: {}, Y: {}", finalBlockY, finalBlockY);
                         for (int x = 0; x < blockSize; x++) {
                             for (int y = 0; y < blockSize; y++) {
-                                if (random.nextBoolean()) {
+                                if (random.nextInt(0, 6) == 0) {
                                     Cell cell = new Cell(x + (blockSize * finalBlockX), y + (blockSize * finalBlockY));
                                     cells.computeIfAbsent(x + 1, row -> new HashMap<>()).put(y + 1, cell);
                                 }
@@ -89,7 +89,7 @@ public class StateService {
     }
 
     @SneakyThrows
-    void stitch() {
+    public void stitch() {
         log.info("Starting Stitch for generation {}", currentGeneration);
         ExecutorService executor = Executors.newFixedThreadPool(24);
         long totalTimerSetup = System.currentTimeMillis();
@@ -266,8 +266,16 @@ public class StateService {
     }
 
     public Cell[][] getBlock(int x, int y) {
+        return getBlock(blockRepository.findByXAndY(x, y));
+    }
+
+    public Cell[][] getBlockWithoutBorder(int x, int y) {
+        return getBlockWithoutBorder(blockRepository.findByXAndY(x, y));
+    }
+
+    public Cell[][] getBlock(Block block) {
         Cell[][] partialMap = new Cell[blockSizeWithBorder][blockSizeWithBorder];
-        Map<Integer, Map<Integer, Cell>> cells = blockRepository.findByXAndY(x, y).getCells();
+        var cells = block.getCells();
         for (var xEntry : cells.entrySet()) {
             for (var yEntry : xEntry.getValue().entrySet()) {
                 partialMap[xEntry.getKey()][yEntry.getKey()] = yEntry.getValue();
@@ -276,15 +284,15 @@ public class StateService {
         return partialMap;
     }
 
-    public Cell[][] getBlockWithoutBorder(int x, int y) {
-       var mapWithBorder = getBlock(x, y);
-       Cell[][] map = new Cell[blockSize][blockSize];
-       for (int i = 1; i < blockSizeWithBorder - 1; i++) {
-           for (int j = 1; j < blockSizeWithBorder - 1; j++) {
-               map[i-1][j-1] = mapWithBorder[i][j];
-           }
-       }
-       return map;
+    public Cell[][] getBlockWithoutBorder(Block block) {
+        var mapWithBorder = getBlock(block);
+        Cell[][] map = new Cell[blockSize][blockSize];
+        for (int i = 1; i < blockSizeWithBorder - 1; i++) {
+            for (int j = 1; j < blockSizeWithBorder - 1; j++) {
+                map[i-1][j-1] = mapWithBorder[i][j];
+            }
+        }
+        return map;
     }
 
     public void incrementGeneration() {

@@ -7,8 +7,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import slobben.Cells.service.GameService;
-import slobben.Cells.service.StateService;
+import slobben.Cells.service.GenerationService;
+import slobben.Cells.service.BoardManagingService;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -21,13 +21,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 })
 class IntegrationTests {
 
-	private final StateService stateService;
-	private final GameService gameService;
+	private final BoardManagingService boardManagingService;
+	private final GenerationService generationService;
 
 	@Autowired
-	public IntegrationTests(GameService gameService, StateService stateService) {
-		this.gameService = gameService;
-		this.stateService = stateService;
+	public IntegrationTests(GenerationService generationService, BoardManagingService boardManagingService) {
+		this.generationService = generationService;
+		this.boardManagingService = boardManagingService;
 	}
 
 	@Test
