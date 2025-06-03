@@ -3,6 +3,7 @@ package slobben.Cells.service;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.Cells.database.model.Block;
 import slobben.Cells.database.model.Cell;
@@ -23,15 +24,18 @@ import static slobben.Cells.enums.CellState.DEAD;
 @RequiredArgsConstructor
 public class GenerationService {
 
-    private final BoardManagingService boardManagingService;
+    private final BoardInfoService boardInfoService;
     private final BlockRepository blockRepository;
     private final UpdateWebService updateWebService;
+    private final StitchingService stitchingService;
+    private final EnvironmentService environmentService;
 
     @SneakyThrows
     public void setNextState() {
-        final int blockSize = boardManagingService.getBlockSize();
-        int blockAmountX = boardManagingService.getSizeX() / blockSize;
-        int blockAmountY = boardManagingService.getSizeY() / blockSize;
+        int blockAmountX = environmentService.getSizeX() / environmentService.getBlockSize();
+        int blockAmountY = environmentService.getSizeY() / environmentService.getBlockSize();
+        int blockSize = environmentService.getBlockSize();
+        stitchingService.initializeStich();
 
         ExecutorService executor = Executors.newFixedThreadPool(24);
 
@@ -45,9 +49,8 @@ public class GenerationService {
                     Map<Integer, Map<Integer, Cell>> cellMap = block.getCells();
 
                     block.setGeneration(block.getGeneration() + 1);
-                    long generateTimer = System.currentTimeMillis();
                     if (!cellMap.isEmpty()) {
-                        Cell[][] partialMap = boardManagingService.getBlock(finalBlockX, finalBlockY);
+                        Cell[][] partialMap = boardInfoService.getBlock(finalBlockX, finalBlockY);
 
                         // Run game rules
                         for (int x = 1; x < blockSize+ 1; x++) {
@@ -78,6 +81,7 @@ public class GenerationService {
                             }
                         }
                         updateWebService.updateBlock(block);
+                        stitchingService.addBorderCells(block);
                         blockRepository.save(block);
                     }
                 });
@@ -86,8 +90,7 @@ public class GenerationService {
 
         executor.shutdown();
         executor.awaitTermination(120, TimeUnit.SECONDS);
-        boardManagingService.stitch();
-        boardManagingService.incrementGeneration();
+        stitchingService.updateDatabase();
     }
 
     private void insertCell(Map<Integer, Map<Integer, Cell>> cellMap, Cell cell, int x, int y) {

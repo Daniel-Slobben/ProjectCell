@@ -1,6 +1,6 @@
 package slobben.Cells.service;
 
-import lombok.AllArgsConstructor;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
@@ -19,13 +19,19 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @Service
 public class StitchingService {
-    private final BoardManagingService boardManagingService;
     private final BlockRepository blockRepository;
-
-    private final int blockSize = boardManagingService.getBlockSize();
-    private final int blockAmount = boardManagingService.getBlockAmount();
+    private final EnvironmentService environmentService;
 
     private Map<String, Map<Integer, Map<Integer, Cell>>> borderCellMap;
+
+    private int blockSize;
+    private int blockAmount;
+
+    @PostConstruct
+    private void postConstruct() {
+        blockSize = environmentService.getBlockSize();
+        blockAmount = environmentService.getBlockAmount();
+    }
 
     public void initializeStich() {
         borderCellMap = new ConcurrentHashMap<>();
@@ -130,7 +136,6 @@ public class StitchingService {
                 break;
             }
         }
-
         return result;
     }
 

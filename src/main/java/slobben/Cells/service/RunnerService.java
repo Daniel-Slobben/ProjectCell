@@ -13,14 +13,13 @@ public class RunnerService {
 
     @Setter
     private boolean running = true;
-    private final BoardManagingService boardManagingService;
     private final GenerationService generationService;
 
     @SneakyThrows
     public void run() {
         while(running) {
             long timer = System.currentTimeMillis();
-            log.info("Starting run. Generation: {}", boardManagingService.getCurrentGeneration());
+            log.info("Starting run!");
             generationService.setNextState();
             log.info("Ending run. Time Taken: {}ms", System.currentTimeMillis() - timer);
         }
