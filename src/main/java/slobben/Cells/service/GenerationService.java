@@ -82,7 +82,6 @@ public class GenerationService {
                         }
                         updateWebService.updateBlock(block);
                         stitchingService.addBorderCells(block);
-                        blockRepository.save(block);
                     }
                 });
             }

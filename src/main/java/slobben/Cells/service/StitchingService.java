@@ -8,13 +8,11 @@ import slobben.Cells.database.model.Block;
 import slobben.Cells.database.model.Cell;
 import slobben.Cells.database.repository.BlockRepository;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
 @Service
@@ -23,6 +21,9 @@ public class StitchingService {
     private final EnvironmentService environmentService;
 
     private Map<String, Map<Integer, Map<Integer, Cell>>> borderCellMap;
+    private final ConcurrentHashMap<String, Block> blocksToSave = new ConcurrentHashMap<>();
+    // 8 is fully complete -> it is saved and then deleted
+    private final ConcurrentHashMap<String, Integer> blockCompletenessMap = new ConcurrentHashMap<>();
 
     private int blockSize;
     private int blockAmount;
@@ -41,9 +42,11 @@ public class StitchingService {
                 borderCellMap.put(key(blockX, blockY), new ConcurrentHashMap<>());
             }
         }
+        // TODO: initialize blockCompletenessMap with the edge border integers
     }
 
     public void addBorderCells(Block block) {
+        blocksToSave.put(key(block.getX(), block.getY()), block);
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
                 if (i == 0 && j == 0) continue;
@@ -54,36 +57,33 @@ public class StitchingService {
                 Map<Integer, Map<Integer, Cell>> neighborMap = borderCellMap.get(neighborKey);
 
                 if (neighborMap != null) {
+                    //todo -> increment the blockCompletenessMap
                     Map<Integer, Map<Integer, Cell>> borderCells = getBorderCellsForDirection(i, j, block.getCells());
                     mergeNestedMaps(neighborMap, borderCells);
                 }
             }
         }
+        checkBlocksToSave();
     }
 
     @SneakyThrows
-    public void updateDatabase() {
-        ExecutorService saveExecutor = Executors.newFixedThreadPool(24);
+    public void checkBlocksToSave() {
+        List<String> readyBlockKeys = new ArrayList<>();
+        blockCompletenessMap.forEach((key, value) -> {
+            if (value == 8) {
+                readyBlockKeys.add(key);
+            }
+        });
+        readyBlockKeys.forEach(key -> saveBlockWithNewBorders(blocksToSave.get(key)));
+    }
 
-        // Stitch border cells into real blocks
-        for (int blockX = 0; blockX < blockAmount; blockX++) {
-            int finalBlockX = blockX;
-            saveExecutor.execute(() -> {
-                List<Block> blocks = blockRepository.findByX(finalBlockX);
-                for (Block block : blocks) {
-                    removeBorders(block.getCells());
-                    Map<Integer, Map<Integer, Cell>> map = borderCellMap.get(key(block.getX(), block.getY()));
-                    if (map != null) {
-                        mergeNestedMaps(block.getCells(), map);
-                    }
-                }
-                blockRepository.saveAll(blocks);
-            });
+    private void saveBlockWithNewBorders(Block block) {
+        removeBorders(block.getCells());
+        Map<Integer, Map<Integer, Cell>> map = borderCellMap.get(key(block.getX(), block.getY()));
+        if (map != null) {
+            mergeNestedMaps(block.getCells(), map);
         }
-        saveExecutor.shutdown();
-        saveExecutor.awaitTermination(120, TimeUnit.SECONDS);
-
-        borderCellMap = new ConcurrentHashMap<>();
+        blockRepository.save(block);
     }
 
     private String key(int x, int y) {
@@ -139,44 +139,34 @@ public class StitchingService {
         return result;
     }
 
-    private void copyColumn(Map<Integer, Map<Integer, Cell>> cells,
-                            Map<Integer, Map<Integer, Cell>> result,
-                            int srcCol, int destCol) {
+    private void copyColumn(Map<Integer, Map<Integer, Cell>> cells, Map<Integer, Map<Integer, Cell>> result, int srcCol, int destCol) {
         cells.forEach((rowIndex, rowMap) -> {
             if (rowMap == null) return;
 
             Cell cell = rowMap.get(srcCol);
             if (cell != null) {
-                result.computeIfAbsent(rowIndex, k -> new HashMap<>())
-                        .put(destCol, cell);
+                result.computeIfAbsent(rowIndex, k -> new HashMap<>()).put(destCol, cell);
             }
         });
     }
 
-    private void copyRow(Map<Integer, Map<Integer, Cell>> cells,
-                         Map<Integer, Map<Integer, Cell>> result,
-                         int srcRow, int destRow) {
+    private void copyRow(Map<Integer, Map<Integer, Cell>> cells, Map<Integer, Map<Integer, Cell>> result, int srcRow, int destRow) {
         Map<Integer, Cell> row = cells.get(srcRow);
         if (row == null) return;
 
         row.forEach((colIndex, cell) -> {
-            result.computeIfAbsent(destRow, k -> new HashMap<>())
-                    .put(colIndex, cell);
+            result.computeIfAbsent(destRow, k -> new HashMap<>()).put(colIndex, cell);
         });
     }
 
-    private void copyCornerCell(Map<Integer, Map<Integer, Cell>> cells,
-                                Map<Integer, Map<Integer, Cell>> result,
-                                int srcRow, int srcCol,
-                                int destRow, int destCol) {
+    private void copyCornerCell(Map<Integer, Map<Integer, Cell>> cells, Map<Integer, Map<Integer, Cell>> result, int srcRow, int srcCol, int destRow, int destCol) {
         Map<Integer, Cell> row = cells.get(srcRow);
         if (row == null) return;
 
         Cell cell = row.get(srcCol);
         if (cell == null) return;
 
-        result.computeIfAbsent(destRow, k -> new HashMap<>())
-                .put(destCol, cell);
+        result.computeIfAbsent(destRow, k -> new HashMap<>()).put(destCol, cell);
     }
 
     private void removeBorders(Map<Integer, Map<Integer, Cell>> blockCells) {
