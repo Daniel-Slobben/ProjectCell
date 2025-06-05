@@ -3,7 +3,6 @@ package slobben.Cells.service;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.Cells.database.model.Block;
 import slobben.Cells.database.model.Cell;
@@ -37,15 +36,18 @@ public class GenerationService {
         int blockSize = environmentService.getBlockSize();
         stitchingService.initializeStich();
 
-        ExecutorService executor = Executors.newFixedThreadPool(24);
 
         for (int blockX = 0; blockX < blockAmountX; blockX++) {
+            ExecutorService executor = Executors.newFixedThreadPool(24);
             for (int blockY = 0; blockY < blockAmountY; blockY++) {
                 int finalBlockX = blockX;
                 int finalBlockY = blockY;
-
-                executor.execute(() -> {
+                executor.submit(() -> {
                     Block block = blockRepository.findByXAndY(finalBlockX, finalBlockY);
+                    if (block == null) {
+                        System.out.println();
+                    }
+                    assert block != null;
                     Map<Integer, Map<Integer, Cell>> cellMap = block.getCells();
 
                     block.setGeneration(block.getGeneration() + 1);
@@ -53,7 +55,7 @@ public class GenerationService {
                         Cell[][] partialMap = boardInfoService.getBlock(finalBlockX, finalBlockY);
 
                         // Run game rules
-                        for (int x = 1; x < blockSize+ 1; x++) {
+                        for (int x = 1; x < blockSize + 1; x++) {
                             int carryOver1 = -1;
                             int carryOver2 = -1;
 
@@ -85,11 +87,10 @@ public class GenerationService {
                     }
                 });
             }
+            executor.shutdown();
+            executor.awaitTermination(120, TimeUnit.SECONDS);
+            stitchingService.checkBlocksToSave();
         }
-
-        executor.shutdown();
-        executor.awaitTermination(120, TimeUnit.SECONDS);
-        stitchingService.updateDatabase();
     }
 
     private void insertCell(Map<Integer, Map<Integer, Cell>> cellMap, Cell cell, int x, int y) {
@@ -128,14 +129,12 @@ public class GenerationService {
                     if (cell != null) {
                         if (j == 0) {
                             aliveCounter++;
-                        }
-                        else if (j == 1) {
+                        } else if (j == 1) {
                             if (!(xB == x && yB == y)) {
                                 aliveCounter++;
                             }
                             newCarryOver1++;
-                        }
-                        else if (j == 2) {
+                        } else if (j == 2) {
                             aliveCounter++;
                             if (i != 1) {
                                 newCarryOver2++;
