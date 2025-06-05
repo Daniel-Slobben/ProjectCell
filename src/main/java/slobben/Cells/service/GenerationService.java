@@ -23,34 +23,39 @@ import static slobben.Cells.enums.CellState.DEAD;
 @RequiredArgsConstructor
 public class GenerationService {
 
-    private final BoardManagingService boardManagingService;
+    private final BoardInfoService boardInfoService;
     private final BlockRepository blockRepository;
     private final UpdateWebService updateWebService;
+    private final StitchingService stitchingService;
+    private final EnvironmentService environmentService;
 
     @SneakyThrows
     public void setNextState() {
-        final int blockSize = boardManagingService.getBlockSize();
-        int blockAmountX = boardManagingService.getSizeX() / blockSize;
-        int blockAmountY = boardManagingService.getSizeY() / blockSize;
+        int blockAmountX = environmentService.getSizeX() / environmentService.getBlockSize();
+        int blockAmountY = environmentService.getSizeY() / environmentService.getBlockSize();
+        int blockSize = environmentService.getBlockSize();
+        stitchingService.initializeStich();
 
-        ExecutorService executor = Executors.newFixedThreadPool(24);
 
         for (int blockX = 0; blockX < blockAmountX; blockX++) {
+            ExecutorService executor = Executors.newFixedThreadPool(24);
             for (int blockY = 0; blockY < blockAmountY; blockY++) {
                 int finalBlockX = blockX;
                 int finalBlockY = blockY;
-
-                executor.execute(() -> {
+                executor.submit(() -> {
                     Block block = blockRepository.findByXAndY(finalBlockX, finalBlockY);
+                    if (block == null) {
+                        System.out.println();
+                    }
+                    assert block != null;
                     Map<Integer, Map<Integer, Cell>> cellMap = block.getCells();
 
                     block.setGeneration(block.getGeneration() + 1);
-                    long generateTimer = System.currentTimeMillis();
                     if (!cellMap.isEmpty()) {
-                        Cell[][] partialMap = boardManagingService.getBlock(finalBlockX, finalBlockY);
+                        Cell[][] partialMap = boardInfoService.getBlock(finalBlockX, finalBlockY);
 
                         // Run game rules
-                        for (int x = 1; x < blockSize+ 1; x++) {
+                        for (int x = 1; x < blockSize + 1; x++) {
                             int carryOver1 = -1;
                             int carryOver2 = -1;
 
@@ -78,16 +83,14 @@ public class GenerationService {
                             }
                         }
                         updateWebService.updateBlock(block);
-                        blockRepository.save(block);
+                        stitchingService.addBorderCells(block);
                     }
                 });
             }
+            executor.shutdown();
+            executor.awaitTermination(120, TimeUnit.SECONDS);
+            stitchingService.checkBlocksToSave();
         }
-
-        executor.shutdown();
-        executor.awaitTermination(120, TimeUnit.SECONDS);
-        boardManagingService.stitch();
-        boardManagingService.incrementGeneration();
     }
 
     private void insertCell(Map<Integer, Map<Integer, Cell>> cellMap, Cell cell, int x, int y) {
@@ -126,14 +129,12 @@ public class GenerationService {
                     if (cell != null) {
                         if (j == 0) {
                             aliveCounter++;
-                        }
-                        else if (j == 1) {
+                        } else if (j == 1) {
                             if (!(xB == x && yB == y)) {
                                 aliveCounter++;
                             }
                             newCarryOver1++;
-                        }
-                        else if (j == 2) {
+                        } else if (j == 2) {
                             aliveCounter++;
                             if (i != 1) {
                                 newCarryOver2++;

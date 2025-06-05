@@ -10,10 +10,10 @@ import slobben.Cells.database.model.Block;
 public class UpdateWebService {
 
     private final SimpMessagingTemplate simpMessagingTemplate;
-    private final BoardManagingService boardManagingService;
+    private final BoardInfoService boardInfoService;
 
     public void updateBlock(Block block) {
         String topic = String.format("/topic/block/%s/%s", block.getX(), block.getY());
-        simpMessagingTemplate.convertAndSend(topic, boardManagingService.getBlockWithoutBorder(block));
+        simpMessagingTemplate.convertAndSend(topic, boardInfoService.getBlockWithoutBorder(block));
     }
 }
