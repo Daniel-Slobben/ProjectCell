@@ -5,15 +5,16 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Document("blocks")
 @CompoundIndex(name = "x_y", def = "{'x': 1, 'y': 1}")
 @NoArgsConstructor
-@Document("blocks")
 @Getter
 @Setter
 public class Block {

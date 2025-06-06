@@ -9,17 +9,7 @@ import slobben.Cells.database.repository.BlockRepository;
 @Service
 @RequiredArgsConstructor
 public class BoardInfoService {
-
-    private final BlockRepository blockRepository;
     private final EnvironmentService environmentService;
-
-    public Cell[][] getBlock(int x, int y) {
-        return getBlock(blockRepository.findByXAndY(x, y));
-    }
-
-    public Cell[][] getBlockWithoutBorder(int x, int y) {
-        return getBlockWithoutBorder(blockRepository.findByXAndY(x, y));
-    }
 
     public Cell[][] getBlock(Block block) {
         Cell[][] partialMap = new Cell[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()];

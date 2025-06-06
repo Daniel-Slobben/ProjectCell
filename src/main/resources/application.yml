@@ -1,0 +1,15 @@
+spring:
+  data:
+    mongodb:
+      auto-index-creation: 'true'
+  application:
+    name: Cells
+properties:
+  setup: SPARSE
+  sparseAmount: 15
+  size:
+    x: '32000'
+    y: '32000'
+    blockSize: '100'
+  runmode: AUTO
+  targetspeed: '1000'

@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>slobben</groupId>
-    <artifactId>Cells</artifactId>
+    <artifactId>CellService</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Cells</name>
     <description>Multiplayer game for cells</description>

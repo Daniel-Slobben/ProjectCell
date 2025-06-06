@@ -7,7 +7,11 @@ const teleportButton = document.getElementById("teleportButton");
 const xViewValue = document.getElementById("BlockXAmount");
 const yViewValue = document.getElementById("BlockYAmount");
 
-const blockSize = 100;
+let blockSize = 0;
+fetch("/blocksize")
+    .then(response => response.json())
+    .then(data => { blockSize = data; })
+    .catch(err => console.error("Failed to load block state:", err));
 const cellSize = 10;
 
 const canvasWidth = 1600;

@@ -1,0 +1,8 @@
+properties:
+  setup: EMPTY
+  size:
+    x: '100'
+    y: '100'
+    blockSize: '10'
+  runmode: MANUAL
+  targetspeed: '0'

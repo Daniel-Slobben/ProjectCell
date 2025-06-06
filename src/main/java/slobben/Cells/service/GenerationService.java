@@ -6,14 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slobben.Cells.database.model.Block;
 import slobben.Cells.database.model.Cell;
-import slobben.Cells.database.repository.BlockRepository;
 import slobben.Cells.enums.CellState;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static slobben.Cells.enums.CellState.ALIVE;
 import static slobben.Cells.enums.CellState.DEAD;
@@ -24,73 +20,45 @@ import static slobben.Cells.enums.CellState.DEAD;
 public class GenerationService {
 
     private final BoardInfoService boardInfoService;
-    private final BlockRepository blockRepository;
-    private final UpdateWebService updateWebService;
-    private final StitchingService stitchingService;
     private final EnvironmentService environmentService;
 
     @SneakyThrows
-    public void setNextState() {
-        int blockAmountX = environmentService.getSizeX() / environmentService.getBlockSize();
-        int blockAmountY = environmentService.getSizeY() / environmentService.getBlockSize();
+    public void setNextState(Block block) {
         int blockSize = environmentService.getBlockSize();
-        stitchingService.initializeStich();
+        block.setGeneration(block.getGeneration() + 1);
+        if (!block.getCells().isEmpty()) {
+            Cell[][] partialMap = boardInfoService.getBlock(block);
 
+            // Run game rules
+            for (int x = 1; x < blockSize + 1; x++) {
+                int carryOver1 = -1;
+                int carryOver2 = -1;
 
-        for (int blockX = 0; blockX < blockAmountX; blockX++) {
-            ExecutorService executor = Executors.newFixedThreadPool(24);
-            for (int blockY = 0; blockY < blockAmountY; blockY++) {
-                int finalBlockX = blockX;
-                int finalBlockY = blockY;
-                executor.submit(() -> {
-                    Block block = blockRepository.findByXAndY(finalBlockX, finalBlockY);
-                    if (block == null) {
-                        System.out.println();
-                    }
-                    assert block != null;
-                    Map<Integer, Map<Integer, Cell>> cellMap = block.getCells();
+                for (int y = 1; y < blockSize + 1; y++) {
+                    Cell oldCell = partialMap[x][y];
+                    int[] neighboursAlive = getAliveNeighbourCount(3, x, y, partialMap, carryOver1, carryOver2);
+                    carryOver1 = neighboursAlive[1];
+                    carryOver2 = neighboursAlive[2];
 
-                    block.setGeneration(block.getGeneration() + 1);
-                    if (!cellMap.isEmpty()) {
-                        Cell[][] partialMap = boardInfoService.getBlock(finalBlockX, finalBlockY);
+                    int globalX = (x - 1) + (blockSize * block.getX());
+                    int globalY = (y - 1) + (blockSize * block.getY());
 
-                        // Run game rules
-                        for (int x = 1; x < blockSize + 1; x++) {
-                            int carryOver1 = -1;
-                            int carryOver2 = -1;
-
-                            for (int y = 1; y < blockSize + 1; y++) {
-                                Cell oldCell = partialMap[x][y];
-                                int[] neighboursAlive = getAliveNeighbourCount(3, x, y, partialMap, carryOver1, carryOver2);
-                                carryOver1 = neighboursAlive[1];
-                                carryOver2 = neighboursAlive[2];
-
-                                int globalX = (x - 1) + (blockSize * block.getX());
-                                int globalY = (y - 1) + (blockSize * block.getY());
-
-                                // If cell was dead
-                                if (oldCell == null) {
-                                    if (applyConwayGameOfLifeRules(DEAD, neighboursAlive[0]).equals(ALIVE)) {
-                                        insertCell(cellMap, new Cell(globalX, globalY), x, y);
-                                    }
-                                }
-                                // If cell was alive
-                                else {
-                                    if (applyConwayGameOfLifeRules(ALIVE, neighboursAlive[0]).equals(DEAD)) {
-                                        removeCell(cellMap, x, y);
-                                    }
-                                }
-                            }
+                    // If cell was dead
+                    if (oldCell == null) {
+                        if (applyConwayGameOfLifeRules(DEAD, neighboursAlive[0]).equals(ALIVE)) {
+                            insertCell(block.getCells(), new Cell(globalX, globalY), x, y);
                         }
-                        updateWebService.updateBlock(block);
-                        stitchingService.addBorderCells(block);
                     }
-                });
+                    // If cell was alive
+                    else {
+                        if (applyConwayGameOfLifeRules(ALIVE, neighboursAlive[0]).equals(DEAD)) {
+                            removeCell(block.getCells(), x, y);
+                        }
+                    }
+                }
             }
-            executor.shutdown();
-            executor.awaitTermination(120, TimeUnit.SECONDS);
-            stitchingService.checkBlocksToSave();
         }
+
     }
 
     private void insertCell(Map<Integer, Map<Integer, Cell>> cellMap, Cell cell, int x, int y) {

@@ -1,6 +1,5 @@
 package slobben.Cells.service;
 
-import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -14,9 +13,7 @@ import slobben.Cells.database.repository.BlockRepository;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Getter
@@ -30,28 +27,26 @@ public class InitializerService {
     private final EnvironmentService environmentService;
 
     @SneakyThrows
-    @PostConstruct
-    private void initializeMap() {
+    public ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Block>> initializeMap() {
+        String setup = environmentService.getSetupMode();
         int blockAmount = environmentService.getBlockAmount();
         int blockSize = environmentService.getBlockSize();
 
-        mongoTemplate.dropCollection(Cell.class);
         mongoTemplate.dropCollection(Block.class);
 
         stitchingService.initializeStich();
+        ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Block>> blocks = new ConcurrentHashMap<>(blockAmount);
 
         long totalTimerSetup = System.currentTimeMillis();
-
         for (int blockX = 0; blockX < blockAmount; blockX++) {
-            ExecutorService executor = Executors.newFixedThreadPool(24);
-
             for (int blockY = 0; blockY < blockAmount; blockY++) {
                 int finalBlockX = blockX;
                 int finalBlockY = blockY;
                 Block block = new Block(finalBlockX, finalBlockY, 0);
-                Map<Integer, Map<Integer, Cell>> cells = new HashMap<>();
-                executor.submit(() -> {
-                    Random random = new Random();
+
+                Random random = new Random();
+                if ((setup.equals("SPARSE") && random.nextInt(0, environmentService.getSparseAmount()) == 0) || setup.equals("RANDOM")) {
+                    Map<Integer, Map<Integer, Cell>> cells = new HashMap<>();
                     for (int x = 0; x < blockSize; x++) {
                         for (int y = 0; y < blockSize; y++) {
                             if (random.nextInt(0, 6) == 0) {
@@ -62,12 +57,14 @@ public class InitializerService {
                     }
                     block.setCells(cells);
                     stitchingService.addBorderCells(block);
-                });
+                } else {
+                    block.setCells(new HashMap<>());
+                }
+                blocks.computeIfAbsent(block.getX(), row -> new ConcurrentHashMap<>()).put(block.getY(), block);
+                log.info("X: {}", blockX);
             }
-            executor.shutdown();
-            executor.awaitTermination(10, TimeUnit.SECONDS);
-            stitchingService.checkBlocksToSave();
         }
         System.out.println("Time taken to generate: " + (System.currentTimeMillis() - totalTimerSetup));
+        return blocks;
     }
 }
