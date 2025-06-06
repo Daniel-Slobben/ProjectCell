@@ -4,5 +4,5 @@ properties:
     x: '5000'
     y: '5000'
     blockSize: '250'
-  runmode: MANUAL
+  runmode: AUTO
   targetspeed: '1000'

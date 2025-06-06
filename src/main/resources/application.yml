@@ -5,8 +5,10 @@ spring:
   application:
     name: Cells
 properties:
-  setup: SPARSE
-  sparseAmount: 15
+  setup: RANDOM
+  ## Higher is less population -> ex: 1 in 15
+  blockPopulation: '15'
+  cellPopulation: '10'
   size:
     x: '32000'
     y: '32000'

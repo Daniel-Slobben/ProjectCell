@@ -45,11 +45,11 @@ public class InitializerService {
                 Block block = new Block(finalBlockX, finalBlockY, 0);
 
                 Random random = new Random();
-                if ((setup.equals("SPARSE") && random.nextInt(0, environmentService.getSparseAmount()) == 0) || setup.equals("RANDOM")) {
+                if (setup.equals("RANDOM") && random.nextInt(0, environmentService.getBlockPopulation()) == 0) {
                     Map<Integer, Map<Integer, Cell>> cells = new HashMap<>();
                     for (int x = 0; x < blockSize; x++) {
                         for (int y = 0; y < blockSize; y++) {
-                            if (random.nextInt(0, 6) == 0) {
+                            if (random.nextInt(0, environmentService.getCellPopulation()) == 0) {
                                 Cell cell = new Cell(x + (blockSize * finalBlockX), y + (blockSize * finalBlockY));
                                 cells.computeIfAbsent(x + 1, row -> new HashMap<>()).put(y + 1, cell);
                             }
