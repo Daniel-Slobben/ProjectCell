@@ -28,6 +28,7 @@ public class InitializerService {
 
     @SneakyThrows
     public ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Block>> initializeMap() {
+        log.info("Initializing {} map!", environmentService.getSetupMode());
         String setup = environmentService.getSetupMode();
         int blockAmount = environmentService.getBlockAmount();
         int blockSize = environmentService.getBlockSize();

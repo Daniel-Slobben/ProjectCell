@@ -1,0 +1,17 @@
+spring:
+  data:
+    mongodb:
+      auto-index-creation: 'true'
+  application:
+    name: Cells
+properties:
+  setup: EMPTY
+  ## Higher is less population -> ex: 1 in 15
+  blockPopulation: '2'
+  cellPopulation: '8'
+  size:
+    x: '500'
+    y: '500'
+    blockSize: '100'
+  runmode: AUTO
+  targetspeed: '250'

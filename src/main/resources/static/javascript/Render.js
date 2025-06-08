@@ -178,7 +178,7 @@ function updateVisibleBlocks() {
 let isDragging = false;
 let dragStartX = 0, dragStartY = 0;
 let lastPanTime = 0;
-const panThrottle = 50; // ms
+const panThrottle = 20; // ms
 
 canvas.addEventListener("mousedown", e => {
     isDragging = true;
@@ -203,7 +203,7 @@ canvas.addEventListener("mousemove", e => {
     const movedX = Math.round(dx / cellSize);
     const movedY = Math.round(dy / cellSize);
 
-    if (movedX !== 0 || movedY !== 0) {
+    if (movedX !== 2 || movedY !== 0) {
         cellOffsetX -= movedX;
         cellOffsetY -= movedY;
         updateVisibleBlocks();

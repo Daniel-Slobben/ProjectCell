@@ -36,7 +36,7 @@ public class GenerationService {
 
                 for (int y = 1; y < blockSize + 1; y++) {
                     Cell oldCell = cellsCopy[x][y];
-                    int[] neighboursAlive = getAliveNeighbourCount(3, x, y, cellsCopy, carryOver1, carryOver2);
+                    int[] neighboursAlive = getAliveNeighbourCount(x, y, cellsCopy, carryOver1, carryOver2);
                     carryOver1 = neighboursAlive[1];
                     carryOver2 = neighboursAlive[2];
 
@@ -83,14 +83,14 @@ public class GenerationService {
         }
     }
 
-    private int[] getAliveNeighbourCount(int size, int x, int y, Cell[][] map, int carryOver1, int carryOver2) {
+    private int[] getAliveNeighbourCount(int x, int y, Cell[][] map, int carryOver1, int carryOver2) {
         int aliveCounter = 0;
         int newCarryOver1 = 0;
         int newCarryOver2 = 0;
 
         if (carryOver1 == -1 && carryOver2 == -1) {
-            for (int j = 0; j < size; j++) {
-                for (int i = 0; i < size; i++) {
+            for (int j = 0; j < 3; j++) {
+                for (int i = 0; i < 3; i++) {
                     int xB = x + (i - 1);
                     int yB = y + (j - 1);
                     Cell cell = map[xB][yB];
@@ -118,7 +118,7 @@ public class GenerationService {
             if (map[x][y] != null) {
                 newCarryOver1++;
             }
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < 3; i++) {
                 int xB = x + (i - 1);
                 int yB = y + (j - 1);
                 Cell cell = map[xB][yB];

@@ -25,9 +25,7 @@ public class BoardInfoService {
         var mapWithBorder = getBlock(block);
         Cell[][] map = new Cell[environmentService.getBlockSize()][environmentService.getBlockSize()];
         for (int i = 1; i < environmentService.getBlockSizeWithBorder() - 1; i++) {
-            for (int j = 1; j < environmentService.getBlockSizeWithBorder() - 1; j++) {
-                map[i-1][j-1] = mapWithBorder[i][j];
-            }
+            System.arraycopy(mapWithBorder[i], 1, map[i - 1], 0, environmentService.getBlockSizeWithBorder() - 1 - 1);
         }
         return map;
     }

@@ -43,9 +43,9 @@ public class RunnerService {
             stitchingService.resetStitch();
             List<Block> newBlocks = new ArrayList<>();
 
-            forEachBlockParallel(24, stitchingService::initializeStitch);
+            forEachBlockParallel(stitchingService::initializeStitch);
 
-            forEachBlockParallel(24, block -> {
+            forEachBlockParallel(block -> {
                 generationService.setNextState(block);
                 newBlocks.addAll(stitchingService.addBorderCells(block));
                 updateWebService.updateBlock(block);
@@ -55,12 +55,12 @@ public class RunnerService {
                 blocks.computeIfAbsent(newBlock.getX(), row -> new ConcurrentHashMap<>()).put(newBlock.getY(), newBlock);
             }
 
-            forEachBlockParallel(24, stitchingService::stitchBlock);
+            forEachBlockParallel(stitchingService::stitchBlock);
 
             long timeTaken = System.currentTimeMillis() - timer;
             long timeDelta = timeTaken - environmentService.getTargetspeed();
             if (timeDelta < 0) {
-                wait(Math.abs(timeDelta));
+                Thread.sleep(Math.abs(timeDelta));
                 log.info("Ending run. Time Taken: {}ms, Waited for {}ms", timeTaken, Math.abs(timeDelta));
             } else {
                 log.info("Ending run. Time Taken: {}ms, No waiting!", timeTaken);
@@ -72,8 +72,8 @@ public class RunnerService {
         return boardInfoService.getBlockWithoutBorder(blocks.get(x).get(y));
     }
 
-    private void forEachBlockParallel(int threadCount, Consumer<Block> task) throws InterruptedException {
-        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+    private void forEachBlockParallel(Consumer<Block> task) throws InterruptedException {
+        ExecutorService executor = Executors.newFixedThreadPool(24);
 
         blocks.forEach((blockKeyX, row) -> row.forEach((blockKeyY, block) -> executor.execute(() -> task.accept(block))));
 
