@@ -3,8 +3,8 @@ package slobben.Cells.service;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import slobben.Cells.database.model.Block;
-import slobben.Cells.database.model.Cell;
+import slobben.Cells.entities.model.Block;
+import slobben.Cells.entities.model.Cell;
 
 import java.util.HashMap;
 import java.util.Map;

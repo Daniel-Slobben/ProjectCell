@@ -2,9 +2,8 @@ package slobben.Cells.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import slobben.Cells.database.model.Block;
-import slobben.Cells.database.model.Cell;
-import slobben.Cells.database.repository.BlockRepository;
+import slobben.Cells.entities.model.Block;
+import slobben.Cells.entities.model.Cell;
 
 @Service
 @RequiredArgsConstructor

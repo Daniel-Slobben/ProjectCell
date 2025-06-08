@@ -3,7 +3,7 @@ package slobben.Cells.service;
 import lombok.AllArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import slobben.Cells.database.model.Block;
+import slobben.Cells.entities.model.Block;
 
 @Service
 @AllArgsConstructor

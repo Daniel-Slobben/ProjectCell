@@ -6,9 +6,9 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
-import slobben.Cells.database.model.Block;
-import slobben.Cells.database.model.Cell;
-import slobben.Cells.database.repository.BlockRepository;
+import slobben.Cells.entities.model.Block;
+import slobben.Cells.entities.model.Cell;
+import slobben.Cells.entities.repository.BlockRepository;
 
 import java.util.HashMap;
 import java.util.Map;

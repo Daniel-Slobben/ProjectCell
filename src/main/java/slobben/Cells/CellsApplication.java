@@ -10,7 +10,7 @@ import slobben.Cells.service.RunnerService;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableMongoRepositories("slobben.Cells.database.repository")
+@EnableMongoRepositories("slobben.Cells.entities.repository")
 public class CellsApplication {
 
     public static void main(String[] args) {

@@ -3,16 +3,11 @@ package slobben.Cells.controller;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.env.Environment;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import slobben.Cells.database.model.Block;
-import slobben.Cells.database.model.Cell;
+import slobben.Cells.entities.model.Cell;
 import slobben.Cells.service.EnvironmentService;
 import slobben.Cells.service.RunnerService;
 

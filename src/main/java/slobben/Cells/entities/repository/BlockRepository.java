@@ -1,12 +1,10 @@
-package slobben.Cells.database.repository;
+package slobben.Cells.entities.repository;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
-import slobben.Cells.database.model.Block;
+import slobben.Cells.entities.model.Block;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface BlockRepository extends MongoRepository<Block, String> {

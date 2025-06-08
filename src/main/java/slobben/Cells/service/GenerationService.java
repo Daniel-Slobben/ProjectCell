@@ -4,8 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import slobben.Cells.database.model.Block;
-import slobben.Cells.database.model.Cell;
+import slobben.Cells.entities.model.Block;
+import slobben.Cells.entities.model.Cell;
 import slobben.Cells.enums.CellState;
 
 import java.util.HashMap;
@@ -27,7 +27,7 @@ public class GenerationService {
         int blockSize = environmentService.getBlockSize();
         block.setGeneration(block.getGeneration() + 1);
         if (!block.getCells().isEmpty()) {
-            Cell[][] partialMap = boardInfoService.getBlock(block);
+            Cell[][] cellsCopy = boardInfoService.getBlock(block);
 
             // Run game rules
             for (int x = 1; x < blockSize + 1; x++) {
@@ -35,8 +35,8 @@ public class GenerationService {
                 int carryOver2 = -1;
 
                 for (int y = 1; y < blockSize + 1; y++) {
-                    Cell oldCell = partialMap[x][y];
-                    int[] neighboursAlive = getAliveNeighbourCount(3, x, y, partialMap, carryOver1, carryOver2);
+                    Cell oldCell = cellsCopy[x][y];
+                    int[] neighboursAlive = getAliveNeighbourCount(3, x, y, cellsCopy, carryOver1, carryOver2);
                     carryOver1 = neighboursAlive[1];
                     carryOver2 = neighboursAlive[2];
 
