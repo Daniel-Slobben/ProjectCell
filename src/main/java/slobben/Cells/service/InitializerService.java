@@ -33,16 +33,12 @@ public class InitializerService {
         int blockSize = environmentService.getBlockSize();
 
         mongoTemplate.dropCollection(Block.class);
-
-        stitchingService.initializeStich();
         ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Block>> blocks = new ConcurrentHashMap<>(blockAmount);
 
         long totalTimerSetup = System.currentTimeMillis();
         for (int blockX = 0; blockX < blockAmount; blockX++) {
             for (int blockY = 0; blockY < blockAmount; blockY++) {
-                int finalBlockX = blockX;
-                int finalBlockY = blockY;
-                Block block = new Block(finalBlockX, finalBlockY);
+                Block block = new Block(blockX, blockY);
 
                 Random random = new Random();
                 if (setup.equals("RANDOM") && random.nextInt(0, environmentService.getBlockPopulation()) == 0) {
@@ -50,12 +46,13 @@ public class InitializerService {
                     for (int x = 0; x < blockSize; x++) {
                         for (int y = 0; y < blockSize; y++) {
                             if (random.nextInt(0, environmentService.getCellPopulation()) == 0) {
-                                Cell cell = new Cell(x + (blockSize * finalBlockX), y + (blockSize * finalBlockY));
+                                Cell cell = new Cell(x + (blockSize * blockX), y + (blockSize * blockY));
                                 cells.computeIfAbsent(x + 1, row -> new HashMap<>()).put(y + 1, cell);
                             }
                         }
                     }
                     block.setCells(cells);
+                    stitchingService.initializeStitch(block);
                     stitchingService.addBorderCells(block);
                 } else {
                     block.setCells(new HashMap<>());
