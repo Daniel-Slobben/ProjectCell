@@ -167,7 +167,6 @@ function updateVisibleBlocks() {
     }
 
     // Clear canvas and redraw all visible blocks
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const key of visibleKeys) {
         const [x, y] = key.split(',').map(Number);
         scheduleRedraw(x, y);
@@ -203,7 +202,7 @@ canvas.addEventListener("mousemove", e => {
     const movedX = Math.round(dx / cellSize);
     const movedY = Math.round(dy / cellSize);
 
-    if (movedX !== 2 || movedY !== 0) {
+    if (movedX !== 0 || movedY !== 0) {
         cellOffsetX -= movedX;
         cellOffsetY -= movedY;
         updateVisibleBlocks();
