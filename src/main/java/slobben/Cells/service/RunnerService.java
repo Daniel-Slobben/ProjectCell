@@ -8,10 +8,13 @@ import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
 import slobben.Cells.entities.model.Cell;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
@@ -36,37 +39,28 @@ public class RunnerService {
             long timer = System.currentTimeMillis();
             log.info("Starting run!");
 
-            ExecutorService executor = Executors.newFixedThreadPool(24);
             // TODO: No stitch happens in first run after initializing
-            for (Integer blockKeyX : blocks.keySet()) {
-                for (Integer blockKeyY : blocks.get(blockKeyX).keySet()) {
-                    executor.execute(() -> {
-                        Block block = blocks.get(blockKeyX).get(blockKeyY);
-                        generationService.setNextState(block);
-                        stitchingService.addBorderCells(block);
-                        updateWebService.updateBlock(block);
-                    });
-                }
-            }
-            executor.shutdown();
-            executor.awaitTermination(60, TimeUnit.SECONDS);
-            executor = Executors.newFixedThreadPool(24);
+            stitchingService.resetStitch();
+            List<Block> newBlocks = new ArrayList<>();
 
-            for (Integer blockKeyX : blocks.keySet()) {
-                for (Integer blockKeyY : blocks.get(blockKeyX).keySet()) {
-                    executor.execute(() -> {
-                        Block block = blocks.get(blockKeyX).get(blockKeyY);
-                        stitchingService.stitchBlock(block);
-                    });
-                }
+            forEachBlockParallel(24, stitchingService::initializeStitch);
+
+            forEachBlockParallel(24, block -> {
+                generationService.setNextState(block);
+                newBlocks.addAll(stitchingService.addBorderCells(block));
+                updateWebService.updateBlock(block);
+            });
+
+            for (Block newBlock : newBlocks) {
+                blocks.computeIfAbsent(newBlock.getX(), row -> new ConcurrentHashMap<>()).put(newBlock.getY(), newBlock);
             }
-            executor.shutdown();
-            executor.awaitTermination(60, TimeUnit.SECONDS);
-            stitchingService.initializeStich();
+
+            forEachBlockParallel(24, stitchingService::stitchBlock);
+
             long timeTaken = System.currentTimeMillis() - timer;
             long timeDelta = timeTaken - environmentService.getTargetspeed();
             if (timeDelta < 0) {
-                Thread.sleep(Math.abs(timeDelta));
+                wait(Math.abs(timeDelta));
                 log.info("Ending run. Time Taken: {}ms, Waited for {}ms", timeTaken, Math.abs(timeDelta));
             } else {
                 log.info("Ending run. Time Taken: {}ms, No waiting!", timeTaken);
@@ -74,11 +68,18 @@ public class RunnerService {
         }
     }
 
-    public Cell[][] getBlock(int x, int y) {
-        return boardInfoService.getBlock(blocks.get(x).get(y));
-    }
-
     public Cell[][] getBlockWithoutBorders(int x, int y) {
         return boardInfoService.getBlockWithoutBorder(blocks.get(x).get(y));
+    }
+
+    private void forEachBlockParallel(int threadCount, Consumer<Block> task) throws InterruptedException {
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+
+        blocks.forEach((blockKeyX, row) -> row.forEach((blockKeyY, block) -> executor.execute(() -> task.accept(block))));
+
+        executor.shutdown();
+        if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+            log.warn("Executor did not shut down cleanly within timeout.");
+        }
     }
 }

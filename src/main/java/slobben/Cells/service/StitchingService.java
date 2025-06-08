@@ -6,7 +6,9 @@ import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
 import slobben.Cells.entities.model.Cell;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,25 +18,23 @@ public class StitchingService {
     private final EnvironmentService environmentService;
     private Map<String, Map<Integer, Map<Integer, Cell>>> borderCellMap;
     private int blockSize;
-    private int blockAmount;
 
     @PostConstruct
     private void postConstruct() {
         blockSize = environmentService.getBlockSize();
-        blockAmount = environmentService.getBlockAmount();
-    }
-
-    public void initializeStich() {
         borderCellMap = new ConcurrentHashMap<>();
-        // Initialize empty maps per block
-        for (int blockX = 0; blockX < blockAmount; blockX++) {
-            for (int blockY = 0; blockY < blockAmount; blockY++) {
-                borderCellMap.put(key(blockX, blockY), new ConcurrentHashMap<>());
-            }
-        }
     }
 
-    public void addBorderCells(Block block) {
+    public void initializeStitch(Block block) {
+        borderCellMap.put(key(block.getX(), block.getY()), new ConcurrentHashMap<>());
+    }
+
+    public void resetStitch() {
+        borderCellMap.clear();
+    }
+
+    public List<Block> addBorderCells(Block block) {
+        ArrayList<Block> newBlocks = new ArrayList<>();
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
                 if (i == 0 && j == 0) continue;
@@ -43,16 +43,26 @@ public class StitchingService {
                 int neighborY = block.getY() + j;
                 String neighborKey = key(neighborX, neighborY);
                 Map<Integer, Map<Integer, Cell>> neighborMap = borderCellMap.get(neighborKey);
-
+                Map<Integer, Map<Integer, Cell>> borderCells = getBorderCellsForDirection(i, j, block.getCells());
                 if (neighborMap != null) {
-                    Map<Integer, Map<Integer, Cell>> borderCells = getBorderCellsForDirection(i, j, block.getCells());
                     mergeNestedMaps(neighborMap, borderCells);
+                } else if (!borderCells.isEmpty()) {
+                    // neighbour block doesnt exit yet, but has bordercells. Time to create a new Block
+                    Block newBlock = new Block(neighborX, neighborY);
+                    newBlocks.add(newBlock);
+                    initializeStitch(newBlock);
+                    var newNeighborMap = borderCellMap.get(neighborKey);
+                    mergeNestedMaps(newNeighborMap, borderCells);
                 }
             }
         }
+        return newBlocks;
     }
 
     public void stitchBlock(Block block) {
+        if (block.getCells() == null) {
+            block.setCells(new HashMap<>());
+        }
         removeBorders(block.getCells());
         Map<Integer, Map<Integer, Cell>> map = borderCellMap.get(key(block.getX(), block.getY()));
         if (map != null) {
@@ -128,9 +138,7 @@ public class StitchingService {
         Map<Integer, Cell> row = cells.get(srcRow);
         if (row == null) return;
 
-        row.forEach((colIndex, cell) -> {
-            result.computeIfAbsent(destRow, k -> new HashMap<>()).put(colIndex, cell);
-        });
+        row.forEach((colIndex, cell) -> result.computeIfAbsent(destRow, k -> new HashMap<>()).put(colIndex, cell));
     }
 
     private void copyCornerCell(Map<Integer, Map<Integer, Cell>> cells, Map<Integer, Map<Integer, Cell>> result, int srcRow, int srcCol, int destRow, int destCol) {
@@ -153,10 +161,9 @@ public class StitchingService {
         // y keys
         for (Map.Entry<Integer, Map<Integer, Cell>> xEntry : blockCells.entrySet()) {
             Map<Integer, Cell> row = xEntry.getValue();
-
             if (row != null) {
-                row.remove(0);   // Remove left border
-                row.remove(max); // Remove right border
+                row.remove(0);
+                row.remove(max);
             }
         }
     }
