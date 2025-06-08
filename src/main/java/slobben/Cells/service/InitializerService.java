@@ -42,7 +42,7 @@ public class InitializerService {
             for (int blockY = 0; blockY < blockAmount; blockY++) {
                 int finalBlockX = blockX;
                 int finalBlockY = blockY;
-                Block block = new Block(finalBlockX, finalBlockY, 0);
+                Block block = new Block(finalBlockX, finalBlockY);
 
                 Random random = new Random();
                 if (setup.equals("RANDOM") && random.nextInt(0, environmentService.getBlockPopulation()) == 0) {

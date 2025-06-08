@@ -13,6 +13,6 @@ public class Block {
 
     private final int x;
     private final int y;
-    private final int generation;
+    private int generation;
     private Map<Integer, Map<Integer, Cell>> cells;
 }
