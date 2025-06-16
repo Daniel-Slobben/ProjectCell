@@ -58,7 +58,6 @@ public class GenerationService {
                 }
             }
         }
-
     }
 
     private void insertCell(Map<Integer, Map<Integer, Cell>> cellMap, Cell cell, int x, int y) {

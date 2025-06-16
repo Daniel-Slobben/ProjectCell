@@ -31,31 +31,29 @@ public class RunnerService {
     private boolean running = true;
     private ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Block>> blocks = new ConcurrentHashMap<>();
 
-
     @SneakyThrows
     public void run() {
         this.blocks = initializerService.initializeMap();
         while (running) {
             long timer = System.currentTimeMillis();
+            log.info("");
             log.info("Starting run!");
 
             // TODO: No stitch happens in first run after initializing
             stitchingService.resetStitch();
             List<Block> newBlocks = new ArrayList<>();
 
-            forEachBlockParallel(stitchingService::initializeStitch);
+            forEachBlockParallel("Initialize", stitchingService::initializeStitch);
+            forEachBlockParallel("Generate", generationService::setNextState);
 
-            forEachBlockParallel(block -> {
-                generationService.setNextState(block);
+            forEachBlockParallel("AddBorderCells", block -> {
                 newBlocks.addAll(stitchingService.addBorderCells(block));
-                updateWebService.updateBlock(block);
             });
-
+            forEachBlockParallel("WebUpdate", updateWebService::updateBlock);
             for (Block newBlock : newBlocks) {
                 blocks.computeIfAbsent(newBlock.getX(), row -> new ConcurrentHashMap<>()).put(newBlock.getY(), newBlock);
             }
-
-            forEachBlockParallel(stitchingService::stitchBlock);
+            forEachBlockParallel("Stitch", stitchingService::stitchBlock);
 
             long timeTaken = System.currentTimeMillis() - timer;
             long timeDelta = timeTaken - environmentService.getTargetspeed();
@@ -72,8 +70,9 @@ public class RunnerService {
         return boardInfoService.getBlockWithoutBorder(blocks.get(x).get(y));
     }
 
-    private void forEachBlockParallel(Consumer<Block> task) throws InterruptedException {
-        ExecutorService executor = Executors.newFixedThreadPool(24);
+    private void forEachBlockParallel(String taskName, Consumer<Block> task) throws InterruptedException {
+        Long timer = System.currentTimeMillis();
+        ExecutorService executor = Executors.newFixedThreadPool(16);
 
         blocks.forEach((blockKeyX, row) -> row.forEach((blockKeyY, block) -> executor.execute(() -> task.accept(block))));
 
@@ -81,5 +80,6 @@ public class RunnerService {
         if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
             log.warn("Executor did not shut down cleanly within timeout.");
         }
+        log.info("Task {} finished in: {}ms", taskName, System.currentTimeMillis() - timer);
     }
 }

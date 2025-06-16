@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import slobben.Cells.entities.model.Cell;
@@ -20,6 +21,7 @@ public class CellController {
     private final EnvironmentService environmentService;
 
     @GetMapping("state/{x}/{y}")
+    @CrossOrigin(origins = "http://localhost:4200")
     public ResponseEntity<Cell[][]> getBlock(@PathVariable("x") int x, @PathVariable("y") int y) {
         log.info("Received request for x: {}, y: {}", x, y);
         return ResponseEntity.ok(runnerService.getBlockWithoutBorders(x, y));
@@ -27,6 +29,7 @@ public class CellController {
 
     @GetMapping("blocksize")
     public ResponseEntity<Integer> getBlockSize() {
+        log.info("Received request for blocksize");
         return ResponseEntity.ok(environmentService.getBlockSize());
     }
 

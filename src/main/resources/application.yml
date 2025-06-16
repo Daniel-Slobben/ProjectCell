@@ -7,11 +7,11 @@ spring:
 properties:
   setup: RANDOM
   ## Higher is less population -> ex: 1 in 15
-  blockPopulation: '2'
-  cellPopulation: '8'
+  blockPopulation: '1'
+  cellPopulation: '20'
   size:
-    x: '500'
-    y: '500'
-    blockSize: '100'
+    x: '1000'
+    y: '1000'
+    blockSize: '50'
   runmode: AUTO
-  targetspeed: '250'
+  targetspeed: '1000'
