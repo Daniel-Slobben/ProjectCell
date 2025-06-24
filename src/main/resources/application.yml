@@ -8,10 +8,10 @@ properties:
   setup: RANDOM
   ## Higher is less population -> ex: 1 in 15
   blockPopulation: '1'
-  cellPopulation: '20'
+  cellPopulation: '6'
   size:
-    x: '1000'
-    y: '1000'
+    x: '5000'
+    y: '5000'
     blockSize: '50'
   runmode: AUTO
   targetspeed: '1000'

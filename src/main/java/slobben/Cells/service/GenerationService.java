@@ -1,5 +1,6 @@
 package slobben.Cells.service;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +22,15 @@ public class GenerationService {
 
     private final BoardInfoService boardInfoService;
     private final EnvironmentService environmentService;
+    private int blockSize;
+
+    @PostConstruct
+    public void init() {
+       blockSize = environmentService.getBlockSize();
+    }
 
     @SneakyThrows
     public void setNextState(Block block) {
-        int blockSize = environmentService.getBlockSize();
         block.setGeneration(block.getGeneration() + 1);
         if (!block.getCells().isEmpty()) {
             Cell[][] cellsCopy = boardInfoService.getBlock(block);
@@ -54,6 +60,46 @@ public class GenerationService {
                         if (applyConwayGameOfLifeRules(ALIVE, neighboursAlive[0]).equals(DEAD)) {
                             removeCell(block.getCells(), x, y);
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    @SneakyThrows
+    public void setNextStateNew(Block block) {
+        int blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
+        int[][] heatmap = new int[blockSizeWithBorder][blockSizeWithBorder];
+        boolean[][] aliveMap = new boolean[blockSizeWithBorder][blockSizeWithBorder];
+        block.getCells().forEach((x, yRow) -> yRow.forEach((y, cell) -> {
+            aliveMap[x][y] = true;
+            if (!(x == 0 || x == blockSizeWithBorder - 1 || y == 0 || y == blockSizeWithBorder - 1)) {
+                for (int i = -1; i <= 1; i++) {
+                    for (int j = -1; j <= 1; j++) {
+                        if (i == 0 && j == 0) continue;
+                        int neighborX = x + i;
+                        int neighborY = y + j;
+                        if (neighborX < blockSizeWithBorder && neighborY >= 0 && neighborY < blockSizeWithBorder) {
+                            heatmap[neighborX][neighborY]++;
+                        }
+                    }
+                }
+            }
+        }));
+        for (int x = 1; x < blockSize + 1; x++) {
+            for (int y = 1; y < blockSize + 1; y++) {
+                int globalX = (x - 1) + (blockSize * block.getX());
+                int globalY = (y - 1) + (blockSize * block.getY());
+                // If cell was dead
+                if (!aliveMap[x][y]) {
+                    if (applyConwayGameOfLifeRules(DEAD, heatmap[x][y]).equals(ALIVE)) {
+                        insertCell(block.getCells(), new Cell(globalX, globalY), x, y);
+                    }
+                }
+                // If cell was alive
+                else {
+                    if (applyConwayGameOfLifeRules(ALIVE, heatmap[x][y]).equals(DEAD)) {
+                        removeCell(block.getCells(), x, y);
                     }
                 }
             }
@@ -101,7 +147,7 @@ public class GenerationService {
                                 aliveCounter++;
                             }
                             newCarryOver1++;
-                        } else if (j == 2) {
+                        } else {
                             aliveCounter++;
                             if (i != 1) {
                                 newCarryOver2++;

@@ -16,6 +16,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static java.lang.Thread.sleep;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -44,11 +46,9 @@ public class RunnerService {
             List<Block> newBlocks = new ArrayList<>();
 
             forEachBlockParallel("Initialize", stitchingService::initializeStitch);
-            forEachBlockParallel("Generate", generationService::setNextState);
+            forEachBlockParallel("Generate", generationService::setNextStateNew);
 
-            forEachBlockParallel("AddBorderCells", block -> {
-                newBlocks.addAll(stitchingService.addBorderCells(block));
-            });
+            forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
             forEachBlockParallel("WebUpdate", updateWebService::updateBlock);
             for (Block newBlock : newBlocks) {
                 blocks.computeIfAbsent(newBlock.getX(), row -> new ConcurrentHashMap<>()).put(newBlock.getY(), newBlock);
@@ -58,7 +58,7 @@ public class RunnerService {
             long timeTaken = System.currentTimeMillis() - timer;
             long timeDelta = timeTaken - environmentService.getTargetspeed();
             if (timeDelta < 0) {
-                Thread.sleep(Math.abs(timeDelta));
+                sleep(Math.abs(timeDelta));
                 log.info("Ending run. Time Taken: {}ms, Waited for {}ms", timeTaken, Math.abs(timeDelta));
             } else {
                 log.info("Ending run. Time Taken: {}ms, No waiting!", timeTaken);
@@ -71,7 +71,7 @@ public class RunnerService {
     }
 
     private void forEachBlockParallel(String taskName, Consumer<Block> task) throws InterruptedException {
-        Long timer = System.currentTimeMillis();
+        long timer = System.currentTimeMillis();
         ExecutorService executor = Executors.newFixedThreadPool(16);
 
         blocks.forEach((blockKeyX, row) -> row.forEach((blockKeyY, block) -> executor.execute(() -> task.accept(block))));
