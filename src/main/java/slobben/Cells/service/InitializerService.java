@@ -7,9 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
-import slobben.Cells.entities.model.Cell;
 import slobben.Cells.entities.repository.BlockRepository;
 
+import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -43,11 +43,11 @@ public class InitializerService {
 
                 Random random = new Random();
                 if (setup.equals("RANDOM") && random.nextInt(0, environmentService.getBlockPopulation()) == 0) {
-                    Map<Integer, Map<Integer, Cell>> cells = new HashMap<>();
+                    Map<Integer, Map<Integer, Integer>> cells = new HashMap<>();
                     for (int x = 0; x < blockSize; x++) {
                         for (int y = 0; y < blockSize; y++) {
                             if (random.nextInt(0, environmentService.getCellPopulation()) == 0) {
-                                Cell cell = new Cell(x + (blockSize * blockX), y + (blockSize * blockY));
+                                int cell = new Color(27, 28, 28).getRGB();
                                 cells.computeIfAbsent(x + 1, row -> new HashMap<>()).put(y + 1, cell);
                             }
                         }

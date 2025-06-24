@@ -4,7 +4,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
-import slobben.Cells.entities.model.Cell;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class StitchingService {
     private final EnvironmentService environmentService;
-    private Map<String, Map<Integer, Map<Integer, Cell>>> borderCellMap;
+    private Map<String, Map<Integer, Map<Integer, Integer>>> borderCellMap;
     private int blockSize;
 
     @PostConstruct
@@ -42,8 +41,8 @@ public class StitchingService {
                 int neighborX = block.getX() + i;
                 int neighborY = block.getY() + j;
                 String neighborKey = key(neighborX, neighborY);
-                Map<Integer, Map<Integer, Cell>> neighborMap = borderCellMap.get(neighborKey);
-                Map<Integer, Map<Integer, Cell>> borderCells = getBorderCellsForDirection(i, j, block.getCells());
+                Map<Integer, Map<Integer, Integer>> neighborMap = borderCellMap.get(neighborKey);
+                Map<Integer, Map<Integer, Integer>> borderCells = getBorderCellsForDirection(i, j, block.getCells());
                 if (neighborMap != null) {
                     mergeNestedMaps(neighborMap, borderCells);
                 } else if (!borderCells.isEmpty()) {
@@ -64,7 +63,7 @@ public class StitchingService {
             block.setCells(new HashMap<>());
         }
         removeBorders(block.getCells());
-        Map<Integer, Map<Integer, Cell>> map = borderCellMap.get(key(block.getX(), block.getY()));
+        Map<Integer, Map<Integer, Integer>> map = borderCellMap.get(key(block.getX(), block.getY()));
         if (map != null) {
             mergeNestedMaps(block.getCells(), map);
         }
@@ -74,17 +73,17 @@ public class StitchingService {
         return x + "-" + y;
     }
 
-    private void mergeNestedMaps(Map<Integer, Map<Integer, Cell>> target, Map<Integer, Map<Integer, Cell>> source) {
+    private void mergeNestedMaps(Map<Integer, Map<Integer, Integer>> target, Map<Integer, Map<Integer, Integer>> source) {
         for (var xEntry : source.entrySet()) {
             int x = xEntry.getKey();
-            Map<Integer, Cell> innerSource = xEntry.getValue();
-            Map<Integer, Cell> innerTarget = target.computeIfAbsent(x, k -> new ConcurrentHashMap<>());
+            Map<Integer, Integer> innerSource = xEntry.getValue();
+            Map<Integer, Integer> innerTarget = target.computeIfAbsent(x, k -> new ConcurrentHashMap<>());
             innerTarget.putAll(innerSource);
         }
     }
 
-    private Map<Integer, Map<Integer, Cell>> getBorderCellsForDirection(int i, int j, Map<Integer, Map<Integer, Cell>> cells) {
-        Map<Integer, Map<Integer, Cell>> result = new HashMap<>();
+    private Map<Integer, Map<Integer, Integer>> getBorderCellsForDirection(int i, int j, Map<Integer, Map<Integer, Integer>> cells) {
+        Map<Integer, Map<Integer, Integer>> result = new HashMap<>();
 
         switch (i + "," + j) {
             case "-1,-1": {
@@ -123,35 +122,35 @@ public class StitchingService {
         return result;
     }
 
-    private void copyColumn(Map<Integer, Map<Integer, Cell>> cells, Map<Integer, Map<Integer, Cell>> result, int srcCol, int destCol) {
+    private void copyColumn(Map<Integer, Map<Integer, Integer>> cells, Map<Integer, Map<Integer, Integer>> result, int srcCol, int destCol) {
         cells.forEach((rowIndex, rowMap) -> {
             if (rowMap == null) return;
 
-            Cell cell = rowMap.get(srcCol);
+            Integer cell = rowMap.get(srcCol);
             if (cell != null) {
                 result.computeIfAbsent(rowIndex, k -> new HashMap<>()).put(destCol, cell);
             }
         });
     }
 
-    private void copyRow(Map<Integer, Map<Integer, Cell>> cells, Map<Integer, Map<Integer, Cell>> result, int srcRow, int destRow) {
-        Map<Integer, Cell> row = cells.get(srcRow);
+    private void copyRow(Map<Integer, Map<Integer, Integer>> cells, Map<Integer, Map<Integer, Integer>> result, int srcRow, int destRow) {
+        Map<Integer, Integer> row = cells.get(srcRow);
         if (row == null) return;
 
         row.forEach((colIndex, cell) -> result.computeIfAbsent(destRow, k -> new HashMap<>()).put(colIndex, cell));
     }
 
-    private void copyCornerCell(Map<Integer, Map<Integer, Cell>> cells, Map<Integer, Map<Integer, Cell>> result, int srcRow, int srcCol, int destRow, int destCol) {
-        Map<Integer, Cell> row = cells.get(srcRow);
+    private void copyCornerCell(Map<Integer, Map<Integer, Integer>> cells, Map<Integer, Map<Integer, Integer>> result, int srcRow, int srcCol, int destRow, int destCol) {
+        Map<Integer, Integer> row = cells.get(srcRow);
         if (row == null) return;
 
-        Cell cell = row.get(srcCol);
+        Integer cell = row.get(srcCol);
         if (cell == null) return;
 
         result.computeIfAbsent(destRow, k -> new HashMap<>()).put(destCol, cell);
     }
 
-    private void removeBorders(Map<Integer, Map<Integer, Cell>> blockCells) {
+    private void removeBorders(Map<Integer, Map<Integer, Integer>> blockCells) {
         int max = blockSize + 1;
 
         // x keys
@@ -159,8 +158,8 @@ public class StitchingService {
         blockCells.remove(max);
 
         // y keys
-        for (Map.Entry<Integer, Map<Integer, Cell>> xEntry : blockCells.entrySet()) {
-            Map<Integer, Cell> row = xEntry.getValue();
+        for (Map.Entry<Integer, Map<Integer, Integer>> xEntry : blockCells.entrySet()) {
+            Map<Integer, Integer> row = xEntry.getValue();
             if (row != null) {
                 row.remove(0);
                 row.remove(max);

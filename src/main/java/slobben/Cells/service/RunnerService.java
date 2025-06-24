@@ -6,8 +6,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
-import slobben.Cells.entities.model.Cell;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -66,7 +66,7 @@ public class RunnerService {
         }
     }
 
-    public Cell[][] getBlockWithoutBorders(int x, int y) {
+    public Integer[][] getBlockWithoutBorders(int x, int y) {
         return boardInfoService.getBlockWithoutBorder(blocks.get(x).get(y));
     }
 

@@ -9,10 +9,10 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import slobben.Cells.entities.model.Block;
-import slobben.Cells.entities.model.Cell;
 import slobben.Cells.service.GenerationService;
 import slobben.Cells.service.InitializerService;
 
+import java.awt.*;
 import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +26,7 @@ class GenerationServiceTests {
 	private final InitializerService initializerService;
 	private final GenerationService generationService;
 
+
 	@Autowired
 	public GenerationServiceTests(GenerationService generationService, InitializerService initializerService) {
 		this.generationService = generationService;
@@ -36,17 +37,17 @@ class GenerationServiceTests {
 	public void checkTick() {
 		var blocks = initializerService.initializeMap();
 		Block block = blocks.get(0).get(0);
-		HashMap<Integer, HashMap<Integer, Cell>> cellsToAdd = new HashMap<>();
-		cellsToAdd.computeIfAbsent(0, row -> new HashMap<>()).put(0, new Cell(0, 0));
-		cellsToAdd.computeIfAbsent(0, row -> new HashMap<>()).put(1, new Cell(0, 1));
-		cellsToAdd.computeIfAbsent(1, row -> new HashMap<>()).put(0, new Cell(1, 0));
-		cellsToAdd.computeIfAbsent(1, row -> new HashMap<>()).put(1, new Cell(1, 1));
+		HashMap<Integer, HashMap<Integer, Integer>> cellsToAdd = new HashMap<>();
+		cellsToAdd.computeIfAbsent(0, row -> new HashMap<>()).put(0, Color.BLACK.getRGB());
+		cellsToAdd.computeIfAbsent(0, row -> new HashMap<>()).put(1, Color.BLACK.getRGB());
+		cellsToAdd.computeIfAbsent(1, row -> new HashMap<>()).put(0, Color.BLACK.getRGB());
+		cellsToAdd.computeIfAbsent(1, row -> new HashMap<>()).put(1, Color.BLACK.getRGB());
 		block.getCells().putAll(cellsToAdd);
-		generationService.setNextState(block);
+		generationService.setNextStateNew(block);
 
-		assertThat(block.getCells().get(0).get(0)).isNotNull();
-		assertThat(block.getCells().get(0).get(1)).isNotNull();
-		assertThat(block.getCells().get(1).get(0)).isNotNull();
-		assertThat(block.getCells().get(1).get(1)).isNotNull();
+		assertThat(block.getCells().get(0).get(0)).isEqualTo(Color.BLACK.getRGB());
+		assertThat(block.getCells().get(0).get(1)).isEqualTo(Color.BLACK.getRGB());
+		assertThat(block.getCells().get(1).get(0)).isEqualTo(Color.BLACK.getRGB());
+		assertThat(block.getCells().get(1).get(1)).isEqualTo(Color.BLACK.getRGB());
 	}
 }
