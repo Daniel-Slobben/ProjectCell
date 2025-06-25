@@ -38,29 +38,24 @@ public class GenerationService {
         ArrayList<Integer>[][] colorNeighbourMap = new ArrayList[blockSizeWithBorder][blockSizeWithBorder];
         boolean[][] aliveMap = new boolean[blockSizeWithBorder][blockSizeWithBorder];
 
-// Initialize all ArrayLists first
-        for (int i = 0; i < blockSizeWithBorder; i++) {
-            for (int j = 0; j < blockSizeWithBorder; j++) {
-                colorNeighbourMap[i][j] = new ArrayList<>();
-            }
-        }
-
-// Then your simplified loop
         block.getCells().forEach((x, yRow) -> yRow.forEach((y, cell) -> {
             aliveMap[x][y] = true;
-            if (!(x == 0 || x == blockSizeWithBorder - 1 || y == 0 || y == blockSizeWithBorder - 1)) {
-                for (int i = -1; i <= 1; i++) {
-                    for (int j = -1; j <= 1; j++) {
-                        if (i == 0 && j == 0) continue;
-                        int neighborX = x + i;
-                        int neighborY = y + j;
-                        if (neighborX >= 0 && neighborX < blockSizeWithBorder && neighborY >= 0 && neighborY < blockSizeWithBorder) {
-                            colorNeighbourMap[neighborX][neighborY].add(cell);
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    if (i == 0 && j == 0) continue;
+                    int neighborX = x + i;
+                    int neighborY = y + j;
+                    if (neighborX >= 0 && neighborX < blockSizeWithBorder && neighborY >= 0 && neighborY < blockSizeWithBorder) {
+                        if (colorNeighbourMap[neighborX][neighborY] == null) {
+                            ArrayList<Integer> list = new ArrayList<>();
+                            colorNeighbourMap[neighborX][neighborY] = list;
                         }
+                        colorNeighbourMap[neighborX][neighborY].add(cell);
                     }
                 }
             }
         }));
+
         for (int x = 1; x < blockSize + 1; x++) {
             for (int y = 1; y < blockSize + 1; y++) {
                 int aliveNeighbours = 0;
@@ -70,6 +65,7 @@ public class GenerationService {
                 // If cell was dead
                 if (!aliveMap[x][y]) {
                     if (applyConwayGameOfLifeRules(DEAD, aliveNeighbours).equals(ALIVE)) {
+                        assert colorNeighbourMap[x][y] != null;
                         Integer newColor = getColorMode(colorNeighbourMap[x][y]);
                         insertCell(block.getCells(), newColor, x, y);
                     }
@@ -78,6 +74,10 @@ public class GenerationService {
                 else {
                     if (applyConwayGameOfLifeRules(ALIVE, aliveNeighbours).equals(DEAD)) {
                         removeCell(block.getCells(), x, y);
+                    } else {
+                        assert colorNeighbourMap[x][y] != null;
+                        Integer newColor = getColorMode(colorNeighbourMap[x][y]);
+                        insertCell(block.getCells(), newColor, x, y);
                     }
                 }
             }

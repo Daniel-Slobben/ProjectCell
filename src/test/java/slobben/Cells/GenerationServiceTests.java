@@ -38,16 +38,16 @@ class GenerationServiceTests {
 		var blocks = initializerService.initializeMap();
 		Block block = blocks.get(0).get(0);
 		HashMap<Integer, HashMap<Integer, Integer>> cellsToAdd = new HashMap<>();
-		cellsToAdd.computeIfAbsent(0, row -> new HashMap<>()).put(0, Color.BLACK.getRGB());
-		cellsToAdd.computeIfAbsent(0, row -> new HashMap<>()).put(1, Color.BLACK.getRGB());
-		cellsToAdd.computeIfAbsent(1, row -> new HashMap<>()).put(0, Color.BLACK.getRGB());
 		cellsToAdd.computeIfAbsent(1, row -> new HashMap<>()).put(1, Color.BLACK.getRGB());
+		cellsToAdd.computeIfAbsent(1, row -> new HashMap<>()).put(2, Color.RED.getRGB());
+		cellsToAdd.computeIfAbsent(2, row -> new HashMap<>()).put(1, Color.BLACK.getRGB());
+		cellsToAdd.computeIfAbsent(2, row -> new HashMap<>()).put(2, Color.BLACK.getRGB());
 		block.getCells().putAll(cellsToAdd);
 		generationService.setNextStateNew(block);
 
-		assertThat(block.getCells().get(0).get(0)).isEqualTo(Color.BLACK.getRGB());
-		assertThat(block.getCells().get(0).get(1)).isEqualTo(Color.BLACK.getRGB());
-		assertThat(block.getCells().get(1).get(0)).isEqualTo(Color.BLACK.getRGB());
 		assertThat(block.getCells().get(1).get(1)).isEqualTo(Color.BLACK.getRGB());
+		assertThat(block.getCells().get(1).get(2)).isEqualTo(Color.BLACK.getRGB());
+		assertThat(block.getCells().get(2).get(1)).isEqualTo(Color.BLACK.getRGB());
+		assertThat(block.getCells().get(2).get(2)).isEqualTo(Color.BLACK.getRGB());
 	}
 }
