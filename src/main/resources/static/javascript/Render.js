@@ -70,7 +70,7 @@ function drawSingleBlock(blockX, blockY) {
             const canvasY = (worldY - cellOffsetY) * cellSize;
 
             if (canvasX >= 0 && canvasX < canvas.width && canvasY >= 0 && canvasY < canvas.height) {
-                ctx.fillStyle = (cell === null || cell === undefined) ? "white" : "black";
+                ctx.fillStyle = (cell === false || cell === null || cell === undefined) ? "white" : "black";
                 ctx.fillRect(canvasX, canvasY, cellSize, cellSize);
                 ctx.strokeStyle = "#ccc";
                 ctx.strokeRect(canvasX, canvasY, cellSize, cellSize);
