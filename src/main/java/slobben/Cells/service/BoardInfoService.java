@@ -4,8 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
 
-import java.awt.*;
-
 @Service
 @RequiredArgsConstructor
 public class BoardInfoService {

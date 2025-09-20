@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import slobben.Cells.service.EnvironmentService;
 import slobben.Cells.service.RunnerService;
 
-import java.awt.*;
 import java.util.HashMap;
 
 @Controller
@@ -42,6 +41,7 @@ public class CellController {
 
         return ResponseEntity.ok(HttpStatus.ACCEPTED);
     }
+
 
 //    public void setBlock(Block blocksize)
 
