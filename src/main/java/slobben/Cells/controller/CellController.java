@@ -22,7 +22,7 @@ public class CellController {
 
     @GetMapping("state/{x}/{y}")
     @CrossOrigin(origins = "http://localhost:4200")
-    public ResponseEntity<Cell[][]> getBlock(@PathVariable("x") int x, @PathVariable("y") int y) {
+    public ResponseEntity<boolean[][]> getBlock(@PathVariable("x") int x, @PathVariable("y") int y) {
         log.info("Received request for x: {}, y: {}", x, y);
         return ResponseEntity.ok(runnerService.getBlockWithoutBorders(x, y));
     }

@@ -46,7 +46,7 @@ public class RunnerService {
             List<Block> newBlocks = new ArrayList<>();
 
             forEachBlockParallel("Initialize", stitchingService::initializeStitch);
-            forEachBlockParallel("Generate", generationService::setNextStateNew);
+            forEachBlockParallel("Generate", generationService::setNextState);
 
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
             forEachBlockParallel("WebUpdate", updateWebService::updateBlock);
@@ -66,7 +66,7 @@ public class RunnerService {
         }
     }
 
-    public Cell[][] getBlockWithoutBorders(int x, int y) {
+    public boolean[][] getBlockWithoutBorders(int x, int y) {
         return boardInfoService.getBlockWithoutBorder(blocks.get(x).get(y));
     }
 
