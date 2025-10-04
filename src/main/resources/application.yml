@@ -14,4 +14,4 @@ properties:
     y: '5000'
     blockSize: '50'
   runmode: AUTO
-  targetspeed: '1000'
+  targetspeed: '200'
