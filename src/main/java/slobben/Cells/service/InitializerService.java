@@ -9,8 +9,8 @@ import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
 import slobben.Cells.entities.repository.BlockRepository;
 
+import java.util.ArrayList;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Getter
@@ -24,7 +24,7 @@ public class InitializerService {
     private final EnvironmentService environmentService;
 
     @SneakyThrows
-    public ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Block>> initializeMap() {
+    public ArrayList<Block> initializeMap() {
         log.info("Initializing {} map!", environmentService.getSetupMode());
         String setup = environmentService.getSetupMode();
         int blockAmount = environmentService.getBlockAmount();
@@ -32,7 +32,7 @@ public class InitializerService {
         int blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
 
         mongoTemplate.dropCollection(Block.class);
-        ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Block>> blocks = new ConcurrentHashMap<>(blockAmount);
+        ArrayList<Block> blocks = new ArrayList<>(blockAmount * blockAmount);
 
         long totalTimerSetup = System.currentTimeMillis();
         for (int blockX = 0; blockX < blockAmount; blockX++) {
@@ -51,8 +51,7 @@ public class InitializerService {
                     stitchingService.initializeStitch(block);
                     stitchingService.addBorderCells(block);
                 }
-                blocks.computeIfAbsent(block.getX(), row -> new ConcurrentHashMap<>()).put(block.getY(), block);
-                log.info("X: {}", blockX);
+                blocks.add(block);
             }
         }
         System.out.println("Time taken to generate: " + (System.currentTimeMillis() - totalTimerSetup));
