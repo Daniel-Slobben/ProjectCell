@@ -6,7 +6,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
-import slobben.Cells.entities.model.Cell;
 
 import java.util.ArrayList;
 import java.util.List;
