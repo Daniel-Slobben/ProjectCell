@@ -1,8 +1,8 @@
 properties:
   setup: EMPTY
   size:
-    x: '100'
-    y: '100'
-    blockSize: '100'
+    x: '10'
+    y: '10'
+    blockSize: '10'
   runmode: MANUAL
   targetspeed: '0'

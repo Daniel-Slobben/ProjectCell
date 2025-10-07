@@ -31,7 +31,7 @@ class GenerationServiceTests {
     @Test
     public void checkTick() {
         var blocks = initializerService.initializeMap();
-        Block block = blocks.get(0).get(0);
+        Block block = blocks.stream().filter(b -> b.getX() == 0).filter(b -> b.getY() == 0).findFirst().get();
         block.getCells()[0][0] = true;
         block.getCells()[0][1] = true;
         block.getCells()[1][0] = true;

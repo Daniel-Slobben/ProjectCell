@@ -2,11 +2,12 @@ package slobben.Cells.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
+import slobben.Cells.entities.model.BorderInfo;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class StitchingService {
     private final EnvironmentService environmentService;
-    private Map<String, Map<Integer, Map<Integer, Boolean>>> borderCellMap;
+    private Map<String, BorderInfo> borderCellMap;
     private int blockSize;
     private int blockSizeWithBorder;
 
@@ -27,7 +28,7 @@ public class StitchingService {
     }
 
     public void initializeStitch(Block block) {
-        borderCellMap.put(key(block.getX(), block.getY()), new ConcurrentHashMap<>());
+        borderCellMap.put(key(block.getX(), block.getY()), new BorderInfo(blockSizeWithBorder));
     }
 
     public void resetStitch() {
@@ -43,17 +44,25 @@ public class StitchingService {
                 int neighborX = block.getX() + i;
                 int neighborY = block.getY() + j;
                 String neighborKey = key(neighborX, neighborY);
-                Map<Integer, Map<Integer, Boolean>> neighborMap = borderCellMap.get(neighborKey);
-                Map<Integer, Map<Integer, Boolean>> borderCells = getBorderCellsForDirection(i, j, block.getCells());
-                if (neighborMap != null) {
-                    mergeNestedMaps(neighborMap, borderCells);
-                } else if (!borderCells.isEmpty()) {
-                    // neighbour block doesnt exit yet, but has bordercells. Time to create a new Block
+
+                BorderInfo neighborMap = borderCellMap.get(neighborKey);
+                boolean hasNeigherMap = true;
+                if (neighborMap == null) {
+                    hasNeigherMap = false;
+                    neighborMap = new BorderInfo(blockSizeWithBorder);
+                } else {
+                    neighborMap.setHasAliveCells(false);
+                }
+
+                boolean hasLiveCells = setBorderCellsForDirection(neighborMap, i, j, block.getCells());
+                if (hasLiveCells) {
+                    neighborMap.setHasAliveCells(true);
+                }
+
+                if (!hasNeigherMap && hasLiveCells) {
+                    borderCellMap.put(neighborKey, neighborMap);
                     Block newBlock = new Block(neighborX, neighborY, new boolean[blockSizeWithBorder][blockSizeWithBorder]);
                     newBlocks.add(newBlock);
-                    initializeStitch(newBlock);
-                    var newNeighborMap = borderCellMap.get(neighborKey);
-                    mergeNestedMaps(newNeighborMap, borderCells);
                 }
             }
         }
@@ -62,11 +71,9 @@ public class StitchingService {
 
     public void stitchBlock(Block block) {
         removeBorders(block.getCells());
-        Map<Integer, Map<Integer, Boolean>> map = borderCellMap.get(key(block.getX(), block.getY()));
-        if (map != null) {
-            map.forEach((rowIndex, rowMap) -> {
-                rowMap.forEach((columnIndex, cell) -> block.getCells()[rowIndex][columnIndex] = cell);
-            });
+        BorderInfo map = borderCellMap.get(key(block.getX(), block.getY()));
+        if (map.isHasAliveCells()) {
+            map.copyCells(block);
         }
     }
 
@@ -74,76 +81,70 @@ public class StitchingService {
         return x + "-" + y;
     }
 
-    private void mergeNestedMaps(Map<Integer, Map<Integer, Boolean>> target, Map<Integer, Map<Integer, Boolean>> source) {
-        for (var xEntry : source.entrySet()) {
-            int x = xEntry.getKey();
-            Map<Integer, Boolean> innerSource = xEntry.getValue();
-            Map<Integer, Boolean> innerTarget = target.computeIfAbsent(x, k -> new ConcurrentHashMap<>());
-            innerTarget.putAll(innerSource);
-        }
-    }
-
-    private Map<Integer, Map<Integer, Boolean>> getBorderCellsForDirection(int i, int j, boolean[][] cells) {
-        Map<Integer, Map<Integer, Boolean>> result = new HashMap<>();
-
+    private boolean setBorderCellsForDirection(BorderInfo neighbourMap, int i, int j, boolean[][] cells) {
         switch (i + "," + j) {
             case "-1,-1": {
-                copyCornerCell(cells, result, 1, 1, blockSize + 1, blockSize + 1);
-                break;
+                boolean cell = cells[1][1];
+                neighbourMap.setBottomRightCorner(cell);
+                return cell;
             }
             case "-1,0": {
-                copyRow(cells, result, 1, blockSize + 1);
-                break;
+                var cellsToCopy = cells[1];
+                var result = neighbourMap.setBottomBorder(cellsToCopy);
+                return hasTrueValue(result);
             }
             case "-1,1": {
-                copyCornerCell(cells, result, 1, blockSize, blockSize + 1, 0);
-                break;
+                boolean cell = cells[1][blockSize];
+                neighbourMap.setBottomLeftCorner(cell);
+                return cell;
             }
             case "0,-1": {
-                copyColumn(cells, result, 1, blockSize + 1);
-                break;
+                var result = getColumnCells(cells, 1);
+                neighbourMap.setRightBorder(result.getFirst());
+                return result.getSecond();
             }
             case "0,1": {
-                copyColumn(cells, result, blockSize, 0);
-                break;
+                var result = getColumnCells(cells, blockSize);
+                neighbourMap.setLeftBorder(result.getFirst());
+                return result.getSecond();
             }
             case "1,-1": {
-                copyCornerCell(cells, result, blockSize, 1, 0, blockSize + 1);
-                break;
+                boolean cell = cells[blockSize][1];
+                neighbourMap.setTopRightCorner(cell);
+                return cell;
             }
             case "1,0": {
-                copyRow(cells, result, blockSize, 0);
-                break;
+                var cellsToCopy = new boolean[blockSizeWithBorder];
+                System.arraycopy(cells[blockSize], 1, cellsToCopy, 1, blockSizeWithBorder - 1);
+                var result = neighbourMap.setTopBorder(cellsToCopy);
+                return hasTrueValue(result);
             }
             case "1,1": {
-                copyCornerCell(cells, result, blockSize, blockSize, 0, 0);
-                break;
+                boolean cell = cells[blockSize][blockSize];
+                neighbourMap.setTopLeftCorner(cell);
+                return cell;
             }
         }
-        return result;
+        return false;
     }
 
-    private void copyColumn(boolean[][] cells, Map<Integer, Map<Integer, Boolean>> result, int srcCol, int destCol) {
+    private boolean hasTrueValue(boolean[] cells) {
+        for (var cell : cells) {
+            if (cell) return true;
+        }
+        return false;
+    }
+
+    private Pair<boolean[], Boolean> getColumnCells(boolean[][] cells, int srcCol) {
+        boolean[] cellsToCopy = new boolean[cells.length];
+        boolean hasTrue = false;
         for (int i = 0; i < cells.length; i++) {
+            cellsToCopy[i] = cells[i][srcCol];
             if (cells[i][srcCol]) {
-                result.computeIfAbsent(i, k -> new HashMap<>()).put(destCol, Boolean.TRUE);
+                hasTrue = true;
             }
         }
-    }
-
-    private void copyRow(boolean[][] cells, Map<Integer, Map<Integer, Boolean>> result, int srcRow, int destRow) {
-        boolean[] row = cells[srcRow];
-
-        for (int i = 0; i < row.length; i++) {
-            if (row[i]) {
-                result.computeIfAbsent(destRow, k -> new HashMap<>()).put(i, Boolean.TRUE);
-            }
-        }
-    }
-
-    private void copyCornerCell(boolean[][] cells, Map<Integer, Map<Integer, Boolean>> result, int srcRow, int srcCol, int destRow, int destCol) {
-        if (!cells[srcRow][srcCol]) return;
-        result.computeIfAbsent(destRow, k -> new HashMap<>()).put(destCol, Boolean.TRUE);
+        return Pair.of(cellsToCopy, hasTrue);
     }
 
     private void removeBorders(boolean[][] cells) {
