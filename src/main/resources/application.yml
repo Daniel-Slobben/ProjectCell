@@ -10,8 +10,8 @@ properties:
   blockPopulation: '1'
   cellPopulation: '6'
   size:
-    x: '5000'
-    y: '5000'
+    x: '10000'
+    y: '10000'
     blockSize: '50'
   runmode: AUTO
   targetspeed: '200'
