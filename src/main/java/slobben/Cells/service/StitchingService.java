@@ -6,6 +6,7 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
 import slobben.Cells.entities.model.BorderInfo;
+import slobben.Cells.enums.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,8 +51,6 @@ public class StitchingService {
                 if (neighborMap == null) {
                     hasNeigherMap = false;
                     neighborMap = new BorderInfo(blockSizeWithBorder);
-                } else {
-                    neighborMap.setHasAliveCells(false);
                 }
 
                 boolean hasLiveCells = setBorderCellsForDirection(neighborMap, i, j, block.getCells());
@@ -81,45 +80,49 @@ public class StitchingService {
         return x + "-" + y;
     }
 
+
     private boolean setBorderCellsForDirection(BorderInfo neighbourMap, int i, int j, boolean[][] cells) {
-        switch (i + "," + j) {
-            case "-1,-1": {
+        Direction direction = Direction.from(i, j);
+        assert direction != null;
+
+        switch (direction) {
+            case TOP_LEFT -> {
                 boolean cell = cells[1][1];
                 neighbourMap.setBottomRightCorner(cell);
                 return cell;
             }
-            case "-1,0": {
-                var cellsToCopy = cells[1];
+            case TOP -> {
+                boolean[] cellsToCopy = cells[1];
                 var result = neighbourMap.setBottomBorder(cellsToCopy);
                 return hasTrueValue(result);
             }
-            case "-1,1": {
+            case TOP_RIGHT -> {
                 boolean cell = cells[1][blockSize];
                 neighbourMap.setBottomLeftCorner(cell);
                 return cell;
             }
-            case "0,-1": {
+            case LEFT -> {
                 var result = getColumnCells(cells, 1);
                 neighbourMap.setRightBorder(result.getFirst());
                 return result.getSecond();
             }
-            case "0,1": {
+            case RIGHT -> {
                 var result = getColumnCells(cells, blockSize);
                 neighbourMap.setLeftBorder(result.getFirst());
                 return result.getSecond();
             }
-            case "1,-1": {
+            case BOTTOM_LEFT -> {
                 boolean cell = cells[blockSize][1];
                 neighbourMap.setTopRightCorner(cell);
                 return cell;
             }
-            case "1,0": {
+            case BOTTOM -> {
                 var cellsToCopy = new boolean[blockSizeWithBorder];
                 System.arraycopy(cells[blockSize], 1, cellsToCopy, 1, blockSizeWithBorder - 1);
                 var result = neighbourMap.setTopBorder(cellsToCopy);
                 return hasTrueValue(result);
             }
-            case "1,1": {
+            case BOTTOM_RIGHT -> {
                 boolean cell = cells[blockSize][blockSize];
                 neighbourMap.setTopLeftCorner(cell);
                 return cell;
