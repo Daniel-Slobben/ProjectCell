@@ -37,7 +37,7 @@ public class GenerationService {
             for (int y = 0; y < blockSizeWithBorder; y++) {
                 // if alive
                 byte sourceColor = block.getCells()[x][y];
-                if (0 != sourceColor) continue;
+                if (0 == sourceColor) continue;
                 for (int i = -1; i <= 1; i++) {
                     for (int j = -1; j <= 1; j++) {
                         if (i == 0 && j == 0) continue;

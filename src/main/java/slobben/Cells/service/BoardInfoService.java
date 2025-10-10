@@ -9,9 +9,9 @@ import slobben.Cells.entities.model.Block;
 public class BoardInfoService {
     private final EnvironmentService environmentService;
 
-    public boolean[][] getBlockWithoutBorder(Block block) {
+    public byte[][] getBlockWithoutBorder(Block block) {
         var mapWithBorder = block.getCells();
-        boolean[][] map = new boolean[environmentService.getBlockSize()][environmentService.getBlockSize()];
+        byte[][] map = new byte[environmentService.getBlockSize()][environmentService.getBlockSize()];
         for (int i = 1; i < environmentService.getBlockSizeWithBorder() - 1; i++) {
             System.arraycopy(mapWithBorder[i], 1, map[i - 1], 0, environmentService.getBlockSize());
         }

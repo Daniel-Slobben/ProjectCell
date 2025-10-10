@@ -65,7 +65,7 @@ public class RunnerService {
         }
     }
 
-    public boolean[][] getBlockWithoutBorders(int x, int y) {
+    public byte[][] getBlockWithoutBorders(int x, int y) {
         setBlockUpdate(x, y, true);
         return boardInfoService.getBlockWithoutBorder(getBlock(x, y));
     }

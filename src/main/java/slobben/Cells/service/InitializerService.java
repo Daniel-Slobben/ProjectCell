@@ -44,7 +44,7 @@ public class InitializerService {
                     for (int x = 0; x < blockSize; x++) {
                         for (int y = 0; y < blockSize; y++) {
                             if (random.nextInt(0, environmentService.getCellPopulation()) == 0) {
-                                block.getCells()[x][y] = 1;
+                                block.getCells()[x][y] = 120;
                             }
                         }
                     }
