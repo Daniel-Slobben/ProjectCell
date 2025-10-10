@@ -37,14 +37,14 @@ public class InitializerService {
         long totalTimerSetup = System.currentTimeMillis();
         for (int blockX = 0; blockX < blockAmount; blockX++) {
             for (int blockY = 0; blockY < blockAmount; blockY++) {
-                Block block = new Block(blockX, blockY, new boolean[blockSizeWithBorder][blockSizeWithBorder]);
+                Block block = new Block(blockX, blockY, new byte[blockSizeWithBorder][blockSizeWithBorder]);
 
                 Random random = new Random();
                 if (setup.equals("RANDOM") && random.nextInt(0, environmentService.getBlockPopulation()) == 0) {
                     for (int x = 0; x < blockSize; x++) {
                         for (int y = 0; y < blockSize; y++) {
                             if (random.nextInt(0, environmentService.getCellPopulation()) == 0) {
-                                block.getCells()[x][y] = true;
+                                block.getCells()[x][y] = 1;
                             }
                         }
                     }
