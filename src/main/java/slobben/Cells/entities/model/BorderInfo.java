@@ -8,19 +8,19 @@ public class BorderInfo {
     @Setter
     @Getter
     private boolean hasAliveCells = false;
-    private boolean[] topBorder;
-    private boolean[] bottomBorder;
+    private byte[] topBorder;
+    private byte[] bottomBorder;
 
     // Excluding corner cells
-    private boolean[] leftBorder;
-    private boolean[] rightBorder;
+    private byte[] leftBorder;
+    private byte[] rightBorder;
 
     public BorderInfo(int blockSizeWithBorder) {
         this.blockSizeWithBorder = blockSizeWithBorder;
-        this.topBorder = new boolean[blockSizeWithBorder];
-        this.bottomBorder = new boolean[blockSizeWithBorder];
-        this.leftBorder = new boolean[blockSizeWithBorder - 2];
-        this.rightBorder = new boolean[blockSizeWithBorder - 2];
+        this.topBorder = new byte[blockSizeWithBorder];
+        this.bottomBorder = new byte[blockSizeWithBorder];
+        this.leftBorder = new byte[blockSizeWithBorder - 2];
+        this.rightBorder = new byte[blockSizeWithBorder - 2];
     }
 
     public void copyCells(Block block) {
@@ -30,57 +30,57 @@ public class BorderInfo {
         copyRightBorder(block.getCells());
     }
 
-    private void copyTopBorder(boolean[][] destinationCells) {
+    private void copyTopBorder(byte[][] destinationCells) {
         System.arraycopy(topBorder, 0, destinationCells[0], 0, blockSizeWithBorder);
     }
 
-    private void copyBottomBorder(boolean[][] destinationCells) {
+    private void copyBottomBorder(byte[][] destinationCells) {
         System.arraycopy(bottomBorder, 0, destinationCells[blockSizeWithBorder - 1], 0, blockSizeWithBorder);
     }
 
-    private void copyLeftBorder(boolean[][] destinationCells) {
+    private void copyLeftBorder(byte[][] destinationCells) {
         for (int i = 1; i < blockSizeWithBorder - 1; i++) {
             destinationCells[i][0] = leftBorder[i - 1];
         }
     }
 
-    private void copyRightBorder(boolean[][] destinationCells) {
+    private void copyRightBorder(byte[][] destinationCells) {
         for (int i = 1; i < blockSizeWithBorder - 1; i++) {
             destinationCells[i][blockSizeWithBorder - 1] = rightBorder[i - 1];
         }
     }
 
-    public boolean[] setTopBorder(boolean[] cells) {
+    public byte[] setTopBorder(byte[] cells) {
         System.arraycopy(cells, 1, topBorder, 1, blockSizeWithBorder - 1);
         return topBorder;
     }
 
-    public boolean[] setBottomBorder(boolean[] cells) {
+    public byte[] setBottomBorder(byte[] cells) {
         System.arraycopy(cells, 1, bottomBorder, 1, blockSizeWithBorder - 1);
         return bottomBorder;
     }
 
-    public void setLeftBorder(boolean[] cells) {
+    public void setLeftBorder(byte[] cells) {
         System.arraycopy(cells, 1, leftBorder, 0, blockSizeWithBorder - 2);
     }
 
-    public void setRightBorder(boolean[] cells) {
+    public void setRightBorder(byte[] cells) {
         System.arraycopy(cells, 1, rightBorder, 0, blockSizeWithBorder - 2);
     }
 
-    public void setTopLeftCorner(boolean cell) {
+    public void setTopLeftCorner(byte cell) {
         topBorder[0] = cell;
     }
 
-    public void setTopRightCorner(boolean cell) {
+    public void setTopRightCorner(byte cell) {
         topBorder[topBorder.length - 1] = cell;
     }
 
-    public void setBottomLeftCorner(boolean cell) {
+    public void setBottomLeftCorner(byte cell) {
         bottomBorder[0] = cell;
     }
 
-    public void setBottomRightCorner(boolean cell) {
+    public void setBottomRightCorner(byte cell) {
         bottomBorder[bottomBorder.length - 1] = cell;
     }
 }

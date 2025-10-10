@@ -30,7 +30,6 @@ public class GenerationService {
         byte[][] heatmap = new byte[blockSizeWithBorder][blockSizeWithBorder];
         for (int x = 0; x < blockSizeWithBorder; x++) {
             for (int y = 0; y < blockSizeWithBorder; y++) {
-                if (!block.getCells()[x][y]) continue;
                 for (int i = -1; i <= 1; i++) {
                     for (int j = -1; j <= 1; j++) {
                         if (i == 0 && j == 0) continue;
@@ -43,7 +42,7 @@ public class GenerationService {
         for (int x = 1; x < blockSize + 1; x++) {
             for (int y = 1; y < blockSize + 1; y++) {
                 // If cell was dead
-                if (!block.getCells()[x][y]) {
+                if (0 == block.getCells()[x][y]) {
                     if (applyConwayGameOfLifeRules(DEAD, heatmap[x][y]).equals(ALIVE)) {
                         block.getCells()[x][y] = true;
                     }

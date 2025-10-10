@@ -60,7 +60,7 @@ public class StitchingService {
 
                 if (!hasNeigherMap && hasLiveCells) {
                     borderCellMap.put(neighborKey, neighborMap);
-                    Block newBlock = new Block(neighborX, neighborY, new boolean[blockSizeWithBorder][blockSizeWithBorder]);
+                    Block newBlock = new Block(neighborX, neighborY, new byte[blockSizeWithBorder][blockSizeWithBorder]);
                     newBlocks.add(newBlock);
                 }
             }
@@ -81,25 +81,25 @@ public class StitchingService {
     }
 
 
-    private boolean setBorderCellsForDirection(BorderInfo neighbourMap, int i, int j, boolean[][] cells) {
+    private boolean setBorderCellsForDirection(BorderInfo neighbourMap, int i, int j, byte[][] cells) {
         Direction direction = Direction.from(i, j);
         assert direction != null;
 
         switch (direction) {
             case TOP_LEFT -> {
-                boolean cell = cells[1][1];
+                byte cell = cells[1][1];
                 neighbourMap.setBottomRightCorner(cell);
-                return cell;
+                return 0 != cell;
             }
             case TOP -> {
-                boolean[] cellsToCopy = cells[1];
+                byte[] cellsToCopy = cells[1];
                 var result = neighbourMap.setBottomBorder(cellsToCopy);
                 return hasTrueValue(result);
             }
             case TOP_RIGHT -> {
-                boolean cell = cells[1][blockSize];
+                byte cell = cells[1][blockSize];
                 neighbourMap.setBottomLeftCorner(cell);
-                return cell;
+                return 0 != cell;
             }
             case LEFT -> {
                 var result = getColumnCells(cells, 1);
@@ -112,55 +112,55 @@ public class StitchingService {
                 return result.getSecond();
             }
             case BOTTOM_LEFT -> {
-                boolean cell = cells[blockSize][1];
+                byte cell = cells[blockSize][1];
                 neighbourMap.setTopRightCorner(cell);
-                return cell;
+                return 0 != cell;
             }
             case BOTTOM -> {
-                var cellsToCopy = new boolean[blockSizeWithBorder];
+                var cellsToCopy = new byte[blockSizeWithBorder];
                 System.arraycopy(cells[blockSize], 1, cellsToCopy, 1, blockSizeWithBorder - 1);
                 var result = neighbourMap.setTopBorder(cellsToCopy);
                 return hasTrueValue(result);
             }
             case BOTTOM_RIGHT -> {
-                boolean cell = cells[blockSize][blockSize];
+                byte cell = cells[blockSize][blockSize];
                 neighbourMap.setTopLeftCorner(cell);
-                return cell;
+                return 0 != cell;
             }
         }
         return false;
     }
 
-    private boolean hasTrueValue(boolean[] cells) {
+    private boolean hasTrueValue(byte[] cells) {
         for (var cell : cells) {
-            if (cell) return true;
+            if (0 != cell) return true;
         }
         return false;
     }
 
-    private Pair<boolean[], Boolean> getColumnCells(boolean[][] cells, int srcCol) {
-        boolean[] cellsToCopy = new boolean[cells.length];
+    private Pair<byte[], Boolean> getColumnCells(byte[][] cells, int srcCol) {
+        byte[] cellsToCopy = new byte[cells.length];
         boolean hasTrue = false;
         for (int i = 0; i < cells.length; i++) {
             cellsToCopy[i] = cells[i][srcCol];
-            if (cells[i][srcCol]) {
+            if (0 != cells[i][srcCol]) {
                 hasTrue = true;
             }
         }
         return Pair.of(cellsToCopy, hasTrue);
     }
 
-    private void removeBorders(boolean[][] cells) {
+    private void removeBorders(byte[][] cells) {
         int max = blockSize + 1;
 
         // x keys
-        cells[0] = new boolean[blockSizeWithBorder];
-        cells[max] = new boolean[blockSizeWithBorder];
+        cells[0] = new byte[blockSizeWithBorder];
+        cells[max] = new byte[blockSizeWithBorder];
 
         // y keys
         for (int i = 0; i < cells[0].length; i++) {
-            cells[i][0] = false;
-            cells[i][max] = false;
+            cells[i][0] = 0;
+            cells[i][max] = 0;
         }
     }
 }
