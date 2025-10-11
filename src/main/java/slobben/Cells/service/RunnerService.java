@@ -1,11 +1,13 @@
 package slobben.Cells.service;
 
 import com.mongodb.lang.Nullable;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import slobben.Cells.config.BlockUpdate;
 import slobben.Cells.config.StateInfo;
 import slobben.Cells.entities.model.Block;
 
@@ -33,11 +35,13 @@ public class RunnerService {
     @Setter
     private boolean running = true;
     ArrayList<Block> blocks;
+    @Getter
+    List<BlockUpdate> blockUpdates = new ArrayList<>();
 
     @SneakyThrows
     public void run() {
         this.blocks = initializerService.initializeMap();
-        while (running) {
+        do {
             long timer = System.currentTimeMillis();
             log.info("");
             log.info("Starting run!");
@@ -47,7 +51,17 @@ public class RunnerService {
             List<Block> newBlocks = new ArrayList<>();
 
             forEachBlockParallel("Initialize", stitchingService::initializeStitch);
-            forEachBlockParallel("Generate", generationService::setNextState);
+            forEachBlockParallel("Generate", (block) -> {
+                if (!blockUpdates.isEmpty()) {
+                    var optionalBlockUpdate = blockUpdates.stream().filter(update -> update.x() == block.getX() && update.y() == block.getY()).findFirst();
+                    if (optionalBlockUpdate.isPresent()) {
+                        blockUpdates.remove(optionalBlockUpdate.get());
+                        updateBlock(block, optionalBlockUpdate.get());
+                        return;
+                    }
+                }
+                generationService.setNextState(block);
+            });
 
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
             blocks.addAll(newBlocks);
@@ -62,12 +76,13 @@ public class RunnerService {
             } else {
                 log.info("Ending run. Time Taken: {}ms, No waiting!", timeTaken);
             }
-        }
+        } while (running);
     }
 
-    public boolean[][] getBlockWithoutBorders(int x, int y) {
-        setBlockUpdate(x, y, true);
-        return boardInfoService.getBlockWithoutBorder(getBlock(x, y));
+    private void updateBlock(Block block, BlockUpdate update) {
+        for (int x = 1; x < update.state().length + 1; x++) {
+            System.arraycopy(update.state()[x - 1], 0, block.getCells()[x], 1, update.state().length);
+        }
     }
 
     private Block getBlock(int x, int y) {
@@ -95,11 +110,10 @@ public class RunnerService {
         log.info("Task {} finished in: {}ms", taskName, System.currentTimeMillis() - timer);
     }
 
-    public boolean setBlockUpdate(int x, int y, boolean update) {
+    public boolean[][] setBlockUpdate(int x, int y, boolean update) {
         var block = getBlock(x, y);
-        var originalValue = block.isUpdatingWeb();
         block.setUpdatingWeb(update);
-        return originalValue;
+        return boardInfoService.getBlockWithoutBorder(block);
     }
 
     public StateInfo getStateInfo() {
