@@ -1,6 +1,5 @@
 package slobben.Cells.service;
 
-import com.mongodb.lang.Nullable;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -52,6 +51,7 @@ public class RunnerService {
 
             forEachBlockParallel("Initialize", stitchingService::initializeStitch);
             forEachBlockParallel("Generate", (block) -> {
+                // Check for block update request by user
                 if (!blockUpdates.isEmpty()) {
                     var optionalBlockUpdate = blockUpdates.stream().filter(update -> update.x() == block.getX() && update.y() == block.getY()).findFirst();
                     if (optionalBlockUpdate.isPresent()) {
@@ -62,6 +62,18 @@ public class RunnerService {
                 }
                 generationService.setNextState(block);
             });
+            // create a new block for every update request that hasnt happened yet
+            if (!blockUpdates.isEmpty()) {
+                blockUpdates.forEach(updateBlock -> {
+                    log.info("Generating new block for: x{}, y{}", updateBlock.x(), updateBlock.y());
+                    boolean[][] matrix = new boolean[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()];
+                    Block newBlock = new Block(updateBlock.x(), updateBlock.y(), matrix);
+                    stitchingService.initializeStitch(newBlock);
+                    updateBlock(newBlock, updateBlock);
+                    blocks.add(newBlock);
+                });
+                blockUpdates.clear();
+            }
 
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
             blocks.addAll(newBlocks);

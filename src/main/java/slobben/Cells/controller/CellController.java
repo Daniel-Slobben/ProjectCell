@@ -12,6 +12,8 @@ import slobben.Cells.config.StateInfo;
 import slobben.Cells.service.EnvironmentService;
 import slobben.Cells.service.RunnerService;
 
+import java.util.Arrays;
+
 @Controller
 @AllArgsConstructor
 public class CellController {
@@ -35,6 +37,7 @@ public class CellController {
 
     @PutMapping("block/{x}/{y}/set-block")
     public ResponseEntity<HttpStatus> setBlock(@PathVariable("x") int x, @PathVariable("y") int y, @RequestBody boolean[][] body) {
+        log.info("Received request to set block x: {}, y: {}", x, y);
         runnerService.getBlockUpdates().add(BlockUpdate.builder().x(x).y(y).state(body).build());
         return ResponseEntity.ok(HttpStatus.OK);
     }
