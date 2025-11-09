@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.Cells.config.BlockUpdate;
 import slobben.Cells.config.StateInfo;
@@ -31,9 +32,10 @@ public class RunnerService {
     private final GenerationService generationService;
     private final UpdateWebService updateWebService;
     private final EnvironmentService environmentService;
+    private ArrayList<Pair<Integer, Integer>> watchedNullBlocks = new ArrayList<>();
+    ArrayList<Block> blocks;
     @Setter
     private boolean running = true;
-    ArrayList<Block> blocks;
     @Getter
     List<BlockUpdate> blockUpdates = new ArrayList<>();
 
@@ -57,6 +59,7 @@ public class RunnerService {
                     if (optionalBlockUpdate.isPresent()) {
                         blockUpdates.remove(optionalBlockUpdate.get());
                         updateBlock(block, optionalBlockUpdate.get());
+
                         return;
                     }
                 }
@@ -70,6 +73,7 @@ public class RunnerService {
                     Block newBlock = new Block(updateBlock.x(), updateBlock.y(), matrix);
                     stitchingService.initializeStitch(newBlock);
                     updateBlock(newBlock, updateBlock);
+                    checkForNullBlockWatching(newBlock);
                     blocks.add(newBlock);
                 });
                 blockUpdates.clear();
@@ -77,6 +81,8 @@ public class RunnerService {
 
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
             blocks.addAll(newBlocks);
+            newBlocks.forEach(this::checkForNullBlockWatching);
+
             forEachParallel("WebUpdate", blocks.stream().filter(Block::isUpdatingWeb).toList(), updateWebService::updateBlock);
             forEachBlockParallel("Stitch", stitchingService::stitchBlock);
 
@@ -89,6 +95,13 @@ public class RunnerService {
                 log.info("Ending run. Time Taken: {}ms, No waiting!", timeTaken);
             }
         } while (running);
+    }
+
+    private void checkForNullBlockWatching(Block block) {
+        if (watchedNullBlocks.contains(Pair.of(block.getX(), block.getY()))) {
+            block.setUpdatingWeb(true);
+            watchedNullBlocks.remove(Pair.of(block.getX(), block.getY()));
+        }
     }
 
     private void updateBlock(Block block, BlockUpdate update) {
@@ -123,9 +136,18 @@ public class RunnerService {
     }
 
     public boolean[][] setBlockUpdate(int x, int y, boolean update) {
-        var block = getBlock(x, y);
-        block.setUpdatingWeb(update);
-        return boardInfoService.getBlockWithoutBorder(block);
+        try {
+            var block = getBlock(x, y);
+            block.setUpdatingWeb(update);
+            return boardInfoService.getBlockWithoutBorder(block);
+        } catch (IllegalStateException e) {
+            if (update) {
+                this.watchedNullBlocks.add(Pair.of(x, y));
+            } else {
+                this.watchedNullBlocks.remove(Pair.of(x, y));
+            }
+            throw e;
+        }
     }
 
     public StateInfo getStateInfo() {
@@ -133,5 +155,10 @@ public class RunnerService {
                 .blocksInMemory(blocks.size())
                 .blocksUpdating((int)(blocks.stream().filter(Block::isUpdatingWeb).count()))
                 .build();
+    }
+
+    public void setBlock(int x, int y, boolean[][] body) {
+        blockUpdates.add(BlockUpdate.builder().x(x).y(y).state(body).build());
+        watchedNullBlocks.add(Pair.of(x, y));
     }
 }

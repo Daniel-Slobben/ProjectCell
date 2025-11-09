@@ -38,7 +38,7 @@ public class CellController {
     @PutMapping("block/{x}/{y}/set-block")
     public ResponseEntity<HttpStatus> setBlock(@PathVariable("x") int x, @PathVariable("y") int y, @RequestBody boolean[][] body) {
         log.info("Received request to set block x: {}, y: {}", x, y);
-        runnerService.getBlockUpdates().add(BlockUpdate.builder().x(x).y(y).state(body).build());
+        runnerService.setBlock(x, y, body);
         return ResponseEntity.ok(HttpStatus.OK);
     }
 
