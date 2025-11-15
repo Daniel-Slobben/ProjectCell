@@ -6,13 +6,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
-import slobben.Cells.config.BlockUpdate;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import slobben.Cells.config.StateInfo;
 import slobben.Cells.service.EnvironmentService;
 import slobben.Cells.service.RunnerService;
-
-import java.util.Arrays;
 
 @Controller
 @AllArgsConstructor
@@ -28,20 +28,12 @@ public class CellController {
         return ResponseEntity.ok(environmentService.getBlockSize());
     }
 
-    @GetMapping("block/{x}/{y}")
-    public ResponseEntity<boolean[][]> toggleUpdate(@PathVariable("x") int x, @PathVariable("y") int y, @RequestParam boolean isUpdating) {
-        log.debug("Received request to set update {} for block x: {}, y: {}", isUpdating, x, y);
-        boolean[][] result = runnerService.setBlockUpdate(x, y, isUpdating);
-        return ResponseEntity.ok(result);
-    }
-
     @PutMapping("block/{x}/{y}/set-block")
     public ResponseEntity<HttpStatus> setBlock(@PathVariable("x") int x, @PathVariable("y") int y, @RequestBody boolean[][] body) {
         log.info("Received request to set block x: {}, y: {}", x, y);
         runnerService.setBlock(x, y, body);
         return ResponseEntity.ok(HttpStatus.OK);
     }
-
 
     @GetMapping("state-info")
     public ResponseEntity<StateInfo> getStateInfo() {

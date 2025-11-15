@@ -9,11 +9,12 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.Cells.config.BlockUpdate;
 import slobben.Cells.config.StateInfo;
+import slobben.Cells.controller.ClientUpdateRequest;
 import slobben.Cells.entities.model.Block;
+import slobben.Cells.util.BlockUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.sql.Array;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -32,12 +33,12 @@ public class RunnerService {
     private final GenerationService generationService;
     private final UpdateWebService updateWebService;
     private final EnvironmentService environmentService;
-    private ArrayList<Pair<Integer, Integer>> watchedNullBlocks = new ArrayList<>();
     ArrayList<Block> blocks;
     @Setter
     private boolean running = true;
     @Getter
     List<BlockUpdate> blockUpdates = new ArrayList<>();
+    private final Map<UUID, Set<Block>> activeClients = new HashMap<>();
 
     @SneakyThrows
     public void run() {
@@ -63,7 +64,9 @@ public class RunnerService {
                         return;
                     }
                 }
-                generationService.setNextState(block);
+                if (!block.isGhostBlock()) {
+                    generationService.setNextState(block);
+                }
             });
             // create a new block for every update request that hasnt happened yet
             if (!blockUpdates.isEmpty()) {
@@ -73,7 +76,6 @@ public class RunnerService {
                     Block newBlock = new Block(updateBlock.x(), updateBlock.y(), matrix);
                     stitchingService.initializeStitch(newBlock);
                     updateBlock(newBlock, updateBlock);
-                    checkForNullBlockWatching(newBlock);
                     blocks.add(newBlock);
                 });
                 blockUpdates.clear();
@@ -81,9 +83,8 @@ public class RunnerService {
 
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
             blocks.addAll(newBlocks);
-            newBlocks.forEach(this::checkForNullBlockWatching);
 
-            forEachParallel("WebUpdate", blocks.stream().filter(Block::isUpdatingWeb).toList(), updateWebService::updateBlock);
+            activeClients.entrySet().stream().parallel().forEach((entry) -> updateWebService.updateClient(entry.getKey(), entry.getValue()));
             forEachBlockParallel("Stitch", stitchingService::stitchBlock);
 
             long timeTaken = System.currentTimeMillis() - timer;
@@ -97,20 +98,13 @@ public class RunnerService {
         } while (running);
     }
 
-    private void checkForNullBlockWatching(Block block) {
-        if (watchedNullBlocks.contains(Pair.of(block.getX(), block.getY()))) {
-            block.setUpdatingWeb(true);
-            watchedNullBlocks.remove(Pair.of(block.getX(), block.getY()));
-        }
-    }
-
     private void updateBlock(Block block, BlockUpdate update) {
         for (int x = 1; x < update.state().length + 1; x++) {
             System.arraycopy(update.state()[x - 1], 0, block.getCells()[x], 1, update.state().length);
         }
     }
 
-    private Block getBlock(int x, int y) {
+    private Block getBlock(int x, int y) throws IllegalStateException {
         var optionalBlock = blocks.stream().filter(block -> block.getX() == x && block.getY() == y).findFirst();
         if (optionalBlock.isEmpty()) {
             throw new IllegalStateException("No block found for x: " + x + ", y: " + y);
@@ -139,14 +133,16 @@ public class RunnerService {
         try {
             var block = getBlock(x, y);
             block.setUpdatingWeb(update);
+
+            if (!update && block.isGhostBlock()) {
+                blocks.remove(block);
+            }
             return boardInfoService.getBlockWithoutBorder(block);
         } catch (IllegalStateException e) {
             if (update) {
-                this.watchedNullBlocks.add(Pair.of(x, y));
-            } else {
-                this.watchedNullBlocks.remove(Pair.of(x, y));
+                getNewGhostBlock(Pair.of(x, y));
             }
-            throw e;
+            return new boolean[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()];
         }
     }
 
@@ -159,6 +155,37 @@ public class RunnerService {
 
     public void setBlock(int x, int y, boolean[][] body) {
         blockUpdates.add(BlockUpdate.builder().x(x).y(y).state(body).build());
-        watchedNullBlocks.add(Pair.of(x, y));
+    }
+
+    public Set<Block> getBlocksFromKeys(Set<String> keys) {
+        Set<Block> blocksToAdd = new HashSet<>();
+        for (String key : keys) {
+            var coordinates = BlockUtils.resolveKey(key);
+            try {
+                blocksToAdd.add(getBlock(coordinates.getFirst(), coordinates.getSecond()));
+            } catch (IllegalStateException e) {
+                Block newBlock = getNewGhostBlock(coordinates);
+                blocksToAdd.add(newBlock);
+            }
+        }
+        return blocksToAdd;
+    }
+
+    public void updateClient(ClientUpdateRequest clientUpdateRequest) {
+        if (activeClients.containsKey(clientUpdateRequest.client())) {
+            var clientBlocks = activeClients.get(clientUpdateRequest.client());
+
+            clientBlocks.removeIf(block -> Set.of(clientUpdateRequest.blocksToRemove()).contains(BlockUtils.getKey(block.getX(), block.getY())));
+            clientBlocks.addAll(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
+        } else {
+           activeClients.put(clientUpdateRequest.client(), getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
+        }
+    }
+
+    private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
+        Block newBlock = new Block(coordinates.getFirst(), coordinates.getSecond(), new boolean[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()]);
+        newBlock.setGhostBlock(true);
+        blocks.add(newBlock);
+        return newBlock;
     }
 }

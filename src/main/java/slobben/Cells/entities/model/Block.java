@@ -15,5 +15,6 @@ public class Block {
     private final int y;
     private int generation = 0;
     private boolean isUpdatingWeb = false;
+    private boolean ghostBlock = false;
     private final boolean[][] cells;
 }
