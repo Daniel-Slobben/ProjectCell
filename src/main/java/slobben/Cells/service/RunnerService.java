@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.concurrent.ConcurrentMapCache;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.Cells.config.BlockUpdate;
@@ -39,6 +40,7 @@ public class RunnerService {
     @Getter
     List<BlockUpdate> blockUpdates = new ArrayList<>();
     private final Map<UUID, Set<Block>> activeClients = new HashMap<>();
+    private final Map<String, Block> ghostBlocks = new HashMap<>();
 
     @SneakyThrows
     public void run() {
@@ -60,20 +62,27 @@ public class RunnerService {
                     if (optionalBlockUpdate.isPresent()) {
                         blockUpdates.remove(optionalBlockUpdate.get());
                         updateBlock(block, optionalBlockUpdate.get());
-
-                        return;
                     }
                 }
-                if (!block.isGhostBlock()) {
-                    generationService.setNextState(block);
-                }
+                this.generationService.setNextState(block);
             });
             // create a new block for every update request that hasnt happened yet
             if (!blockUpdates.isEmpty()) {
                 blockUpdates.forEach(updateBlock -> {
                     log.info("Generating new block for: x{}, y{}", updateBlock.x(), updateBlock.y());
                     boolean[][] matrix = new boolean[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()];
-                    Block newBlock = new Block(updateBlock.x(), updateBlock.y(), matrix);
+
+                    Block newBlock;
+                    var key = BlockUtils.getKey(updateBlock.x(), updateBlock.y());
+                    if (ghostBlocks.containsKey(key)) {
+                        var ghostBlock = ghostBlocks.get(key);
+                        ghostBlock.setGhostBlock(false);
+                        ghostBlocks.remove(key);
+                        newBlock = ghostBlock;
+                    } else {
+                        newBlock = new Block(updateBlock.x(), updateBlock.y(), matrix);
+                    }
+
                     stitchingService.initializeStitch(newBlock);
                     updateBlock(newBlock, updateBlock);
                     blocks.add(newBlock);
@@ -82,9 +91,19 @@ public class RunnerService {
             }
 
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
-            blocks.addAll(newBlocks);
+            var adjustedNewBlocks = newBlocks.stream().map(block -> {
+                var key = BlockUtils.getKey(block.getX(), block.getY());
+                if (ghostBlocks.containsKey(key)) {
+                    var ghostBlock = ghostBlocks.get(key);
+                    ghostBlock.setGhostBlock(false);
+                    ghostBlocks.remove(key);
+                    return ghostBlock;
+                }
+                return block;
+            }).toList();
+            blocks.addAll(adjustedNewBlocks);
 
-            activeClients.entrySet().stream().parallel().forEach((entry) -> updateWebService.updateClient(entry.getKey(), entry.getValue()));
+            activeClients.forEach(updateWebService::updateClient);
             forEachBlockParallel("Stitch", stitchingService::stitchBlock);
 
             long timeTaken = System.currentTimeMillis() - timer;
@@ -104,14 +123,6 @@ public class RunnerService {
         }
     }
 
-    private Block getBlock(int x, int y) throws IllegalStateException {
-        var optionalBlock = blocks.stream().filter(block -> block.getX() == x && block.getY() == y).findFirst();
-        if (optionalBlock.isEmpty()) {
-            throw new IllegalStateException("No block found for x: " + x + ", y: " + y);
-        }
-        return optionalBlock.get();
-    }
-
     private void forEachBlockParallel(String taskName, Consumer<Block> task) throws InterruptedException {
         forEachParallel(taskName, blocks, task);
     }
@@ -129,21 +140,9 @@ public class RunnerService {
         log.info("Task {} finished in: {}ms", taskName, System.currentTimeMillis() - timer);
     }
 
-    public boolean[][] setBlockUpdate(int x, int y, boolean update) {
-        try {
-            var block = getBlock(x, y);
-            block.setUpdatingWeb(update);
-
-            if (!update && block.isGhostBlock()) {
-                blocks.remove(block);
-            }
-            return boardInfoService.getBlockWithoutBorder(block);
-        } catch (IllegalStateException e) {
-            if (update) {
-                getNewGhostBlock(Pair.of(x, y));
-            }
-            return new boolean[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()];
-        }
+    public Block getBlock(int x, int y) {
+        var optionalBlock = blocks.stream().filter(block -> block.getX() == x && block.getY() == y).findFirst();
+        return optionalBlock.orElseGet(() -> getNewGhostBlock(Pair.of(x, y)));
     }
 
     public StateInfo getStateInfo() {
@@ -171,7 +170,7 @@ public class RunnerService {
         return blocksToAdd;
     }
 
-    public void updateClient(ClientUpdateRequest clientUpdateRequest) {
+    public List<Block> updateClient(ClientUpdateRequest clientUpdateRequest) {
         if (activeClients.containsKey(clientUpdateRequest.client())) {
             var clientBlocks = activeClients.get(clientUpdateRequest.client());
 
@@ -180,12 +179,18 @@ public class RunnerService {
         } else {
            activeClients.put(clientUpdateRequest.client(), getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
         }
+        return activeClients.get(clientUpdateRequest.client()).stream().toList();
     }
 
     private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
-        Block newBlock = new Block(coordinates.getFirst(), coordinates.getSecond(), new boolean[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()]);
-        newBlock.setGhostBlock(true);
-        blocks.add(newBlock);
+        var blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
+        Block newBlock = Block.builder()
+                .x(coordinates.getFirst())
+                .y(coordinates.getSecond())
+                .cells(new boolean[blockSizeWithBorder][blockSizeWithBorder])
+                .ghostBlock(true)
+                .build();
+        ghostBlocks.put(BlockUtils.getKey(newBlock.getX(), newBlock.getY()), newBlock);
         return newBlock;
     }
 }

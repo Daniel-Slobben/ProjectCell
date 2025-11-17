@@ -9,12 +9,17 @@ import slobben.Cells.entities.model.Block;
 public class BoardInfoService {
     private final EnvironmentService environmentService;
 
-    public boolean[][] getBlockWithoutBorder(Block block) {
+    public Block getBlockWithoutBorder(Block block) {
         var mapWithBorder = block.getCells();
         boolean[][] map = new boolean[environmentService.getBlockSize()][environmentService.getBlockSize()];
         for (int i = 1; i < environmentService.getBlockSizeWithBorder() - 1; i++) {
             System.arraycopy(mapWithBorder[i], 1, map[i - 1], 0, environmentService.getBlockSize());
         }
-        return map;
+        return Block.builder()
+                .x(block.getX())
+                .y(block.getY())
+                .cells(map)
+                .ghostBlock(block.isGhostBlock())
+                .build();
     }
 }

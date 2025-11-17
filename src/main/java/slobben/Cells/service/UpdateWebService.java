@@ -5,6 +5,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import slobben.Cells.entities.model.Block;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -16,7 +18,8 @@ public class UpdateWebService {
     private final BoardInfoService boardInfoService;
 
     public void updateClient(UUID uuid, Set<Block> blocks) {
-        String topic = String.format("/topic/" + uuid, blocks);
-        simpMessagingTemplate.convertAndSend(topic, blocks);
+        var copyOfBlocks = List.copyOf(blocks).stream().map(boardInfoService::getBlockWithoutBorder).toList();
+        String topic = String.format("/topic/" + uuid);
+        simpMessagingTemplate.convertAndSend(topic, copyOfBlocks);
     }
 }
