@@ -11,22 +11,12 @@ import slobben.Cells.enums.CellState;
 import static slobben.Cells.enums.CellState.ALIVE;
 import static slobben.Cells.enums.CellState.DEAD;
 
-@Service
-@Slf4j
-@RequiredArgsConstructor
 public class GenerationService {
 
-    private final EnvironmentService environmentService;
-    private int blockSize;
+    public static void setNextState(Block block) {
+        final int blockSizeWithBorder = block.getCells().length;
+        final int blockSize = blockSizeWithBorder - 2;
 
-    @PostConstruct
-    public void init() {
-        blockSize = environmentService.getBlockSize();
-    }
-
-    @SneakyThrows
-    public void setNextState(Block block) {
-        int blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
         byte[][] heatmap = new byte[blockSizeWithBorder][blockSizeWithBorder];
         for (int x = 0; x < blockSizeWithBorder; x++) {
             for (int y = 0; y < blockSizeWithBorder; y++) {
@@ -58,7 +48,7 @@ public class GenerationService {
         }
     }
 
-    private CellState applyConwayGameOfLifeRules(CellState cellState, int aliveCounter) {
+    private static CellState applyConwayGameOfLifeRules(CellState cellState, int aliveCounter) {
         if (cellState == ALIVE) {
             return (aliveCounter == 2 || aliveCounter == 3) ? ALIVE : DEAD;
         } else {

@@ -14,7 +14,6 @@ import slobben.Cells.controller.ClientUpdateRequest;
 import slobben.Cells.entities.model.Block;
 import slobben.Cells.util.BlockUtils;
 
-import java.sql.Array;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,9 +28,7 @@ import static java.lang.Thread.sleep;
 public class RunnerService {
 
     private final StitchingService stitchingService;
-    private final BoardInfoService boardInfoService;
     private final InitializerService initializerService;
-    private final GenerationService generationService;
     private final UpdateWebService updateWebService;
     private final EnvironmentService environmentService;
     ArrayList<Block> blocks;
@@ -50,61 +47,18 @@ public class RunnerService {
             log.info("");
             log.info("Starting run!");
 
-            // TODO: No stitch happens in first run after initializing
             stitchingService.resetStitch();
-            List<Block> newBlocks = new ArrayList<>();
 
             forEachBlockParallel("Initialize", stitchingService::initializeStitch);
-            forEachBlockParallel("Generate", (block) -> {
-                // Check for block update request by user
-                if (!blockUpdates.isEmpty()) {
-                    var optionalBlockUpdate = blockUpdates.stream().filter(update -> update.x() == block.getX() && update.y() == block.getY()).findFirst();
-                    if (optionalBlockUpdate.isPresent()) {
-                        blockUpdates.remove(optionalBlockUpdate.get());
-                        updateBlock(block, optionalBlockUpdate.get());
-                    }
-                }
-                this.generationService.setNextState(block);
-            });
-            // create a new block for every update request that hasnt happened yet
-            if (!blockUpdates.isEmpty()) {
-                blockUpdates.forEach(updateBlock -> {
-                    log.info("Generating new block for: x{}, y{}", updateBlock.x(), updateBlock.y());
-                    boolean[][] matrix = new boolean[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()];
+            checkForExternalBlockUpdates();
+            forEachBlockParallel("Generate", GenerationService::setNextState);
 
-                    Block newBlock;
-                    var key = BlockUtils.getKey(updateBlock.x(), updateBlock.y());
-                    if (ghostBlocks.containsKey(key)) {
-                        var ghostBlock = ghostBlocks.get(key);
-                        ghostBlock.setGhostBlock(false);
-                        ghostBlocks.remove(key);
-                        newBlock = ghostBlock;
-                    } else {
-                        newBlock = new Block(updateBlock.x(), updateBlock.y(), matrix);
-                    }
-
-                    stitchingService.initializeStitch(newBlock);
-                    updateBlock(newBlock, updateBlock);
-                    blocks.add(newBlock);
-                });
-                blockUpdates.clear();
-            }
-
+            List<Block> newBlocks = new ArrayList<>();
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
-            var adjustedNewBlocks = newBlocks.stream().map(block -> {
-                var key = BlockUtils.getKey(block.getX(), block.getY());
-                if (ghostBlocks.containsKey(key)) {
-                    var ghostBlock = ghostBlocks.get(key);
-                    ghostBlock.setGhostBlock(false);
-                    ghostBlocks.remove(key);
-                    return ghostBlock;
-                }
-                return block;
-            }).toList();
-            blocks.addAll(adjustedNewBlocks);
+            createNewBlocks(newBlocks);
+            forEachBlockParallel("Stitch", stitchingService::stitchBlock);
 
             activeClients.forEach(updateWebService::updateClient);
-            forEachBlockParallel("Stitch", stitchingService::stitchBlock);
 
             long timeTaken = System.currentTimeMillis() - timer;
             long timeDelta = timeTaken - environmentService.getTargetspeed();
@@ -117,10 +71,53 @@ public class RunnerService {
         } while (running);
     }
 
+    private void createNewBlocks(List<Block> newBlocks) {
+        var adjustedNewBlocks = newBlocks.stream().map(block -> {
+            var key = BlockUtils.getKey(block.getX(), block.getY());
+            if (ghostBlocks.containsKey(key)) {
+                var ghostBlock = ghostBlocks.get(key);
+                ghostBlock.setGhostBlock(false);
+                ghostBlocks.remove(key);
+                return ghostBlock;
+            }
+            return block;
+        }).toList();
+        blocks.addAll(adjustedNewBlocks);
+    }
+
+    private void checkForExternalBlockUpdates() {
+        for (BlockUpdate blockUpdate : blockUpdates) {
+            Optional<Block> optionalBlock = blocks.stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
+            if (optionalBlock.isPresent()) updateBlock(optionalBlock.get(), blockUpdate);
+            else createBlock(blockUpdate);
+        }
+        blockUpdates.clear();
+    }
+
     private void updateBlock(Block block, BlockUpdate update) {
         for (int x = 1; x < update.state().length + 1; x++) {
             System.arraycopy(update.state()[x - 1], 0, block.getCells()[x], 1, update.state().length);
         }
+    }
+
+    private void createBlock(BlockUpdate blockUpdate) {
+        log.info("Generating new block for: x{}, y{}", blockUpdate.x(), blockUpdate.y());
+        boolean[][] matrix = new boolean[environmentService.getBlockSizeWithBorder()][environmentService.getBlockSizeWithBorder()];
+
+        Block newBlock;
+        var key = BlockUtils.getKey(blockUpdate.x(), blockUpdate.y());
+        if (ghostBlocks.containsKey(key)) {
+            var ghostBlock = ghostBlocks.get(key);
+            ghostBlock.setGhostBlock(false);
+            ghostBlocks.remove(key);
+            newBlock = ghostBlock;
+        } else {
+            newBlock = new Block(blockUpdate.x(), blockUpdate.y(), matrix);
+        }
+
+        stitchingService.initializeStitch(newBlock);
+        updateBlock(newBlock, blockUpdate);
+        blocks.add(newBlock);
     }
 
     private void forEachBlockParallel(String taskName, Consumer<Block> task) throws InterruptedException {

@@ -20,11 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GenerationServiceTests {
 
     private final InitializerService initializerService;
-    private final GenerationService generationService;
 
     @Autowired
-    public GenerationServiceTests(GenerationService generationService, InitializerService initializerService) {
-        this.generationService = generationService;
+    public GenerationServiceTests(InitializerService initializerService) {
         this.initializerService = initializerService;
     }
 
@@ -36,7 +34,7 @@ class GenerationServiceTests {
         block.getCells()[0][1] = true;
         block.getCells()[1][0] = true;
         block.getCells()[1][1] = true;
-        generationService.setNextState(block);
+        GenerationService.setNextState(block);
 
         assertThat(block.getCells()[0][0]).isTrue();
         assertThat(block.getCells()[0][1]).isTrue();
