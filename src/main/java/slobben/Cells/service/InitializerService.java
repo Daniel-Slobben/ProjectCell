@@ -1,60 +1,67 @@
 package slobben.Cells.service;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.stereotype.Service;
+import com.mongodb.assertions.Assertions;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import slobben.Cells.entities.model.Block;
-import slobben.Cells.entities.repository.BlockRepository;
 
-import java.util.ArrayList;
 import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
-@Service
-@Getter
-@Slf4j
-@RequiredArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class InitializerService {
+    private static final Random random = new Random();
+    @Setter
+    private static int blockAmount;
+    @Setter
+    private static int blockSize;
+    @Setter
+    private static int blockSizeWithBorder;
+    @Setter
+    private static int blockPopulation;
+    @Setter
+    private static int cellPopulation;
 
-    private final BlockRepository blockRepository;
-    private final StitchingService stitchingService;
-    private final MongoTemplate mongoTemplate;
-    private final EnvironmentService environmentService;
+    private static Stream<Block> getBlockStream() {
+        Assertions.assertTrue(blockAmount > 0);
+        Assertions.assertTrue(blockSize > 0);
+        Assertions.assertTrue(blockSizeWithBorder > 0);
 
-    @SneakyThrows
-    public ArrayList<Block> initializeMap() {
-        log.info("Initializing {} map!", environmentService.getSetupMode());
-        String setup = environmentService.getSetupMode();
-        int blockAmount = environmentService.getBlockAmount();
-        int blockSize = environmentService.getBlockSize();
-        int blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
+        return IntStream.range(0, blockAmount * blockAmount).mapToObj(count -> {
+            int x = count / blockAmount;
+            int y = count % blockAmount;
+            return new Block(x, y, new boolean[blockSizeWithBorder][blockSizeWithBorder]);
+        });
+    }
 
-        mongoTemplate.dropCollection(Block.class);
-        ArrayList<Block> blocks = new ArrayList<>(blockAmount * blockAmount);
+    public static Set<Block> getEmptyMap() {
+        return getBlockStream().collect(Collectors.toSet());
+    }
 
-        long totalTimerSetup = System.currentTimeMillis();
-        for (int blockX = 0; blockX < blockAmount; blockX++) {
-            for (int blockY = 0; blockY < blockAmount; blockY++) {
-                Block block = new Block(blockX, blockY, new boolean[blockSizeWithBorder][blockSizeWithBorder]);
+    public static Set<Block> getRandomMap() {
+        Assertions.assertTrue(blockPopulation > 0);
+        Assertions.assertTrue(cellPopulation > 0);
 
-                Random random = new Random();
-                if (setup.equals("RANDOM") && random.nextInt(0, environmentService.getBlockPopulation()) == 0) {
-                    for (int x = 0; x < blockSize; x++) {
-                        for (int y = 0; y < blockSize; y++) {
-                            if (random.nextInt(0, environmentService.getCellPopulation()) == 0) {
-                                block.getCells()[x][y] = true;
-                            }
-                        }
-                    }
-                    stitchingService.initializeStitch(block);
-                    stitchingService.addBorderCells(block);
+        return getBlockStream()
+                .map(InitializerService::setBlockToRandom)
+                .collect(Collectors.toSet());
+    }
+
+    private static Block setBlockToRandom(Block block) {
+        if (random.nextInt(0, blockPopulation) != 0) {
+            return block;
+        }
+        for (int x = 0; x < blockSize; x++) {
+            for (int y = 0; y < blockSize; y++) {
+                if (random.nextInt(0, cellPopulation) == 0) {
+                    block.getCells()[x][y] = true;
                 }
-                blocks.add(block);
             }
         }
-        System.out.println("Time taken to generate: " + (System.currentTimeMillis() - totalTimerSetup));
-        return blocks;
+        return block;
     }
 }

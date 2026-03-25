@@ -1,6 +1,5 @@
 package slobben.Cells;
 
-import lombok.Cleanup;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -16,6 +15,7 @@ import slobben.Cells.service.InitializerService;
 import slobben.Cells.service.StitchingService;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,22 +24,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ComponentScan("slobben.Cells.service")
 @ActiveProfiles(profiles = "unit")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-public class StitchingTest {
+class StitchingTest {
     private final StitchingService stitchingService;
-    private final InitializerService initializerService;
 
     @Autowired
-    public StitchingTest(StitchingService stitchingService, InitializerService initializerService) {
+    public StitchingTest(StitchingService stitchingService) {
         this.stitchingService = stitchingService;
-        this.initializerService = initializerService;
     }
 
     @ParameterizedTest
     @EnumSource(value = Direction.class)
-    public void testStitching(Direction direction) {
-        List<Block> blocks = initializerService.initializeMap();
+    void testStitching(Direction direction) {
+        Set<Block> blocks = InitializerService.getEmptyMap();
         assert blocks.size() == 1;
-        var block = blocks.getFirst();
+        var block = blocks.stream().findFirst().get();
         var cells = block.getCells();
         //corner cells
         cells[1][1] = true;
@@ -52,9 +50,8 @@ public class StitchingTest {
         assert newBlocks.size() == 8;
         newBlocks.forEach(stitchingService::stitchBlock);
 
-        var blockToCheck = newBlocks.stream().filter(b -> b.getX() == direction.getDx()) .filter(b -> b.getY() == direction.getDy()).findFirst().get();
+        Block blockToCheck = newBlocks.stream().filter(b -> b.getX() == direction.getDx()) .filter(b -> b.getY() == direction.getDy()).findFirst().get();
         blocks.addAll(newBlocks);
-        //blocks.forEach(stitchingService::stitchBlock);
 
         switch(direction) {
             case Direction.TOP_LEFT -> assertThat(blockToCheck.getCells()[11][11]).isTrue();

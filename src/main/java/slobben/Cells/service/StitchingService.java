@@ -8,9 +8,7 @@ import slobben.Cells.entities.model.Block;
 import slobben.Cells.entities.model.BorderInfo;
 import slobben.Cells.enums.Direction;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor
@@ -37,7 +35,7 @@ public class StitchingService {
     }
 
     public List<Block> addBorderCells(Block block) {
-        ArrayList<Block> newBlocks = new ArrayList<>();
+        List<Block> newBlocks = new ArrayList<>();
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
                 if (i == 0 && j == 0) continue;

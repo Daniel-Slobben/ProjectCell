@@ -2,7 +2,6 @@ package slobben.Cells;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
@@ -19,16 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles(profiles = "unit")
 class GenerationServiceTests {
 
-    private final InitializerService initializerService;
-
-    @Autowired
-    public GenerationServiceTests(InitializerService initializerService) {
-        this.initializerService = initializerService;
-    }
-
     @Test
     public void checkTick() {
-        var blocks = initializerService.initializeMap();
+        var blocks = InitializerService.getEmptyMap();
         Block block = blocks.stream().filter(b -> b.getX() == 0).filter(b -> b.getY() == 0).findFirst().get();
         block.getCells()[0][0] = true;
         block.getCells()[0][1] = true;
