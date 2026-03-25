@@ -30,5 +30,12 @@ public class EnvironmentService {
         this.blockPopulation = blockPopulation;
         this.cellPopulation = cellPopulation;
         this.runMode = runMode;
+
+        // setup static classes
+        InitializerService.setBlockAmount(blockAmount);
+        InitializerService.setBlockSize(blockSize);
+        InitializerService.setBlockSizeWithBorder(blockSizeWithBorder);
+        InitializerService.setBlockPopulation(blockPopulation);
+        InitializerService.setCellPopulation(cellPopulation);
     }
 }

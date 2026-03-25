@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.concurrent.ConcurrentMapCache;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.Cells.config.BlockUpdate;
@@ -19,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static java.lang.Thread.sleep;
 
@@ -28,10 +28,9 @@ import static java.lang.Thread.sleep;
 public class RunnerService {
 
     private final StitchingService stitchingService;
-    private final InitializerService initializerService;
     private final UpdateWebService updateWebService;
     private final EnvironmentService environmentService;
-    ArrayList<Block> blocks;
+    Set<Block> blocks;
     @Setter
     private boolean running = true;
     @Getter
@@ -41,7 +40,11 @@ public class RunnerService {
 
     @SneakyThrows
     public void run() {
-        this.blocks = initializerService.initializeMap();
+        if (environmentService.getRunMode().equals("MANUAL")) {
+            this.blocks = InitializerService.getEmptyMap();
+        } else {
+            this.blocks = InitializerService.getRandomMap();
+        }
         do {
             long timer = System.currentTimeMillis();
             log.info("");
@@ -50,8 +53,8 @@ public class RunnerService {
             stitchingService.resetStitch();
 
             forEachBlockParallel("Initialize", stitchingService::initializeStitch);
-            checkForExternalBlockUpdates();
             forEachBlockParallel("Generate", GenerationService::setNextState);
+            checkForExternalBlockUpdates();
 
             List<Block> newBlocks = new ArrayList<>();
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
@@ -124,7 +127,7 @@ public class RunnerService {
         forEachParallel(taskName, blocks, task);
     }
 
-    private void forEachParallel(String taskName, List<Block> blocks, Consumer<Block> task) throws InterruptedException {
+    private void forEachParallel(String taskName, Set<Block> blocks, Consumer<Block> task) throws InterruptedException {
         long timer = System.currentTimeMillis();
         ExecutorService executor = Executors.newFixedThreadPool(16);
 
@@ -167,7 +170,7 @@ public class RunnerService {
         return blocksToAdd;
     }
 
-    public List<Block> updateClient(ClientUpdateRequest clientUpdateRequest) {
+    public Set<Block> updateClient(ClientUpdateRequest clientUpdateRequest) {
         if (activeClients.containsKey(clientUpdateRequest.client())) {
             var clientBlocks = activeClients.get(clientUpdateRequest.client());
 
@@ -176,7 +179,7 @@ public class RunnerService {
         } else {
            activeClients.put(clientUpdateRequest.client(), getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
         }
-        return activeClients.get(clientUpdateRequest.client()).stream().toList();
+        return new HashSet<>(activeClients.get(clientUpdateRequest.client()));
     }
 
     private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {

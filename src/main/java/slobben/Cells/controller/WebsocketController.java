@@ -10,6 +10,7 @@ import slobben.Cells.entities.model.Block;
 import slobben.Cells.service.RunnerService;
 
 import java.util.List;
+import java.util.Set;
 
 @Controller
 @RequiredArgsConstructor
@@ -19,7 +20,7 @@ public class WebsocketController {
     private final RunnerService runnerService;
 
     @MessageMapping("/update-requested-blocks")
-    public List<Block> send(ClientUpdateRequest message) {
+    public Set<Block> send(ClientUpdateRequest message) {
         log.info("Received update request for clientId: {}", message.client());
         return runnerService.updateClient(message);
     }
