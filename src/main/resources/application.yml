@@ -1,7 +1,5 @@
 spring:
   data:
-    mongodb:
-      auto-index-creation: 'true'
   application:
     name: Cells
 properties:
