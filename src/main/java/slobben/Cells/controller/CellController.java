@@ -13,7 +13,7 @@ import slobben.Cells.service.RunnerService;
 
 @Controller
 @AllArgsConstructor
-@RequestMapping("gen-api")
+@RequestMapping(value = {"/gen-api"})
 public class CellController {
 
     private static final Logger log = LoggerFactory.getLogger(CellController.class);
