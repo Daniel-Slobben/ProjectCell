@@ -40,7 +40,8 @@ public class RunnerService {
 
     @SneakyThrows
     public void run() {
-        if (environmentService.getRunMode().equals("MANUAL")) {
+        if (environmentService.getRunMode().equals("MANUAL") ||
+                environmentService.getSetupMode().equals("EMPTY")) {
             this.blocks = InitializerService.getEmptyMap();
         } else {
             this.blocks = InitializerService.getRandomMap();
