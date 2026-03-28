@@ -14,11 +14,8 @@ import slobben.Cells.entities.model.Block;
 import slobben.Cells.util.BlockUtils;
 
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import static java.lang.Thread.sleep;
 
@@ -30,18 +27,17 @@ public class RunnerService {
     private final StitchingService stitchingService;
     private final UpdateWebService updateWebService;
     private final EnvironmentService environmentService;
+    private final Map<UUID, ConcurrentLinkedQueue<Block>> activeClients = new ConcurrentHashMap<>();
+    private final Map<String, Block> ghostBlocks = new HashMap<>();
     Set<Block> blocks;
-    @Setter
-    private boolean running = true;
     @Getter
     List<BlockUpdate> blockUpdates = new ArrayList<>();
-    private final Map<UUID, Set<Block>> activeClients = new HashMap<>();
-    private final Map<String, Block> ghostBlocks = new HashMap<>();
+    @Setter
+    private boolean running = true;
 
     @SneakyThrows
     public void run() {
-        if (environmentService.getRunMode().equals("MANUAL") ||
-                environmentService.getSetupMode().equals("EMPTY")) {
+        if (environmentService.getRunMode().equals("MANUAL") || environmentService.getSetupMode().equals("EMPTY")) {
             this.blocks = InitializerService.getEmptyMap();
         } else {
             this.blocks = InitializerService.getRandomMap();
@@ -147,10 +143,7 @@ public class RunnerService {
     }
 
     public StateInfo getStateInfo() {
-        return StateInfo.builder()
-                .blocksInMemory(blocks.size())
-                .blocksUpdating((int)(blocks.stream().filter(Block::isUpdatingWeb).count()))
-                .build();
+        return StateInfo.builder().blocksInMemory(blocks.size()).blocksUpdating((int) (blocks.stream().filter(Block::isUpdatingWeb).count())).build();
     }
 
     public void setBlock(int x, int y, boolean[][] body) {
@@ -171,26 +164,21 @@ public class RunnerService {
         return blocksToAdd;
     }
 
-    public Set<Block> updateClient(ClientUpdateRequest clientUpdateRequest) {
+    public void updateClient(ClientUpdateRequest clientUpdateRequest) {
         if (activeClients.containsKey(clientUpdateRequest.client())) {
             var clientBlocks = activeClients.get(clientUpdateRequest.client());
 
             clientBlocks.removeIf(block -> Set.of(clientUpdateRequest.blocksToRemove()).contains(BlockUtils.getKey(block.getX(), block.getY())));
             clientBlocks.addAll(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
         } else {
-           activeClients.put(clientUpdateRequest.client(), getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
+            ConcurrentLinkedQueue<Block> blocksToAdd = new ConcurrentLinkedQueue<>(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
+            activeClients.put(clientUpdateRequest.client(), blocksToAdd);
         }
-        return new HashSet<>(activeClients.get(clientUpdateRequest.client()));
     }
 
     private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
         var blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
-        Block newBlock = Block.builder()
-                .x(coordinates.getFirst())
-                .y(coordinates.getSecond())
-                .cells(new boolean[blockSizeWithBorder][blockSizeWithBorder])
-                .ghostBlock(true)
-                .build();
+        Block newBlock = Block.builder().x(coordinates.getFirst()).y(coordinates.getSecond()).cells(new boolean[blockSizeWithBorder][blockSizeWithBorder]).ghostBlock(true).build();
         ghostBlocks.put(BlockUtils.getKey(newBlock.getX(), newBlock.getY()), newBlock);
         return newBlock;
     }

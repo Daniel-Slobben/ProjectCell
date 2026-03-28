@@ -7,6 +7,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
 import slobben.Cells.entities.model.Block;
+import slobben.Cells.entities.model.EncodedBlock;
 import slobben.Cells.service.RunnerService;
 
 import java.util.List;
@@ -20,8 +21,8 @@ public class WebsocketController {
     private final RunnerService runnerService;
 
     @MessageMapping("/update-requested-blocks")
-    public Set<Block> send(ClientUpdateRequest message) {
+    public void send(ClientUpdateRequest message) {
         log.info("Received update request for clientId: {}", message.client());
-        return runnerService.updateClient(message);
+        runnerService.updateClient(message);
     }
 }
