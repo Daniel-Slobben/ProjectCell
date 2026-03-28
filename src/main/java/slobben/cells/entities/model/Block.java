@@ -1,0 +1,32 @@
+package slobben.cells.entities.model;
+
+import lombok.*;
+
+import java.util.Base64;
+import java.util.BitSet;
+
+@Getter
+@Setter
+@RequiredArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Block {
+
+    private final int x;
+    private final int y;
+    private int generation = 0;
+    private boolean isUpdatingWeb = false;
+    private boolean ghostBlock = false;
+    private final boolean[][] cells;
+
+    public EncodedBlock getEncodedBlock() {
+        final int blockSize = cells.length;
+        BitSet bitSet = new BitSet((blockSize - 2) * (blockSize - 2));
+        for (int xrow = 1; xrow < cells.length - 1; xrow++) {
+            for (int ycol = 1; ycol < cells.length - 1; ycol++) {
+                bitSet.set((blockSize - 2) * (xrow - 1) + (ycol - 1), cells[xrow][ycol]);
+            }
+        }
+        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(bitSet.toByteArray()));
+    }
+}
