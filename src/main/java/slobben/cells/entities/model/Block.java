@@ -17,7 +17,13 @@ public class Block {
     private int generation = 0;
     private boolean isUpdatingWeb = false;
     private boolean ghostBlock = false;
-    private final boolean[][] cells;
+    private boolean[][] cells;
+
+    public Block(int x, int y, boolean[][] cells) {
+        this.x = x;
+        this.y = y;
+        this.cells = cells;
+    }
 
     public EncodedBlock getEncodedBlock() {
         final int blockSize = cells.length;

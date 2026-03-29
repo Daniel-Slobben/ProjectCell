@@ -13,6 +13,7 @@
     <version>0.1.0</version>
     <name>Cells</name>
     <description>Multiplayer game for cells</description>
+    <packaging>jar</packaging>
 
     <properties>
         <java.version>25</java.version>

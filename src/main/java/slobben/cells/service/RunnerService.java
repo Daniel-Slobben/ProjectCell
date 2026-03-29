@@ -170,8 +170,8 @@ public class RunnerService {
             ConcurrentLinkedQueue<Block> blocksToAdd = new ConcurrentLinkedQueue<>(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
             activeClients.put(clientUpdateRequest.client(), blocksToAdd);
         }
-        return Arrays.stream(clientUpdateRequest.blocksToAdd())
-                .map(key -> getBlock(BlockUtils.resolveKey(key).getFirst(), BlockUtils.resolveKey(key).getSecond()))
+        return activeClients.get(clientUpdateRequest.client()).stream()
+                .filter(block -> List.of(clientUpdateRequest.blocksToAdd()).contains(BlockUtils.getKey(block.getX(), block.getY())))
                 .map(Block::getEncodedBlock).toList();
     }
 
