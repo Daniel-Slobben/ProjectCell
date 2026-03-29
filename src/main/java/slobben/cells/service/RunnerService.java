@@ -170,7 +170,9 @@ public class RunnerService {
             ConcurrentLinkedQueue<Block> blocksToAdd = new ConcurrentLinkedQueue<>(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
             activeClients.put(clientUpdateRequest.client(), blocksToAdd);
         }
-        return activeClients.get(clientUpdateRequest.client()).stream().map(Block::getEncodedBlock).toList();
+        return Arrays.stream(clientUpdateRequest.blocksToAdd())
+                .map(key -> getBlock(BlockUtils.resolveKey(key).getFirst(), BlockUtils.resolveKey(key).getSecond()))
+                .map(Block::getEncodedBlock).toList();
     }
 
     private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
