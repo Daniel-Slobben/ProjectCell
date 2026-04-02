@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.BlockUpdate;
@@ -26,6 +27,7 @@ import static java.lang.Thread.sleep;
 public class RunnerService {
 
     private final StitchingService stitchingService;
+    private final ChaosService chaosService;
     private final UpdateWebService updateWebService;
     private final EnvironmentService environmentService;
     private final Map<UUID, ConcurrentLinkedQueue<Block>> activeClients = new ConcurrentHashMap<>();
@@ -36,9 +38,13 @@ public class RunnerService {
     @Setter
     private boolean running = true;
 
+    @Value("${properties.chaos.enabled}")
+    private boolean chaosEnabled;
+
     @SneakyThrows
     public void run() {
-        if (environmentService.getRunMode().equals("MANUAL") || environmentService.getSetupMode().equals("EMPTY")) {
+        if (environmentService.getRunMode().equals("MANUAL") ||
+                environmentService.getSetupMode().equals("CHAOS")) {
             this.blocks = InitializerService.getEmptyMap();
         } else {
             this.blocks = InitializerService.getRandomMap();
@@ -87,6 +93,9 @@ public class RunnerService {
     }
 
     private void checkForExternalBlockUpdates() {
+        if (chaosEnabled) {
+            blockUpdates.addAll(chaosService.tic());
+        }
         for (BlockUpdate blockUpdate : blockUpdates) {
             Optional<Block> optionalBlock = blocks.stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
             if (optionalBlock.isPresent()) updateBlock(optionalBlock.get(), blockUpdate);

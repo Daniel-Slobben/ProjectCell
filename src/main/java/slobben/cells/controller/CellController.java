@@ -3,12 +3,14 @@ package slobben.cells.controller;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import slobben.cells.config.StateInfo;
 import slobben.cells.entities.model.EncodedBlock;
+import slobben.cells.service.ChaosService;
 import slobben.cells.service.EnvironmentService;
 import slobben.cells.service.RunnerService;
 
@@ -22,11 +24,13 @@ public class CellController {
     private static final Logger log = LoggerFactory.getLogger(CellController.class);
     private final RunnerService runnerService;
     private final EnvironmentService environmentService;
+    private final ChaosService chaosService;
 
-    @GetMapping("blocksize")
-    public ResponseEntity<Integer> getBlockSize() {
-        log.info("Received request for blocksize");
-        return ResponseEntity.ok(environmentService.getBlockSize());
+    @GetMapping("settings")
+    public ResponseEntity<Settings> getSettings() {
+        log.info("Received request for settings");
+        Pair<Integer, Integer> initialXY = chaosService.getOneOfLatestHits();
+        return ResponseEntity.ok(new Settings(environmentService.getBlockSize(), initialXY.getFirst(), initialXY.getSecond()));
     }
 
     @PutMapping("block/{x}/{y}/set-block")

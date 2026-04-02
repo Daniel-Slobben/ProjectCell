@@ -1,15 +1,18 @@
 spring:
-  data:
   application:
     name: Cells
 properties:
-  setup: RANDOM
+  setup: CHAOS
+  chaos:
+    enabled: 'true'
+
+
   ## Higher is less population -> ex: 1 in 15
   blockPopulation: '1'
   cellPopulation: '6'
   size:
     x: '10000'
     y: '10000'
-    blockSize: '200'
+    blockSize: '500'
   runmode: AUTO
   targetspeed: '1000'
