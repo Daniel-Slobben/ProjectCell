@@ -41,13 +41,25 @@ public class RunnerService {
     @Value("${properties.chaos.enabled}")
     private boolean chaosEnabled;
 
+    @Value("${properties.big-square-size}")
+    private int bigSquareSize;
+
     @SneakyThrows
     public void run() {
         if (environmentService.getRunMode().equals("MANUAL") ||
                 environmentService.getSetupMode().equals("CHAOS")) {
             this.blocks = InitializerService.getEmptyMap();
-        } else {
+        } else if (environmentService.getSetupMode().equals("RANDOM")){
             this.blocks = InitializerService.getRandomMap();
+        } else if (environmentService.getSetupMode().equals("BIG_SQUARE")) {
+            this.blocks = InitializerService.getEmptyMap();
+            blockUpdates.addAll(chaosService.getBigSquare(bigSquareSize, 0));
+            checkForExternalBlockUpdates();
+            forEachBlockParallel("Initialize", stitchingService::initializeStitch);
+            List<Block> newBlocks = new CopyOnWriteArrayList<>();
+            forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
+            createNewBlocks(newBlocks);
+            forEachBlockParallel("Stitch", stitchingService::stitchBlock);
         }
         do {
             long timer = System.currentTimeMillis();
@@ -60,7 +72,7 @@ public class RunnerService {
             forEachBlockParallel("Generate", GenerationService::setNextState);
             checkForExternalBlockUpdates();
 
-            List<Block> newBlocks = new ArrayList<>();
+            List<Block> newBlocks = new CopyOnWriteArrayList<>();
             forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
             createNewBlocks(newBlocks);
             forEachBlockParallel("Stitch", stitchingService::stitchBlock);
@@ -97,9 +109,17 @@ public class RunnerService {
             blockUpdates.addAll(chaosService.tic());
         }
         for (BlockUpdate blockUpdate : blockUpdates) {
+            if (blockUpdate.x() == 0 && blockUpdate.y() == 1) {
+                System.out.println();
+            }
             Optional<Block> optionalBlock = blocks.stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
-            if (optionalBlock.isPresent()) updateBlock(optionalBlock.get(), blockUpdate);
-            else createBlock(blockUpdate);
+            if (optionalBlock.isPresent()) {
+                updateBlock(optionalBlock.get(), blockUpdate);
+                System.out.println("Updating block: " + blockUpdate.x() + ", " + blockUpdate.y());
+            }
+            else {
+                createBlock(blockUpdate);
+            }
         }
         blockUpdates.clear();
     }
@@ -136,7 +156,7 @@ public class RunnerService {
 
     private void forEachParallel(String taskName, Set<Block> blocks, Consumer<Block> task) throws InterruptedException {
         long timer = System.currentTimeMillis();
-        ExecutorService executor = Executors.newFixedThreadPool(16);
+        ExecutorService executor = Executors.newFixedThreadPool(1);
 
         blocks.forEach(block -> executor.execute(() -> task.accept(block)));
 

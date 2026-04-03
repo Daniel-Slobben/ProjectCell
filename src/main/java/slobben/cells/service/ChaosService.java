@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.BlockUpdate;
+import slobben.cells.enums.Direction;
 
 import java.util.*;
 
@@ -19,7 +20,7 @@ public class ChaosService {
     private int squareCounter = SQUARE_MAX ;
 
     private static final int HIT_BUFFER_SIZE = 100;
-    private ArrayList<Pair<Integer, Integer>> latestHits = new ArrayList<>(HIT_BUFFER_SIZE);
+    private final ArrayList<Pair<Integer, Integer>> latestHits = new ArrayList<>(HIT_BUFFER_SIZE);
 
     public List<BlockUpdate> tic() {
         List<BlockUpdate> returnList = new ArrayList<>();
@@ -34,6 +35,89 @@ public class ChaosService {
             returnList.add(BlockUpdate.builder().x(target.getFirst()).y(target.getSecond()).state(cells).build());
 
             addToLatestHits(target);
+        }
+        return returnList;
+    }
+
+    public List<BlockUpdate> getBigSquare(int squareSizeInBlocks, int offset) {
+        int maxRange = squareSizeInBlocks + offset;
+        int blockSize = environmentService.getBlockSize();
+        List<BlockUpdate> returnList = new ArrayList<>();
+        for (int x = offset; x < maxRange; x++) {
+            for (int y = offset; y < maxRange; y++) {
+                Direction blockDirection = getBorderDirection(x, y, offset, maxRange);
+                if (blockDirection == null) {
+                    continue;
+                }
+                boolean[][] cells = new boolean[blockSize][blockSize];
+                switch(blockDirection) {
+                        case TOP_LEFT -> {
+                            for (int cellY = 0; cellY < cells.length; cellY++) {
+                                cells[0][cellY] = true;
+                                cells[1][cellY] = true;
+                            }
+                            for (int cellX = 0; cellX < cells.length; cellX++) {
+                                cells[cellX][0] = true;
+                                cells[cellX][1] = true;
+                            }
+                        }
+                        case TOP -> {
+                            for (int cellY = 0; cellY < cells.length; cellY++) {
+                                cells[0][cellY] = true;
+                                cells[1][cellY] = true;
+                            }
+                        }
+                        case TOP_RIGHT -> {
+                            for (int cellY = 0; cellY < cells.length; cellY++) {
+                                cells[0][cellY] = true;
+                                cells[1][cellY] = true;
+                            }
+                            for (int cellX = 0; cellX < cells.length; cellX++) {
+                                cells[cellX][blockSize - 1] = true;
+                                cells[cellX][blockSize - 2] = true;
+                            }
+                        }
+                        case LEFT -> {
+                            for (int cellX = 0; cellX < cells.length; cellX++) {
+                                cells[cellX][0] = true;
+                                cells[cellX][1] = true;
+                            }
+                        }
+                        case RIGHT -> {
+                            for (int cellX = 0; cellX < cells.length; cellX++) {
+                                cells[cellX][blockSize - 1] = true;
+                                cells[cellX][blockSize - 2] = true;
+                            }
+                        }
+                        case BOTTOM_LEFT -> {
+                            for (int cellY = 0; cellY < cells.length; cellY++) {
+                                cells[blockSize - 1][cellY] = true;
+                                cells[blockSize - 2][cellY] = true;
+                            }
+                            for (int cellX = 0; cellX < cells.length; cellX++) {
+                                cells[cellX][0] = true;
+                                cells[cellX][1] = true;
+                            }
+                        }
+                        case BOTTOM -> {
+                            for (int cellY = 0; cellY < cells.length; cellY++) {
+                                cells[blockSize - 1][cellY] = true;
+                                cells[blockSize - 2][cellY] = true;
+                            }
+                        }
+                        case BOTTOM_RIGHT -> {
+                            for (int cellY = 0; cellY < cells.length; cellY++) {
+                                cells[blockSize - 1][cellY] = true;
+                                cells[blockSize - 2][cellY] = true;
+                            }
+                            for (int cellX = 0; cellX < cells.length; cellX++) {
+                                cells[cellX][blockSize - 1] = true;
+                                cells[cellX][blockSize - 2] = true;
+                            }
+                        }
+                    }
+                    returnList.add(BlockUpdate.builder().x(x).y(y).state(cells).build());
+                }
         }
         return returnList;
     }
@@ -56,13 +140,28 @@ public class ChaosService {
 
        for (int x = offset; x < maxRange; x++) {
            for (int y = offset; y < maxRange; y++) {
-               if (x == offset || y == offset || x == maxRange - 1 || y == maxRange - 1 ||
-               x == offset + 1 || y == offset + 1 || x == maxRange - 2 || y == maxRange- 2) {
+               if (getBorderDirection(x, y, offset, maxRange) != null ||
+                       getBorderDirection(x, y, offset + 1, maxRange - 2) != null) {
                    square[x][y] = true;
                }
            }
        }
        return square;
+    }
+
+    private Direction getBorderDirection(int x, int y, int offset, int maxRange) {
+        int dx = edgeOrMiddle(x, offset, maxRange);
+        int dy = edgeOrMiddle(y, offset, maxRange);
+
+        if (dx == 0 && dy == 0) return null;
+
+        return Direction.from(dx, dy);
+    }
+
+    private int edgeOrMiddle(int value, int offset, int maxRange) {
+        if (value == offset)   return -1;
+        if (value == maxRange-1)   return  1;
+        return 0;
     }
 
     private Pair<Integer, Integer> findTarget() {

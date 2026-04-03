@@ -51,21 +51,21 @@ public class BorderInfo {
     }
 
     public boolean[] setTopBorder(boolean[] cells) {
-        System.arraycopy(cells, 1, topBorder, 1, blockSizeWithBorder - 1);
+        System.arraycopy(cells, 1, topBorder, 1, blockSizeWithBorder - 2);
         return topBorder;
     }
 
     public boolean[] setBottomBorder(boolean[] cells) {
-        System.arraycopy(cells, 1, bottomBorder, 1, blockSizeWithBorder - 1);
+        System.arraycopy(cells, 1, bottomBorder, 1, blockSizeWithBorder - 2);
         return bottomBorder;
     }
 
     public void setLeftBorder(boolean[] cells) {
-        System.arraycopy(cells, 1, leftBorder, 0, blockSizeWithBorder - 2);
+        System.arraycopy(cells, 0, leftBorder, 0, blockSizeWithBorder - 2);
     }
 
     public void setRightBorder(boolean[] cells) {
-        System.arraycopy(cells, 1, rightBorder, 0, blockSizeWithBorder - 2);
+        System.arraycopy(cells, 0, rightBorder, 0, blockSizeWithBorder - 2);
     }
 
     public void setTopLeftCorner(boolean cell) {

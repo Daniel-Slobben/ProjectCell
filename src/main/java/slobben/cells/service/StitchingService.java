@@ -138,10 +138,10 @@ public class StitchingService {
     }
 
     private Pair<boolean[], Boolean> getColumnCells(boolean[][] cells, int srcCol) {
-        boolean[] cellsToCopy = new boolean[cells.length];
+        boolean[] cellsToCopy = new boolean[cells.length - 2];
         boolean hasTrue = false;
-        for (int i = 0; i < cells.length; i++) {
-            cellsToCopy[i] = cells[i][srcCol];
+        for (int i = 1; i < cells.length - 1; i++) {
+            cellsToCopy[i - 1] = cells[i][srcCol];
             if (cells[i][srcCol]) {
                 hasTrue = true;
             }

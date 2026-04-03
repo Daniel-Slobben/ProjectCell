@@ -2,17 +2,17 @@ spring:
   application:
     name: Cells
 properties:
-  setup: CHAOS
+  setup: BIG_SQUARE
   chaos:
-    enabled: 'true'
+    enabled: 'false'
 
-
-  ## Higher is less population -> ex: 1 in 15
   blockPopulation: '1'
   cellPopulation: '6'
+
   size:
-    x: '10000'
-    y: '10000'
+    x: '0'
+    y: '0'
     blockSize: '500'
+  big-square-size: '7'
   runmode: AUTO
   targetspeed: '1000'

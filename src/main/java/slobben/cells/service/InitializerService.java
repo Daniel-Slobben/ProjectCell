@@ -27,7 +27,9 @@ public class InitializerService {
     private static int cellPopulation;
 
     private static Stream<Block> getBlockStream() {
-        Assertions.assertTrue(blockAmount > 0);
+        if (blockAmount == 0) {
+            return Stream.empty();
+        }
         Assertions.assertTrue(blockSize > 0);
         Assertions.assertTrue(blockSizeWithBorder > 0);
 

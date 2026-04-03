@@ -6,6 +6,8 @@ spring:
     name: Cells
 properties:
   setup: EMPTY
+  chaos:
+    enabled: 'false'
   ## Higher is less population -> ex: 1 in 15
   blockPopulation: '2'
   cellPopulation: '8'
