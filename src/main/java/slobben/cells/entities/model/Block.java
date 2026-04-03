@@ -2,8 +2,13 @@ package slobben.cells.entities.model;
 
 import lombok.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Base64;
 import java.util.BitSet;
+
+import static slobben.cells.util.Compress.gzip;
 
 @Getter
 @Setter
@@ -25,6 +30,7 @@ public class Block {
         this.cells = cells;
     }
 
+    @SneakyThrows
     public EncodedBlock getEncodedBlock() {
         final int blockSize = cells.length;
         BitSet bitSet = new BitSet((blockSize - 2) * (blockSize - 2));
@@ -33,6 +39,8 @@ public class Block {
                 bitSet.set((blockSize - 2) * (xrow - 1) + (ycol - 1), cells[xrow][ycol]);
             }
         }
-        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(bitSet.toByteArray()));
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        gzip(new ByteArrayInputStream(bitSet.toByteArray()), os);
+        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(os.toByteArray()));
     }
 }
