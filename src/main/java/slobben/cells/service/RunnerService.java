@@ -156,7 +156,7 @@ public class RunnerService {
 
     private void forEachParallel(String taskName, Set<Block> blocks, Consumer<Block> task) throws InterruptedException {
         long timer = System.currentTimeMillis();
-        ExecutorService executor = Executors.newFixedThreadPool(1);
+        ExecutorService executor = Executors.newFixedThreadPool(16);
 
         blocks.forEach(block -> executor.execute(() -> task.accept(block)));
 

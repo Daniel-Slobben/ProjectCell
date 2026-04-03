@@ -10,7 +10,7 @@
     </parent>
     <groupId>slobben</groupId>
     <artifactId>CellService</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <name>Cells</name>
     <description>Multiplayer game for cells</description>
     <packaging>jar</packaging>

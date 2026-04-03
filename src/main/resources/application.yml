@@ -13,6 +13,6 @@ properties:
     x: '0'
     y: '0'
     blockSize: '500'
-  big-square-size: '7'
+  big-square-size: '20'
   runmode: AUTO
-  targetspeed: '1000'
+  targetspeed: '250'
