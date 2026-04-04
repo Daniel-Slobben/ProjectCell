@@ -5,16 +5,18 @@ spring:
   application:
     name: Cells
 properties:
-  setup: EMPTY
+  pruning-per-generation: '100'
+  threads: '1'
+  setup: BIG_SQUARE
   chaos:
     enabled: 'false'
   ## Higher is less population -> ex: 1 in 15
   blockPopulation: '2'
   cellPopulation: '8'
   size:
-    x: '500'
-    y: '500'
-    blockSize: '1000'
+    x: '0'
+    y: '0'
+    blockSize: '500'
   big-square-size: '10'
   runmode: AUTO
   targetspeed: '250'

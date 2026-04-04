@@ -1,6 +1,7 @@
 package slobben.cells.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.BlockUpdate;
@@ -19,10 +20,18 @@ public class ChaosService {
     private static final int SQUARE_MAX = 60 * 30;
     private int squareCounter = SQUARE_MAX ;
 
+    @Value("${properties.big-square-size}")
+    private int bigSquareSize;
+
+    @Value("${properties.chaos.enabled}")
+    private boolean chaosEnabled;
+
     private static final int HIT_BUFFER_SIZE = 100;
     private final ArrayList<Pair<Integer, Integer>> latestHits = new ArrayList<>(HIT_BUFFER_SIZE);
 
     public List<BlockUpdate> tic() {
+        if (!chaosEnabled) return Collections.emptyList();
+
         List<BlockUpdate> returnList = new ArrayList<>();
         squareCounter++;
 
@@ -39,8 +48,10 @@ public class ChaosService {
         return returnList;
     }
 
-    public List<BlockUpdate> getBigSquare(int squareSizeInBlocks, int offset) {
-        int maxRange = squareSizeInBlocks + offset;
+    public List<BlockUpdate> getBigSquare() {
+        int offset = 0;
+        int maxRange = this.bigSquareSize + offset;
+
         int blockSize = environmentService.getBlockSize();
         List<BlockUpdate> returnList = new ArrayList<>();
         for (int x = offset; x < maxRange; x++) {

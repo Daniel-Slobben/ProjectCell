@@ -12,7 +12,8 @@ import slobben.cells.config.BlockUpdate;
 import slobben.cells.config.StateInfo;
 import slobben.cells.controller.ClientUpdateRequest;
 import slobben.cells.entities.model.Block;
-import slobben.cells.entities.model.EncodedBlock;
+import slobben.cells.controller.EncodedBlock;
+import slobben.cells.enums.SetupMode;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
@@ -30,43 +31,47 @@ public class RunnerService {
     private final ChaosService chaosService;
     private final UpdateWebService updateWebService;
     private final EnvironmentService environmentService;
+    private final PruningService pruningService;
+
     private final Map<UUID, ConcurrentLinkedQueue<Block>> activeClients = new ConcurrentHashMap<>();
     private final Map<String, Block> ghostBlocks = new HashMap<>();
     Set<Block> blocks;
+    private int generation = 0;
+
     @Getter
     List<BlockUpdate> blockUpdates = new ArrayList<>();
     @Setter
     private boolean running = true;
 
-    @Value("${properties.chaos.enabled}")
-    private boolean chaosEnabled;
+    @Value("${properties.pruning-per-generation}")
+    private int pruningPerGeneration;
 
-    @Value("${properties.big-square-size}")
-    private int bigSquareSize;
+    @Value("${properties.threads}")
+    private int threads;
 
     @SneakyThrows
     public void run() {
-        if (environmentService.getRunMode().equals("MANUAL") ||
-                environmentService.getSetupMode().equals("CHAOS")) {
-            this.blocks = InitializerService.getEmptyMap();
-        } else if (environmentService.getSetupMode().equals("RANDOM")){
-            this.blocks = InitializerService.getRandomMap();
-        } else if (environmentService.getSetupMode().equals("BIG_SQUARE")) {
-            this.blocks = InitializerService.getEmptyMap();
-            blockUpdates.addAll(chaosService.getBigSquare(bigSquareSize, 0));
-            checkForExternalBlockUpdates();
-            forEachBlockParallel("Initialize", stitchingService::initializeStitch);
-            List<Block> newBlocks = new CopyOnWriteArrayList<>();
-            forEachBlockParallel("AddBorderCells", block -> newBlocks.addAll(stitchingService.addBorderCells(block)));
-            createNewBlocks(newBlocks);
-            forEachBlockParallel("Stitch", stitchingService::stitchBlock);
+        switch (SetupMode.valueOf(environmentService.getSetupMode())) {
+            case RANDOM -> this.blocks = InitializerService.getRandomMap();
+            case EMPTY -> this.blocks = InitializerService.getEmptyMap();
+            case BIG_SQUARE -> {
+                this.blocks = InitializerService.getEmptyMap();
+                blockUpdates.addAll(chaosService.getBigSquare());
+            }
+            default -> throw new IllegalStateException("SetupMode has an unexpected value: " + environmentService.getSetupMode());
+
         }
         do {
             long timer = System.currentTimeMillis();
+            generation++;
             log.info("");
-            log.info("Starting run!");
+            log.info("Starting run {} with {} amount of blocks in memory", generation, blocks.size());
 
             stitchingService.resetStitch();
+
+            if (generation % pruningPerGeneration == 0) {
+               pruningService.pruneBlocks(blocks);
+            }
 
             forEachBlockParallel("Initialize", stitchingService::initializeStitch);
             forEachBlockParallel("Generate", GenerationService::setNextState);
@@ -105,17 +110,11 @@ public class RunnerService {
     }
 
     private void checkForExternalBlockUpdates() {
-        if (chaosEnabled) {
-            blockUpdates.addAll(chaosService.tic());
-        }
+        blockUpdates.addAll(chaosService.tic());
         for (BlockUpdate blockUpdate : blockUpdates) {
-            if (blockUpdate.x() == 0 && blockUpdate.y() == 1) {
-                System.out.println();
-            }
             Optional<Block> optionalBlock = blocks.stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
             if (optionalBlock.isPresent()) {
                 updateBlock(optionalBlock.get(), blockUpdate);
-                System.out.println("Updating block: " + blockUpdate.x() + ", " + blockUpdate.y());
             }
             else {
                 createBlock(blockUpdate);
@@ -156,7 +155,7 @@ public class RunnerService {
 
     private void forEachParallel(String taskName, Set<Block> blocks, Consumer<Block> task) throws InterruptedException {
         long timer = System.currentTimeMillis();
-        ExecutorService executor = Executors.newFixedThreadPool(16);
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
 
         blocks.forEach(block -> executor.execute(() -> task.accept(block)));
 

@@ -26,6 +26,7 @@ public class GenerationService {
                 }
             }
         }
+
         for (int x = 1; x < blockSize + 1; x++) {
             for (int y = 1; y < blockSize + 1; y++) {
                 // If cell was dead

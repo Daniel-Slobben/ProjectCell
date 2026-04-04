@@ -1,10 +1,10 @@
 package slobben.cells.entities.model;
 
 import lombok.*;
+import slobben.cells.controller.EncodedBlock;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.Base64;
 import java.util.BitSet;
 
