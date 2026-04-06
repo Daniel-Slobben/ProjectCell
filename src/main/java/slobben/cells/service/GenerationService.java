@@ -1,10 +1,6 @@
 package slobben.cells.service;
 
 import slobben.cells.entities.model.Block;
-import slobben.cells.enums.CellState;
-
-import static slobben.cells.enums.CellState.ALIVE;
-import static slobben.cells.enums.CellState.DEAD;
 
 public class GenerationService {
 
@@ -31,13 +27,13 @@ public class GenerationService {
             for (int y = 1; y < blockSize + 1; y++) {
                 // If cell was dead
                 if (!block.getCells()[x][y]) {
-                    if (applyConwayGameOfLifeRules(DEAD, heatmap[x][y]).equals(ALIVE)) {
+                    if (heatmap[x][y] == 3) {
                         block.getCells()[x][y] = true;
                     }
                 }
                 // If cell was alive
                 else {
-                    if (applyConwayGameOfLifeRules(ALIVE, heatmap[x][y]).equals(DEAD)) {
+                    if (!(heatmap[x][y] == 2 || heatmap[x][y] == 3)) {
                         block.getCells()[x][y] = false;
                     }
                 }
@@ -45,11 +41,4 @@ public class GenerationService {
         }
     }
 
-    private static CellState applyConwayGameOfLifeRules(CellState cellState, int aliveCounter) {
-        if (cellState == ALIVE) {
-            return (aliveCounter == 2 || aliveCounter == 3) ? ALIVE : DEAD;
-        } else {
-            return (aliveCounter == 3) ? ALIVE : DEAD;
-        }
-    }
 }

@@ -2,7 +2,7 @@ spring:
   application:
     name: Cells
 properties:
-  setup: RANDOM
+  setup: BIG_SQUARE
   chaos:
     enabled: 'false'
   big-square-size: '2'
@@ -18,4 +18,4 @@ properties:
     y: '0'
     blockSize: '500'
   runmode: AUTO
-  targetspeed: '250'
+  targetspeed: '1000'
