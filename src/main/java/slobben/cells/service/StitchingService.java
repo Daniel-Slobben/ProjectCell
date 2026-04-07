@@ -27,7 +27,7 @@ public class StitchingService {
     }
 
     public void initializeStitch(Block block) {
-        borderCellMap.put(key(block.getX(), block.getY()), new BorderInfo(blockSizeWithBorder));
+        borderCellMap.put(key(block.getX(), block.getY()), new BorderInfo(blockSize));
     }
 
     public void resetStitch() {
@@ -49,7 +49,8 @@ public class StitchingService {
                 boolean hasNeigherMap = true;
                 if (neighborMap == null) {
                     hasNeigherMap = false;
-                    neighborMap = new BorderInfo(blockSizeWithBorder);
+                    neighborMap = new BorderInfo(blockSize);
+                    borderCellMap.put(neighborKey, neighborMap);
                 }
 
                 boolean hasLiveCells = setBorderCellsForDirection(neighborMap, i, j, block.getCells());
@@ -58,7 +59,6 @@ public class StitchingService {
                 }
 
                 if (!hasNeigherMap && hasLiveCells) {
-                    borderCellMap.put(neighborKey, neighborMap);
                     Block newBlock = new Block(neighborX, neighborY, new boolean[blockSizeWithBorder][blockSizeWithBorder]);
                     newBlocks.add(newBlock);
                 }

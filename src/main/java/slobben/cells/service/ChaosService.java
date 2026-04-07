@@ -14,8 +14,8 @@ import java.util.*;
 public class ChaosService {
     private final EnvironmentService environmentService;
 
-    private static final int BLOCK_TARGET_RANGE_X = 5000;
-    private static final int BLOCK_TARGET_RANGE_Y = 5000;
+    private static final int BLOCK_TARGET_RANGE_X = 500;
+    private static final int BLOCK_TARGET_RANGE_Y = 500;
     private static final Random random = new Random();
     private static final int SQUARE_MAX = 60 * 30;
     private int squareCounter = SQUARE_MAX ;
