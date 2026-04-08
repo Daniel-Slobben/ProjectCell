@@ -1,6 +1,7 @@
 package slobben.cells.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
@@ -11,17 +12,17 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChaosService {
     private final EnvironmentService environmentService;
 
     private static final int BLOCK_TARGET_RANGE_X = 500;
     private static final int BLOCK_TARGET_RANGE_Y = 500;
     private static final Random random = new Random();
-    private static final int SQUARE_MAX = 60 * 30;
-    private int squareCounter = SQUARE_MAX ;
 
-    @Value("${properties.big-square-size}")
-    private int bigSquareSize;
+//    private static final int CHAOS_COUNTER_MAX = 60 * 60;
+    private static final int CHAOS_COUNTER_MAX = 10;
+    private int chaosCounter = CHAOS_COUNTER_MAX;
 
     @Value("${properties.chaos.enabled}")
     private boolean chaosEnabled;
@@ -33,97 +34,106 @@ public class ChaosService {
         if (!chaosEnabled) return Collections.emptyList();
 
         List<BlockUpdate> returnList = new ArrayList<>();
-        squareCounter++;
+        chaosCounter++;
 
-        if (squareCounter > SQUARE_MAX ) {
-            squareCounter = 0;
+        if (chaosCounter > CHAOS_COUNTER_MAX) {
+            chaosCounter= 0;
+            int squareSize = random.nextInt(50, 1200);
             Pair<Integer, Integer> target = findTarget();
+            log.info("Creating square with size: {}px at x: {}, y: {}", squareSize, target.getFirst(), target.getSecond());
 
-            int size = random.nextInt(50, environmentService.getBlockSize());
-            boolean[][] cells = getSquare(size, (environmentService.getBlockSize() - size) / 2);
-            returnList.add(BlockUpdate.builder().x(target.getFirst()).y(target.getSecond()).state(cells).build());
-
+            if (squareSize < environmentService.getBlockSize()) {
+                boolean[][] cells = getSquare(squareSize, (environmentService.getBlockSize() - squareSize) / 2);
+                returnList.add(BlockUpdate.builder().x(target.getFirst()).y(target.getSecond()).state(cells).build());
+            } else {
+                int squareBlockSize = squareSize / environmentService.getBlockSize() + 1;
+                int offset = squareSize % environmentService.getBlockSize();
+                log.info("Creating bigSquare with: blockSize{} and offset: {}", squareBlockSize, offset);
+                List<BlockUpdate> blockUpdates = getBigSquare(squareBlockSize, offset);
+                returnList.addAll(blockUpdates.stream()
+                        .map(update -> new BlockUpdate(update.x() + target.getFirst(), update.y() + target.getSecond(), update.state()))
+                        .toList());
+            }
             addToLatestHits(target);
         }
         return returnList;
     }
 
-    public List<BlockUpdate> getBigSquare() {
-        int offset = 0;
-        int maxRange = this.bigSquareSize + offset;
+    public List<BlockUpdate> getBigSquare(int bigSquareSize, int offset) {
+        int maxRange = bigSquareSize;
 
         int blockSize = environmentService.getBlockSize();
         List<BlockUpdate> returnList = new ArrayList<>();
-        for (int x = offset; x < maxRange; x++) {
-            for (int y = offset; y < maxRange; y++) {
-                Direction blockDirection = getBorderDirection(x, y, offset, maxRange);
+        for (int x = 0; x < maxRange; x++) {
+            for (int y = 0; y < maxRange; y++) {
+                Direction blockDirection = getBorderDirection(x, y, 0, maxRange);
                 if (blockDirection == null) {
                     continue;
                 }
                 boolean[][] cells = new boolean[blockSize][blockSize];
                 switch(blockDirection) {
                         case TOP_LEFT -> {
-                            for (int cellY = 0; cellY < cells.length; cellY++) {
-                                cells[0][cellY] = true;
-                                cells[1][cellY] = true;
+                            for (int cellY = 0; cellY < cells.length - offset; cellY++) {
+                                cells[offset][cellY + offset] = true;
+                                cells[offset + 1][cellY + offset] = true;
                             }
-                            for (int cellX = 0; cellX < cells.length; cellX++) {
-                                cells[cellX][0] = true;
-                                cells[cellX][1] = true;
+                            for (int cellX = 0; cellX < cells.length - offset; cellX++) {
+                                cells[cellX + offset][offset] = true;
+                                cells[cellX + offset][offset + 1] = true;
                             }
                         }
                         case TOP -> {
                             for (int cellY = 0; cellY < cells.length; cellY++) {
-                                cells[0][cellY] = true;
-                                cells[1][cellY] = true;
+                                cells[offset][cellY] = true;
+                                cells[offset + 1][cellY] = true;
                             }
                         }
                         case TOP_RIGHT -> {
-                            for (int cellY = 0; cellY < cells.length; cellY++) {
-                                cells[0][cellY] = true;
-                                cells[1][cellY] = true;
+                            for (int cellY = 0; cellY < cells.length - offset; cellY++) {
+                                cells[offset][cellY] = true;
+                                cells[offset + 1][cellY] = true;
                             }
-                            for (int cellX = 0; cellX < cells.length; cellX++) {
-                                cells[cellX][blockSize - 1] = true;
-                                cells[cellX][blockSize - 2] = true;
+                            for (int cellX = 0; cellX < cells.length - offset; cellX++) {
+                                cells[cellX + offset][blockSize - 1 - offset] = true;
+                                cells[cellX + offset][blockSize - 2 - offset] = true;
                             }
                         }
                         case LEFT -> {
                             for (int cellX = 0; cellX < cells.length; cellX++) {
-                                cells[cellX][0] = true;
-                                cells[cellX][1] = true;
+                                cells[cellX][offset] = true;
+                                cells[cellX][offset + 1] = true;
                             }
                         }
                         case RIGHT -> {
                             for (int cellX = 0; cellX < cells.length; cellX++) {
-                                cells[cellX][blockSize - 1] = true;
-                                cells[cellX][blockSize - 2] = true;
+                                cells[cellX][blockSize - 1 - offset] = true;
+                                cells[cellX][blockSize - 2 - offset] = true;
                             }
                         }
                         case BOTTOM_LEFT -> {
-                            for (int cellY = 0; cellY < cells.length; cellY++) {
-                                cells[blockSize - 1][cellY] = true;
-                                cells[blockSize - 2][cellY] = true;
+                            for (int cellY = 0; cellY < cells.length - offset; cellY++) {
+                                cells[blockSize - 1 - offset][cellY + offset] = true;
+                                cells[blockSize - 2 - offset][cellY + offset] = true;
                             }
-                            for (int cellX = 0; cellX < cells.length; cellX++) {
-                                cells[cellX][0] = true;
-                                cells[cellX][1] = true;
+                            for (int cellX = 0; cellX < cells.length - offset; cellX++) {
+                                cells[cellX][offset] = true;
+                                cells[cellX][offset + 1] = true;
                             }
                         }
                         case BOTTOM -> {
                             for (int cellY = 0; cellY < cells.length; cellY++) {
-                                cells[blockSize - 1][cellY] = true;
-                                cells[blockSize - 2][cellY] = true;
+                                cells[blockSize - 1 - offset][cellY] = true;
+                                cells[blockSize - 2 - offset][cellY] = true;
                             }
                         }
                         case BOTTOM_RIGHT -> {
-                            for (int cellY = 0; cellY < cells.length; cellY++) {
-                                cells[blockSize - 1][cellY] = true;
-                                cells[blockSize - 2][cellY] = true;
+                            for (int cellY = 0; cellY < cells.length - offset; cellY++) {
+                                cells[blockSize - 1 - offset][cellY] = true;
+                                cells[blockSize - 2 - offset][cellY] = true;
                             }
-                            for (int cellX = 0; cellX < cells.length; cellX++) {
-                                cells[cellX][blockSize - 1] = true;
-                                cells[cellX][blockSize - 2] = true;
+                            for (int cellX = 0; cellX < cells.length - offset; cellX++) {
+                                cells[cellX][blockSize - 1 - offset] = true;
+                                cells[cellX][blockSize - 2 - offset] = true;
                             }
                         }
                     }

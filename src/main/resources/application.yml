@@ -2,10 +2,9 @@ spring:
   application:
     name: Cells
 properties:
-  setup: BIG_SQUARE
+  setup: RANDOM
   chaos:
     enabled: 'false'
-  big-square-size: '2'
 
   pruning-per-generation: '100'
   threads: '4'
@@ -14,8 +13,8 @@ properties:
   cellPopulation: '6'
 
   size:
-    x: '0'
-    y: '0'
+    x: '10000'
+    y: '10000'
     blockSize: '500'
   runmode: AUTO
   targetspeed: '1000'

@@ -54,10 +54,6 @@ public class RunnerService {
         switch (SetupMode.valueOf(environmentService.getSetupMode())) {
             case RANDOM -> this.blocks = InitializerService.getRandomMap();
             case EMPTY -> this.blocks = InitializerService.getEmptyMap();
-            case BIG_SQUARE -> {
-                this.blocks = InitializerService.getEmptyMap();
-                blockUpdates.addAll(chaosService.getBigSquare());
-            }
             default -> throw new IllegalStateException("SetupMode has an unexpected value: " + environmentService.getSetupMode());
 
         }
@@ -75,6 +71,8 @@ public class RunnerService {
 
             forEachBlockParallel("Initialize", stitchingService::initializeStitch);
             forEachBlockParallel("Generate", GenerationService::setNextState);
+
+            blockUpdates.addAll(chaosService.tic());
             checkForExternalBlockUpdates();
 
             List<Block> newBlocks = new CopyOnWriteArrayList<>();
@@ -82,7 +80,9 @@ public class RunnerService {
             createNewBlocks(newBlocks);
             forEachBlockParallel("Stitch", stitchingService::stitchBlock);
 
-            activeClients.forEach(updateWebService::updateClient);
+            long newTimer = System.currentTimeMillis();
+            activeClients.entrySet().stream().parallel().forEach(entry -> updateWebService.updateClient(entry.getKey(), entry.getValue()));
+            log.info("updating {} clients took {}ms", activeClients.size(), System.currentTimeMillis() - newTimer);
 
             long timeTaken = System.currentTimeMillis() - timer;
             long timeDelta = timeTaken - environmentService.getTargetspeed();
@@ -110,7 +110,6 @@ public class RunnerService {
     }
 
     private void checkForExternalBlockUpdates() {
-        blockUpdates.addAll(chaosService.tic());
         for (BlockUpdate blockUpdate : blockUpdates) {
             Optional<Block> optionalBlock = blocks.stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
             if (optionalBlock.isPresent()) {

@@ -1,14 +1,13 @@
 package slobben.cells.entities.model;
 
 import lombok.*;
+import net.jpountz.lz4.LZ4Compressor;
+import net.jpountz.lz4.LZ4Factory;
 import slobben.cells.controller.EncodedBlock;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.BitSet;
-
-import static slobben.cells.util.Compress.gzip;
 
 @Getter
 @Setter
@@ -30,17 +29,23 @@ public class Block {
         this.cells = cells;
     }
 
-    @SneakyThrows
     public EncodedBlock getEncodedBlock() {
-        final int blockSize = cells.length;
-        BitSet bitSet = new BitSet((blockSize - 2) * (blockSize - 2));
+        final int blockSize = cells.length - 2;
+        final int innerSize = cells.length - 2;
+        final int totalBits = innerSize * innerSize;
+        byte[] packed = new byte[(totalBits + 7) / 8];
+
         for (int xrow = 1; xrow < cells.length - 1; xrow++) {
             for (int ycol = 1; ycol < cells.length - 1; ycol++) {
-                bitSet.set((blockSize - 2) * (xrow - 1) + (ycol - 1), cells[xrow][ycol]);
+                int i = (xrow - 1) * innerSize + (ycol - 1);
+                if (cells[xrow][ycol]) {
+                    packed[i / 8] |= (byte) (1 << (i % 8));
+                }
             }
         }
-        ByteArrayOutputStream os = new ByteArrayOutputStream();
-        gzip(new ByteArrayInputStream(bitSet.toByteArray()), os);
-        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(os.toByteArray()));
+        LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
+        byte[] compressed = compressor.compress(packed);
+
+        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(compressed));
     }
 }

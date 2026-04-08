@@ -1,9 +1,9 @@
 package slobben.cells.service;
 
-import com.mongodb.assertions.Assertions;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.util.Assert;
 import slobben.cells.entities.model.Block;
 
 import java.util.Random;
@@ -30,8 +30,8 @@ public class InitializerService {
         if (blockAmount == 0) {
             return Stream.empty();
         }
-        Assertions.assertTrue(blockSize > 0);
-        Assertions.assertTrue(blockSizeWithBorder > 0);
+        assert blockSize > 0;
+        assert blockSizeWithBorder > 0;
 
         return IntStream.range(0, blockAmount * blockAmount).mapToObj(count -> {
             int x = count / blockAmount;
@@ -45,8 +45,8 @@ public class InitializerService {
     }
 
     public static Set<Block> getRandomMap() {
-        Assertions.assertTrue(blockPopulation > 0);
-        Assertions.assertTrue(cellPopulation > 0);
+        assert blockPopulation > 0;
+        assert cellPopulation > 0;
 
         return getBlockStream()
                 .map(InitializerService::setBlockToRandom)
