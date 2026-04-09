@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import slobben.cells.controller.ClientUpdateRequest;
 import slobben.cells.controller.EncodedBlock;
 import slobben.cells.entities.model.Block;
+import slobben.cells.errors.NotAClientException;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
@@ -31,6 +32,14 @@ public class ClientService {
         activeClients.entrySet().stream().parallel().forEach(entry -> updateClient(entry.getKey(), entry.getValue()));
 
         log.info("updating {} clients took {}ms", activeClients.size(), System.currentTimeMillis() - timer);
+    }
+
+    public void disconnectClient(UUID uuid) {
+        activeClients.remove(uuid);
+    }
+
+    public void addClient(UUID uuid) {
+        activeClients.put(uuid, new ConcurrentLinkedQueue<>());
     }
 
     public void updateClient(UUID uuid, Queue<Block> blocks) {
@@ -59,8 +68,7 @@ public class ClientService {
             clientBlocks.removeIf(block -> Set.of(clientUpdateRequest.blocksToRemove()).contains(BlockUtils.getKey(block.getX(), block.getY())));
             clientBlocks.addAll(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
         } else {
-            ConcurrentLinkedQueue<Block> blocksToAdd = new ConcurrentLinkedQueue<>(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
-            activeClients.put(clientUpdateRequest.client(), blocksToAdd);
+            throw new NotAClientException("Client not found: %s".formatted(clientUpdateRequest.client()));
         }
         return activeClients.get(clientUpdateRequest.client()).stream()
                 .filter(block -> List.of(clientUpdateRequest.blocksToAdd()).contains(BlockUtils.getKey(block.getX(), block.getY())))

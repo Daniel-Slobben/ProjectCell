@@ -1,3 +1,6 @@
 package slobben.cells.controller;
 
-public record Settings(int blockSize, int x, int y) {}
+import java.util.UUID;
+
+public record Settings(int blockSize, UUID clientId, int x, int y) {
+}

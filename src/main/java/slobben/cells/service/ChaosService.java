@@ -39,7 +39,7 @@ public class ChaosService {
         chaosCounter++;
 
         if (chaosCounter > CHAOS_COUNTER_MAX) {
-            int squareSize = random.nextInt(50, 1200);
+            int squareSize = random.nextInt(600, 2000);
             chaosCounter = -squareSize;
 
             Pair<Integer, Integer> target = findTarget();
