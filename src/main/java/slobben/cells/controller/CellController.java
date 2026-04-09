@@ -10,6 +10,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import slobben.cells.config.StateInfo;
 import slobben.cells.service.ChaosService;
+import slobben.cells.service.ClientService;
 import slobben.cells.service.EnvironmentService;
 import slobben.cells.service.RunnerService;
 
@@ -24,6 +25,7 @@ public class CellController {
     private final RunnerService runnerService;
     private final EnvironmentService environmentService;
     private final ChaosService chaosService;
+    private final ClientService clientService;
 
     @GetMapping("settings")
     public ResponseEntity<Settings> getSettings() {
@@ -42,7 +44,7 @@ public class CellController {
     @PostMapping("/client-update")
     public ResponseEntity<List<EncodedBlock>> send(@RequestBody ClientUpdateRequest message) {
         log.info("Received update request for clientId: {}", message.client());
-        return ResponseEntity.ok(runnerService.updateClient(message));
+        return ResponseEntity.ok(clientService.updateClient(message));
     }
 
     @GetMapping("/state-info")

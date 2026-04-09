@@ -6,18 +6,17 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.BlockUpdate;
 import slobben.cells.config.StateInfo;
-import slobben.cells.controller.ClientUpdateRequest;
 import slobben.cells.entities.model.Block;
-import slobben.cells.controller.EncodedBlock;
-import slobben.cells.enums.SetupMode;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static java.lang.Thread.sleep;
@@ -29,13 +28,13 @@ public class RunnerService {
 
     private final StitchingService stitchingService;
     private final ChaosService chaosService;
-    private final UpdateWebService updateWebService;
     private final EnvironmentService environmentService;
     private final PruningService pruningService;
 
-    private final Map<UUID, ConcurrentLinkedQueue<Block>> activeClients = new ConcurrentHashMap<>();
-    private final Map<String, Block> ghostBlocks = new HashMap<>();
-    Set<Block> blocks;
+    private final Set<Block> blocks;
+    private final Map<String, Block> ghostBlocks;
+    private final ClientService clientService;
+
     private int generation = 0;
 
     @Getter
@@ -51,12 +50,6 @@ public class RunnerService {
 
     @SneakyThrows
     public void run() {
-        switch (SetupMode.valueOf(environmentService.getSetupMode())) {
-            case RANDOM -> this.blocks = InitializerService.getRandomMap();
-            case EMPTY -> this.blocks = InitializerService.getEmptyMap();
-            default -> throw new IllegalStateException("SetupMode has an unexpected value: " + environmentService.getSetupMode());
-
-        }
         do {
             long timer = System.currentTimeMillis();
             generation++;
@@ -80,9 +73,7 @@ public class RunnerService {
             createNewBlocks(newBlocks);
             forEachBlockParallel("Stitch", stitchingService::stitchBlock);
 
-            long newTimer = System.currentTimeMillis();
-            activeClients.entrySet().stream().parallel().forEach(entry -> updateWebService.updateClient(entry.getKey(), entry.getValue()));
-            log.info("updating {} clients took {}ms", activeClients.size(), System.currentTimeMillis() - newTimer);
+            clientService.tic();
 
             long timeTaken = System.currentTimeMillis() - timer;
             long timeDelta = timeTaken - environmentService.getTargetspeed();
@@ -165,10 +156,6 @@ public class RunnerService {
         log.info("Task {} finished in: {}ms", taskName, System.currentTimeMillis() - timer);
     }
 
-    public Block getBlock(int x, int y) {
-        var optionalBlock = blocks.stream().filter(block -> block.getX() == x && block.getY() == y).findFirst();
-        return optionalBlock.orElseGet(() -> getNewGhostBlock(Pair.of(x, y)));
-    }
 
     public StateInfo getStateInfo() {
         return StateInfo.builder().blocksInMemory(blocks.size()).blocksUpdating((int) (blocks.stream().filter(Block::isUpdatingWeb).count())).build();
@@ -178,34 +165,4 @@ public class RunnerService {
         blockUpdates.add(BlockUpdate.builder().x(x).y(y).state(body).build());
     }
 
-    public Set<Block> getBlocksFromKeys(Set<String> keys) {
-        Set<Block> blocksToAdd = new HashSet<>();
-        for (String key : keys) {
-            var coordinates = BlockUtils.resolveKey(key);
-            blocksToAdd.add(getBlock(coordinates.getFirst(), coordinates.getSecond()));
-        }
-        return blocksToAdd;
-    }
-
-    public List<EncodedBlock> updateClient(ClientUpdateRequest clientUpdateRequest) {
-        if (activeClients.containsKey(clientUpdateRequest.client())) {
-            var clientBlocks = activeClients.get(clientUpdateRequest.client());
-
-            clientBlocks.removeIf(block -> Set.of(clientUpdateRequest.blocksToRemove()).contains(BlockUtils.getKey(block.getX(), block.getY())));
-            clientBlocks.addAll(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
-        } else {
-            ConcurrentLinkedQueue<Block> blocksToAdd = new ConcurrentLinkedQueue<>(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
-            activeClients.put(clientUpdateRequest.client(), blocksToAdd);
-        }
-        return activeClients.get(clientUpdateRequest.client()).stream()
-                .filter(block -> List.of(clientUpdateRequest.blocksToAdd()).contains(BlockUtils.getKey(block.getX(), block.getY())))
-                .map(Block::getEncodedBlock).toList();
-    }
-
-    private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
-        var blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
-        Block newBlock = Block.builder().x(coordinates.getFirst()).y(coordinates.getSecond()).cells(new boolean[blockSizeWithBorder][blockSizeWithBorder]).ghostBlock(true).build();
-        ghostBlocks.put(BlockUtils.getKey(newBlock.getX(), newBlock.getY()), newBlock);
-        return newBlock;
-    }
 }

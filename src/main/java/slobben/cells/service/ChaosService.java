@@ -8,8 +8,10 @@ import org.springframework.stereotype.Service;
 import slobben.cells.config.BlockUpdate;
 import slobben.cells.enums.Direction;
 
-import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor

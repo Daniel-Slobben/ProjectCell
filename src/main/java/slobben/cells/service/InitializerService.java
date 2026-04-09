@@ -1,19 +1,26 @@
 package slobben.cells.service;
 
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.springframework.util.Assert;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import slobben.cells.entities.model.Block;
+import slobben.cells.enums.SetupMode;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Configuration
+@RequiredArgsConstructor
 public class InitializerService {
+
+    private final EnvironmentService environmentService;
+
     private static final Random random = new Random();
     @Setter
     private static int blockAmount;
@@ -25,6 +32,21 @@ public class InitializerService {
     private static int blockPopulation;
     @Setter
     private static int cellPopulation;
+
+    @Bean
+    public Set<Block> blocks() {
+        return switch (SetupMode.valueOf(environmentService.getSetupMode())) {
+            case RANDOM -> InitializerService.getRandomMap();
+            case EMPTY -> InitializerService.getEmptyMap();
+            default ->
+                    throw new IllegalStateException("SetupMode has an unexpected value: " + environmentService.getSetupMode());
+        };
+    }
+
+    @Bean
+    public Map<String, Block> ghostBlocks() {
+        return new HashMap<>();
+    }
 
     private static Stream<Block> getBlockStream() {
         if (blockAmount == 0) {
