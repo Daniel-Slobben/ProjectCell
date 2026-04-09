@@ -2,9 +2,9 @@ spring:
   application:
     name: Cells
 properties:
-  setup: RANDOM
+  setup: EMPTY
   chaos:
-    enabled: 'false'
+    enabled: 'true'
 
   pruning-per-generation: '100'
   threads: '4'

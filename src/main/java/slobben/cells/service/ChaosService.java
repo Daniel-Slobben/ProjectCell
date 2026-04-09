@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import slobben.cells.config.BlockUpdate;
 import slobben.cells.enums.Direction;
 
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -20,8 +21,7 @@ public class ChaosService {
     private static final int BLOCK_TARGET_RANGE_Y = 500;
     private static final Random random = new Random();
 
-//    private static final int CHAOS_COUNTER_MAX = 60 * 60;
-    private static final int CHAOS_COUNTER_MAX = 10;
+    private static final int CHAOS_COUNTER_MAX = 60 * 10;
     private int chaosCounter = CHAOS_COUNTER_MAX;
 
     @Value("${properties.chaos.enabled}")
@@ -37,8 +37,9 @@ public class ChaosService {
         chaosCounter++;
 
         if (chaosCounter > CHAOS_COUNTER_MAX) {
-            chaosCounter= 0;
             int squareSize = random.nextInt(50, 1200);
+            chaosCounter = -squareSize;
+
             Pair<Integer, Integer> target = findTarget();
             log.info("Creating square with size: {}px at x: {}, y: {}", squareSize, target.getFirst(), target.getSecond());
 
@@ -60,13 +61,11 @@ public class ChaosService {
     }
 
     public List<BlockUpdate> getBigSquare(int bigSquareSize, int offset) {
-        int maxRange = bigSquareSize;
-
         int blockSize = environmentService.getBlockSize();
         List<BlockUpdate> returnList = new ArrayList<>();
-        for (int x = 0; x < maxRange; x++) {
-            for (int y = 0; y < maxRange; y++) {
-                Direction blockDirection = getBorderDirection(x, y, 0, maxRange);
+        for (int x = 0; x < bigSquareSize; x++) {
+            for (int y = 0; y < bigSquareSize; y++) {
+                Direction blockDirection = getBorderDirection(x, y, 0, bigSquareSize);
                 if (blockDirection == null) {
                     continue;
                 }
