@@ -10,7 +10,6 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import slobben.cells.config.StateInfo;
 import slobben.cells.service.ChaosService;
 import slobben.cells.service.ClientService;
 import slobben.cells.service.EnvironmentService;

@@ -3,6 +3,7 @@ package slobben.cells.service;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import slobben.cells.config.BlockConfig;
 
 @Service
 @Getter
@@ -32,10 +33,10 @@ public class EnvironmentService {
         this.runMode = runMode;
 
         // setup static classes
-        InitializerService.setBlockAmount(blockAmount);
-        InitializerService.setBlockSize(blockSize);
-        InitializerService.setBlockSizeWithBorder(blockSizeWithBorder);
-        InitializerService.setBlockPopulation(blockPopulation);
-        InitializerService.setCellPopulation(cellPopulation);
+        BlockConfig.setBlockAmount(blockAmount);
+        BlockConfig.setBlockSize(blockSize);
+        BlockConfig.setBlockSizeWithBorder(blockSizeWithBorder);
+        BlockConfig.setBlockPopulation(blockPopulation);
+        BlockConfig.setCellPopulation(cellPopulation);
     }
 }

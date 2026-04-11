@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
-import slobben.cells.config.BlockUpdate;
+import slobben.cells.controller.BlockUpdate;
 import slobben.cells.enums.Direction;
 
 import java.util.ArrayList;
@@ -23,13 +23,13 @@ public class ChaosService {
     private static final int BLOCK_TARGET_RANGE_Y = 500;
     private static final Random random = new Random();
 
-    private static final int CHAOS_COUNTER_MAX = 60 * 10;
+    private static final int CHAOS_COUNTER_MAX = 60 * 5;
     private int chaosCounter = CHAOS_COUNTER_MAX;
 
     @Value("${properties.chaos.enabled}")
     private boolean chaosEnabled;
 
-    private static final int HIT_BUFFER_SIZE = 100;
+    private static final int HIT_BUFFER_SIZE = 5;
     private final ArrayList<Pair<Integer, Integer>> latestHits = new ArrayList<>(HIT_BUFFER_SIZE);
 
     public List<BlockUpdate> tic() {

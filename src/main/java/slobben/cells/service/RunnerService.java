@@ -7,8 +7,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import slobben.cells.config.BlockUpdate;
-import slobben.cells.config.StateInfo;
+import slobben.cells.controller.BlockUpdate;
+import slobben.cells.controller.StateInfo;
 import slobben.cells.entities.model.Block;
 import slobben.cells.util.BlockUtils;
 

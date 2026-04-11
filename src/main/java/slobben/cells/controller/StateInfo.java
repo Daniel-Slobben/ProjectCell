@@ -1,4 +1,4 @@
-package slobben.cells.config;
+package slobben.cells.controller;
 
 import lombok.Builder;
 

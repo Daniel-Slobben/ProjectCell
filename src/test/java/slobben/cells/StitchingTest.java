@@ -9,9 +9,9 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import slobben.cells.config.BlockConfig;
 import slobben.cells.entities.model.Block;
 import slobben.cells.enums.Direction;
-import slobben.cells.service.InitializerService;
 import slobben.cells.service.StitchingService;
 
 import java.util.List;
@@ -35,7 +35,7 @@ class StitchingTest {
     @ParameterizedTest
     @EnumSource(value = Direction.class)
     void testStitching(Direction direction) {
-        Set<Block> blocks = InitializerService.getEmptyMap();
+        Set<Block> blocks = BlockConfig.getEmptyMap();
         assert blocks.size() == 1;
         var block = blocks.stream().findFirst().get();
         var cells = block.getCells();

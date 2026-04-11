@@ -3,8 +3,8 @@ package slobben.cells;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import slobben.cells.config.BlockConfig;
 import slobben.cells.entities.model.Block;
-import slobben.cells.service.InitializerService;
 
 import java.util.Set;
 
@@ -19,14 +19,14 @@ class InitializerTest {
         int blockAmount = 30;
         int blockSizeWithBorder = blockSize + 2;
 
-        InitializerService.setBlockSize(blockSize);
-        InitializerService.setBlockAmount(blockAmount);
-        InitializerService.setBlockSizeWithBorder(blockSizeWithBorder);
+        BlockConfig.setBlockSize(blockSize);
+        BlockConfig.setBlockAmount(blockAmount);
+        BlockConfig.setBlockSizeWithBorder(blockSizeWithBorder);
 
         boolean[][] expectedDimensions = new boolean[blockSizeWithBorder][blockSizeWithBorder];
 
         // execute
-        Set<Block> blocks = InitializerService.getEmptyMap();
+        Set<Block> blocks = BlockConfig.getEmptyMap();
 
         // verify
         Assertions.assertNotNull(blocks);
@@ -52,14 +52,14 @@ class InitializerTest {
         int blockPopulation = 2;
         int cellPopulation = 2;
 
-        InitializerService.setBlockSize(blockSize);
-        InitializerService.setBlockAmount(blockAmount);
-        InitializerService.setBlockSizeWithBorder(blockSize + 2);
-        InitializerService.setBlockPopulation(blockPopulation);
-        InitializerService.setCellPopulation(cellPopulation);
+        BlockConfig.setBlockSize(blockSize);
+        BlockConfig.setBlockAmount(blockAmount);
+        BlockConfig.setBlockSizeWithBorder(blockSize + 2);
+        BlockConfig.setBlockPopulation(blockPopulation);
+        BlockConfig.setCellPopulation(cellPopulation);
 
         // execute
-        Set<Block> blocks = InitializerService.getRandomMap();
+        Set<Block> blocks = BlockConfig.getRandomMap();
 
         // verify
         Assertions.assertNotNull(blocks);

@@ -1,4 +1,4 @@
-package slobben.cells.service;
+package slobben.cells.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import slobben.cells.entities.model.Block;
 import slobben.cells.enums.SetupMode;
+import slobben.cells.service.EnvironmentService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.stream.Stream;
 
 @Configuration
 @RequiredArgsConstructor
-public class InitializerService {
+public class BlockConfig {
 
     private final EnvironmentService environmentService;
 
@@ -33,14 +34,13 @@ public class InitializerService {
     @Setter
     private static int cellPopulation;
 
-    @Bean
-    public Set<Block> blocks() {
-        return switch (SetupMode.valueOf(environmentService.getSetupMode())) {
-            case RANDOM -> InitializerService.getRandomMap();
-            case EMPTY -> InitializerService.getEmptyMap();
-            default ->
-                    throw new IllegalStateException("SetupMode has an unexpected value: " + environmentService.getSetupMode());
-        };
+    public static Set<Block> getRandomMap() {
+        assert blockPopulation > 0;
+        assert cellPopulation > 0;
+
+        return getBlockStream()
+                .map(BlockConfig::setBlockToRandom)
+                .collect(Collectors.toSet());
     }
 
     @Bean
@@ -66,13 +66,14 @@ public class InitializerService {
         return getBlockStream().collect(Collectors.toSet());
     }
 
-    public static Set<Block> getRandomMap() {
-        assert blockPopulation > 0;
-        assert cellPopulation > 0;
-
-        return getBlockStream()
-                .map(InitializerService::setBlockToRandom)
-                .collect(Collectors.toSet());
+    @Bean
+    public Set<Block> blocks() {
+        return switch (SetupMode.valueOf(environmentService.getSetupMode())) {
+            case RANDOM -> BlockConfig.getRandomMap();
+            case EMPTY -> BlockConfig.getEmptyMap();
+            default ->
+                    throw new IllegalStateException("SetupMode has an unexpected value: " + environmentService.getSetupMode());
+        };
     }
 
     private static Block setBlockToRandom(Block block) {
