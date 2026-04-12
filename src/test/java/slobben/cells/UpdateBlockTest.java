@@ -8,7 +8,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import slobben.cells.controller.BlockUpdate;
+import slobben.cells.dto.BlockUpdate;
 import slobben.cells.service.EnvironmentService;
 import slobben.cells.service.RunnerService;
 

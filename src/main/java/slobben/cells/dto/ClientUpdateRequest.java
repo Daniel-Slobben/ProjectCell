@@ -1,4 +1,4 @@
-package slobben.cells.controller;
+package slobben.cells.dto;
 
 import java.util.UUID;
 

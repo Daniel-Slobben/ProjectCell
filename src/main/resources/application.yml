@@ -1,11 +1,11 @@
+logging.level.slobben: DEBUG
 spring:
   application:
     name: Cells
 properties:
-  setup: EMPTY
+  setup: RANDOM
   chaos:
-    enabled: 'true'
-
+    enabled: 'false'
   pruning-per-generation: '100'
   threads: '4'
 
@@ -17,4 +17,4 @@ properties:
     y: '10000'
     blockSize: '500'
   runmode: AUTO
-  targetspeed: '1000'
+  targetspeed: '10000'

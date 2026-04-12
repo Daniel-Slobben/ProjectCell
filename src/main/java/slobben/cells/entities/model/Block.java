@@ -3,11 +3,9 @@ package slobben.cells.entities.model;
 import lombok.*;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
-import slobben.cells.controller.EncodedBlock;
+import slobben.cells.dto.EncodedBlock;
 
-import java.nio.ByteBuffer;
 import java.util.Base64;
-import java.util.BitSet;
 
 @Getter
 @Setter

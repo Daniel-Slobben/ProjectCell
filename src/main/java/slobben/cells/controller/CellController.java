@@ -10,6 +10,10 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import slobben.cells.dto.ClientUpdateRequest;
+import slobben.cells.dto.EncodedBlock;
+import slobben.cells.dto.Settings;
+import slobben.cells.dto.StateInfo;
 import slobben.cells.service.ChaosService;
 import slobben.cells.service.ClientService;
 import slobben.cells.service.EnvironmentService;
@@ -62,8 +66,9 @@ public class CellController {
         return ResponseEntity.ok(runnerService.getStateInfo());
     }
 
-    @DeleteMapping("/disconnect")
-    public ResponseEntity<HttpStatusCode> disconnect(UUID clientId) {
+    @DeleteMapping("/disconnect/{clientId}")
+    public ResponseEntity<HttpStatusCode> disconnect(@PathVariable UUID clientId) {
+        log.debug("Received request to disconnect client with id: {}", clientId);
         clientService.disconnectClient(clientId);
         return ResponseEntity.ok().build();
     }

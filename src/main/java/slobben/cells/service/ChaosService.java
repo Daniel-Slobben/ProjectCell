@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
-import slobben.cells.controller.BlockUpdate;
+import slobben.cells.dto.BlockUpdate;
 import slobben.cells.enums.Direction;
 
 import java.util.ArrayList;
