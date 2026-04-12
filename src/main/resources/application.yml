@@ -5,7 +5,7 @@ spring:
 properties:
   setup: RANDOM
   chaos:
-    enabled: 'false'
+    enabled: 'true'
   pruning-per-generation: '100'
   threads: '4'
 
@@ -13,8 +13,8 @@ properties:
   cellPopulation: '6'
 
   size:
-    x: '10000'
-    y: '10000'
+    x: '5000'
+    y: '5000'
     blockSize: '500'
   runmode: AUTO
   targetspeed: '1000'

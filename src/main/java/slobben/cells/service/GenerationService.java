@@ -35,10 +35,7 @@ public class GenerationService {
                     if (heatmap[x][y] == 3) {
                         // now alive
                         block.getCells()[x][y] = true;
-                        setDeltaOperation((byte) 0b01_00000, deltas);
-                    } else {
-                        // still dead
-                        setDeltaOperation((byte) 0b00_00000, deltas);
+                        setDeltaOperation((byte) 0b0_000000, deltas);
                     }
                 }
                 // If cell was alive
@@ -46,43 +43,47 @@ public class GenerationService {
                     if (!(heatmap[x][y] == 2 || heatmap[x][y] == 3)) {
                         // now dead
                         block.getCells()[x][y] = false;
-                        setDeltaOperation((byte) 0b11_00000, deltas);
-                    } else {
-                        // still alive
-                        setDeltaOperation((byte) 0b10_00000, deltas);
+                        setDeltaOperation((byte) 0b1_000000, deltas);
                     }
                 }
             }
         }
+        byte[] byteDeltas = new byte[deltas.size()];
+        for (int i = 0; i < deltas.size(); i++) {
+            byteDeltas[i] = deltas.get(i);
+        }
+
+        block.addByteArrayToDelta(byteDeltas);
     }
 
     /**
-     * first two bits for operation
-     * 00 -- cell was dead, still dead
-     * 01 -- cell was dead, now alive
-     * 10 -- cell was alive, still alive
-     * 11 -- cell was alive, now dead
-     * <p>
-     * 6 least significant bits for how many in a row a cell has the same operation
-     * max = 64 times, starting at 0 (so 000000 means the operation only applies to the current cell
+     * first bit for operation
+     * 0 -- not changed
+     * 1 -- changed
+     * -
+     * 7 least significant bits for how many in a row a cell has the same operation
+     * max = 128 times, starting at 0 (so 0_0000000 means the operation only applies to the current cell
      *
      * @param newOperation byte with only the two most significant bits (ex: (byte) 0b11_000000
      * @param deltas       LinkedList with all previous bytes
      */
     private static void setDeltaOperation(byte newOperation, LinkedList<Byte> deltas) {
-        int lastDeltaOperation = 0b0010_000;
+        int lastDeltaOperation = 0b0_100000;
         if (!deltas.isEmpty()) {
-            lastDeltaOperation = deltas.peekLast() & 0x11_000000;
+            lastDeltaOperation = deltas.peekLast() & 0x1_0000000;
         }
         if (lastDeltaOperation != newOperation || deltas.isEmpty()) {
             deltas.addLast(newOperation);
         } else {
             byte delta = deltas.pollLast();
-            int operationAmount = delta & 0b00111111;
+            int operationAmount = delta & 0b0_1111111;
 
-            if (operationAmount != 63) {
+            if (operationAmount != 127) {
                 operationAmount++;
                 deltas.add((byte) (newOperation | operationAmount));
+            } else {
+                deltas.add(delta);
+                deltas.add((byte) lastDeltaOperation);
             }
         }
     }

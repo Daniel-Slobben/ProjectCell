@@ -6,6 +6,7 @@ import net.jpountz.lz4.LZ4Factory;
 import slobben.cells.dto.EncodedBlock;
 
 import java.util.Base64;
+import java.util.LinkedList;
 
 @Getter
 @Setter
@@ -20,6 +21,7 @@ public class Block {
     private boolean isUpdatingWeb = false;
     private boolean ghostBlock = false;
     private boolean[][] cells;
+    private LinkedList<byte[]> deltas = new LinkedList<>();
 
     public Block(int x, int y, boolean[][] cells) {
         this.x = x;
@@ -27,8 +29,25 @@ public class Block {
         this.cells = cells;
     }
 
+    public void addByteArrayToDelta(byte[] delta) {
+        deltas.add(delta);
+        if (deltas.size() > 3) {
+            deltas.pollFirst();
+        }
+    }
+
+    public EncodedBlock getDeltaBlock() {
+        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(deltas.peekLast()));
+    }
+
+    public void printDelta() {
+        byte[] delta = deltas.peekLast();
+        int pixelCounter = 0;
+        for (int i = 0; i < delta.length; i++) {
+        }
+    }
+
     public EncodedBlock getEncodedBlock() {
-        final int blockSize = cells.length - 2;
         final int innerSize = cells.length - 2;
         final int totalBits = innerSize * innerSize;
         byte[] packed = new byte[(totalBits + 7) / 8];
