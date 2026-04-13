@@ -29,22 +29,28 @@ public class ClientService {
     public void tic() {
         long timer = System.currentTimeMillis();
 
-        activeClients.entrySet().stream().parallel().forEach(entry -> updateClient(entry.getKey(), entry.getValue()));
+        activeClients.entrySet().stream().parallel().forEach(entry -> sendUpdateToClient(entry.getKey(), entry.getValue()));
 
         log.info("updating {} clients took {}ms", activeClients.size(), System.currentTimeMillis() - timer);
     }
 
     public void disconnectClient(UUID uuid) {
-        activeClients.remove(uuid);
+        var values = activeClients.remove(uuid);
+        values.stream()
+                .filter(block -> !activeClients.values().stream()
+                        .flatMap(Collection::stream)
+                        .toList()
+                        .contains(block))
+                .forEach(block -> block.setUpdatingWeb(false));
     }
 
     public void addClient(UUID uuid) {
         activeClients.put(uuid, new ConcurrentLinkedQueue<>());
     }
 
-    public void updateClient(UUID uuid, Queue<Block> blocks) {
+    public void sendUpdateToClient(UUID uuid, Queue<Block> blocks) {
         var copyOfBlocks = List.copyOf(blocks).stream()
-                .map(Block::getEncodedBlock).toList();
+                .map(Block::getDeltaBlock).toList();
 
         simpMessagingTemplate.convertAndSend("/topic/%s".formatted(uuid), copyOfBlocks);
     }
@@ -66,7 +72,9 @@ public class ClientService {
             var clientBlocks = activeClients.get(clientUpdateRequest.client());
 
             clientBlocks.removeIf(block -> Set.of(clientUpdateRequest.blocksToRemove()).contains(BlockUtils.getKey(block.getX(), block.getY())));
-            clientBlocks.addAll(getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd())));
+            var blocksToAdd = getBlocksFromKeys(Set.of(clientUpdateRequest.blocksToAdd()));
+            blocksToAdd.forEach(block -> block.setUpdatingWeb(true));
+            clientBlocks.addAll(blocksToAdd);
         } else {
             throw new NotAClientException("Client not found: %s".formatted(clientUpdateRequest.client()));
         }

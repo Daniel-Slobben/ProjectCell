@@ -2,9 +2,9 @@ package slobben.cells.service;
 
 import slobben.cells.entities.model.Block;
 
+@SuppressWarnings({"java:S3776", "java:S135"})
 public class GenerationService {
 
-    @SuppressWarnings({"java:S3776", "java:S135"})
     public static void setNextState(Block block) {
         final int blockSizeWithBorder = block.getCells().length;
         final int blockSize = blockSizeWithBorder - 2;
@@ -22,35 +22,51 @@ public class GenerationService {
                 }
             }
         }
+        updateBlock(block, blockSize, heatmap);
+    }
+
+    private static void updateBlock(Block block, int blockSize, byte[][] heatmap) {
+        boolean trackDeltas = block.isUpdatingWeb();
 
         int deltaIndex = -1;
-        byte[] deltas = new byte[blockSize * blockSize];
+        byte[] deltas = trackDeltas ? new byte[blockSize * blockSize] : null;
 
         for (int x = 1; x < blockSize + 1; x++) {
             for (int y = 1; y < blockSize + 1; y++) {
-                // If cell was dead
-                if (!block.getCells()[x][y]) {
-                    if (heatmap[x][y] == 3) {
-                        // now alive
-                        block.getCells()[x][y] = true;
-                        deltaIndex = setDeltaOperation(true, deltas, deltaIndex);
-                    } else {
-                        deltaIndex = setDeltaOperation(false, deltas, deltaIndex);
-                    }
+                boolean wasAlive = block.getCells()[x][y];
+                boolean stillAlive = applyGameOfLife(wasAlive, heatmap[x][y]);
+
+                boolean changed = wasAlive != stillAlive;
+                if (changed) {
+                    block.getCells()[x][y] = stillAlive;
                 }
-                // If cell was alive
-                else {
-                    if (!(heatmap[x][y] == 2 || heatmap[x][y] == 3)) {
-                        // now dead
-                        block.getCells()[x][y] = false;
-                        deltaIndex = setDeltaOperation(true, deltas, deltaIndex);
-                    } else {
-                        deltaIndex = setDeltaOperation(false, deltas, deltaIndex);
-                    }
+
+                if (trackDeltas) {
+                    deltaIndex = setDeltaOperation(changed, deltas, deltaIndex);
                 }
             }
         }
-        block.addByteArrayToDelta(deltas);
+
+        if (trackDeltas) {
+            int length = 0;
+            for (byte delta : deltas) {
+                if (delta == 0) {
+                    break;
+                }
+                length++;
+            }
+            byte[] trimmedDeltas = new byte[length];
+            System.arraycopy(deltas, 0, trimmedDeltas, 0, length);
+            block.addByteArrayToDelta(trimmedDeltas);
+        }
+    }
+
+    private static boolean applyGameOfLife(boolean wasAlive, byte heatmap) {
+        if (wasAlive) {
+            return heatmap == 2 || heatmap == 3;
+        } else {
+            return heatmap == 3;
+        }
     }
 
     /**
@@ -59,7 +75,8 @@ public class GenerationService {
      * 1 -- changed
      * -
      * 7 least significant bits for how many in a row a cell has the same operation
-     * max = 128 times, starting at 1 (so 0_0000001 means the operation only applies to the current cell
+     * max = 127 times, starting at 1 (so 0_0000001 means the operation only applies to the current cell
+     * 0b0000_0000 is reserved for checking if byte array is done
      */
     private static int setDeltaOperation(boolean cellChanged, byte[] deltas, int deltaIndex) {
         byte lastDeltaOperation;

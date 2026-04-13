@@ -1,6 +1,7 @@
 package slobben.cells.entities.model;
 
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import slobben.cells.dto.EncodedBlock;
@@ -8,10 +9,14 @@ import slobben.cells.dto.EncodedBlock;
 import java.util.Base64;
 import java.util.LinkedList;
 
+import static slobben.cells.enums.BlockType.COMPLETE;
+import static slobben.cells.enums.BlockType.DELTA;
+
 @Getter
 @Setter
 @RequiredArgsConstructor
 @AllArgsConstructor
+@Slf4j
 @Builder
 public class Block {
 
@@ -21,7 +26,7 @@ public class Block {
     private boolean isUpdatingWeb = false;
     private boolean ghostBlock = false;
     private boolean[][] cells;
-    private LinkedList<byte[]> deltas = new LinkedList<>();
+    private LinkedList<byte[]> deltas;
 
     public Block(int x, int y, boolean[][] cells) {
         this.x = x;
@@ -30,6 +35,9 @@ public class Block {
     }
 
     public void addByteArrayToDelta(byte[] delta) {
+        if (deltas == null) {
+            deltas = new LinkedList<>();
+        }
         deltas.add(delta);
         if (deltas.size() > 3) {
             deltas.pollFirst();
@@ -37,13 +45,14 @@ public class Block {
     }
 
     public EncodedBlock getDeltaBlock() {
-        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(deltas.peekLast()));
-    }
-
-    public void printDelta() {
-        byte[] delta = deltas.peekLast();
-        int pixelCounter = 0;
-        for (int i = 0; i < delta.length; i++) {
+        if (isGhostBlock() || deltas == null) {
+            return getEncodedBlock();
+        }
+        try {
+            return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(deltas.peekLast()), DELTA);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return getEncodedBlock();
         }
     }
 
@@ -63,6 +72,6 @@ public class Block {
         LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
         byte[] compressed = compressor.compress(packed);
 
-        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(compressed));
+        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(compressed), COMPLETE);
     }
 }
