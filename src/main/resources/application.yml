@@ -5,9 +5,9 @@ spring:
 properties:
   setup: RANDOM
   chaos:
-    enabled: 'true'
+    enabled: 'false'
   pruning-per-generation: '100'
-  threads: '4'
+  threads: '1'
 
   blockPopulation: '1'
   cellPopulation: '6'
