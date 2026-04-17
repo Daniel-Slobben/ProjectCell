@@ -1,23 +1,40 @@
-package slobben.cells.service;
+package slobben.cells.service.workers;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.model.Block;
 
 import java.util.Set;
 
 @Service
-@Slf4j
-public class PruningService {
+@RequiredArgsConstructor
+public class PruningService implements Worker {
+    private final Set<Block> blocks;
+
+    private int counter = 0;
+    @Value("${cells.pruning-per-generation}")
+    private int pruningPerGeneration;
+
+    @Override
+    public String getName() {
+        return "Deleting empty blocks";
+    }
+
+    @Override
+    public void execute() {
+        counter++;
+        if (counter == pruningPerGeneration) {
+            pruneBlocks(blocks);
+        }
+    }
 
     /**
      * Removes all blocks that don't have any living cells.
      * @param blocks -> the blocks to check for pruning
      */
     public void pruneBlocks(Set<Block> blocks) {
-        long timer = System.currentTimeMillis();
         blocks.removeIf(block -> !hasTrueValue(block));
-        log.info("Pruning took {}ms", System.currentTimeMillis() - timer);
     }
 
     private boolean hasTrueValue(Block block) {
@@ -30,4 +47,5 @@ public class PruningService {
         }
         return false;
     }
+
 }

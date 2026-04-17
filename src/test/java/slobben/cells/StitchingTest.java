@@ -9,10 +9,12 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import slobben.cells.config.BlockConfig;
+import slobben.cells.dto.BlockUpdate;
 import slobben.cells.entities.model.Block;
 import slobben.cells.enums.Direction;
-import slobben.cells.service.StitchingService;
+import slobben.cells.service.workers.BorderService;
+import slobben.cells.service.workers.NewBlockService;
+import slobben.cells.service.workers.StitchingService;
 
 import java.util.List;
 import java.util.Set;
@@ -21,21 +23,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ExtendWith(SpringExtension.class)
-@ComponentScan("slobben.cells.service")
+@ComponentScan({"slobben.cells.service", "slobben.cells.config"})
 @ActiveProfiles(profiles = "unit")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class StitchingTest {
-    private final StitchingService stitchingService;
 
     @Autowired
-    public StitchingTest(StitchingService stitchingService) {
-        this.stitchingService = stitchingService;
-    }
+    private BorderService borderService;
+    @Autowired
+    private List<BlockUpdate> blockUpdates;
+    @Autowired
+    private NewBlockService newBlockService;
+    @Autowired
+    private StitchingService stitchingService;
+    @Autowired
+    private Set<Block> blocks;
 
     @ParameterizedTest
     @EnumSource(value = Direction.class)
     void testStitching(Direction direction) {
-        Set<Block> blocks = BlockConfig.getEmptyMap();
         assert blocks.size() == 1;
         var block = blocks.stream().findFirst().get();
         var cells = block.getCells();
@@ -45,13 +51,15 @@ class StitchingTest {
         cells[10][1] = true;
         cells[10][10] = true;
 
-        stitchingService.initializeStitch(block);
-        List<Block> newBlocks = stitchingService.addBorderCells(block);
-        assert newBlocks.size() == 8;
-        newBlocks.forEach(stitchingService::stitchBlock);
 
-        Block blockToCheck = newBlocks.stream().filter(b -> b.getX() == direction.getDx()) .filter(b -> b.getY() == direction.getDy()).findFirst().get();
-        blocks.addAll(newBlocks);
+        borderService.addBorderCells(block);
+        assert blockUpdates.size() == 8;
+        newBlockService.tic();
+        assert blocks.size() == 9;
+
+        blocks.forEach(stitchingService::stitchBlock);
+
+        Block blockToCheck = blocks.stream().filter(b -> b.getX() == direction.getDx()).filter(b -> b.getY() == direction.getDy()).findFirst().get();
 
         switch(direction) {
             case Direction.TOP_LEFT -> assertThat(blockToCheck.getCells()[11][11]).isTrue();

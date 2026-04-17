@@ -1,4 +1,4 @@
-properties:
+cells:
   setup: EMPTY
   size:
     x: '10'

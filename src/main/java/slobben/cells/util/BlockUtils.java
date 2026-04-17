@@ -2,7 +2,7 @@ package slobben.cells.util;
 
 import org.springframework.data.util.Pair;
 
-public class BlockUtils {
+public final class BlockUtils {
     private static final String SPLIT_CHAR = "/";
 
     public static String getKey(int x, int y) {

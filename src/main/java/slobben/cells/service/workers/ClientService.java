@@ -1,37 +1,43 @@
-package slobben.cells.service;
+package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.util.Pair;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.ClientUpdateRequest;
 import slobben.cells.dto.EncodedBlock;
 import slobben.cells.entities.model.Block;
 import slobben.cells.errors.NotAClientException;
+import slobben.cells.service.ExecutorService;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ClientService {
+public class ClientService implements Worker {
     private final SimpMessagingTemplate simpMessagingTemplate;
-    private final EnvironmentService environmentService;
+    private final EnvironmentConfig environmentConfig;
+    private final ExecutorService executorService;
 
     private final Map<UUID, ConcurrentLinkedQueue<Block>> activeClients = new ConcurrentHashMap<>();
     private final Set<Block> blocks;
     private final Map<String, Block> ghostBlocks;
 
-    public void tic() {
-        long timer = System.currentTimeMillis();
+    @Override
+    public String getName() {
+        return "Client updates";
+    }
 
-        activeClients.entrySet().stream().parallel().forEach(entry -> updateClient(entry.getKey(), entry.getValue()));
-
-        log.info("updating {} clients took {}ms", activeClients.size(), System.currentTimeMillis() - timer);
+    public void execute() {
+        Set<Runnable> tasks = activeClients.entrySet().stream().map(entrySet -> (Runnable) () -> updateClient(entrySet.getKey(), entrySet.getValue())).collect(Collectors.toSet());
+        executorService.executeTasksParallel(tasks);
     }
 
     public void disconnectClient(UUID uuid) {
@@ -50,7 +56,7 @@ public class ClientService {
     }
 
     private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
-        var blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
+        var blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
         Block newBlock = Block.builder().x(coordinates.getFirst()).y(coordinates.getSecond()).cells(new boolean[blockSizeWithBorder][blockSizeWithBorder]).ghostBlock(true).build();
         ghostBlocks.put(BlockUtils.getKey(newBlock.getX(), newBlock.getY()), newBlock);
         return newBlock;

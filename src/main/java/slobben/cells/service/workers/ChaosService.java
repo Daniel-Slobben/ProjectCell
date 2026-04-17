@@ -1,4 +1,4 @@
-package slobben.cells.service;
+package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,15 +9,16 @@ import slobben.cells.dto.BlockUpdate;
 import slobben.cells.enums.Direction;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ChaosService {
-    private final EnvironmentService environmentService;
+public class ChaosService implements Worker {
+    private final List<BlockUpdate> blockUpdates;
+    @Value("${cells.size.blockSize}")
+    private int blockSize;
 
     private static final int BLOCK_TARGET_RANGE_X = 500;
     private static final int BLOCK_TARGET_RANGE_Y = 500;
@@ -25,17 +26,19 @@ public class ChaosService {
 
     private static final int CHAOS_COUNTER_MAX = 60 * 5;
     private int chaosCounter = CHAOS_COUNTER_MAX;
-
-    @Value("${properties.chaos.enabled}")
+    @Value("${cells.chaos.enabled}")
     private boolean chaosEnabled;
 
     private static final int HIT_BUFFER_SIZE = 5;
     private final ArrayList<Pair<Integer, Integer>> latestHits = new ArrayList<>(HIT_BUFFER_SIZE);
 
-    public List<BlockUpdate> tic() {
-        if (!chaosEnabled) return Collections.emptyList();
+    public String getName() {
+        return "ChaosService";
+    }
 
-        List<BlockUpdate> returnList = new ArrayList<>();
+    public void execute() {
+        if (!chaosEnabled) return;
+
         chaosCounter++;
 
         if (chaosCounter > CHAOS_COUNTER_MAX) {
@@ -45,25 +48,23 @@ public class ChaosService {
             Pair<Integer, Integer> target = findTarget();
             log.info("Creating square with size: {}px at x: {}, y: {}", squareSize, target.getFirst(), target.getSecond());
 
-            if (squareSize < environmentService.getBlockSize()) {
-                boolean[][] cells = getSquare(squareSize, (environmentService.getBlockSize() - squareSize) / 2);
-                returnList.add(BlockUpdate.builder().x(target.getFirst()).y(target.getSecond()).state(cells).build());
+            if (squareSize < blockSize) {
+                boolean[][] cells = getSquare(squareSize, (blockSize - squareSize) / 2);
+                blockUpdates.add(BlockUpdate.builder().x(target.getFirst()).y(target.getSecond()).state(cells).build());
             } else {
-                int squareBlockSize = squareSize / environmentService.getBlockSize() + 1;
-                int offset = squareSize % environmentService.getBlockSize();
+                int squareBlockSize = squareSize / blockSize + 1;
+                int offset = squareSize % blockSize;
                 log.info("Creating bigSquare with: blockSize{} and offset: {}", squareBlockSize, offset);
-                List<BlockUpdate> blockUpdates = getBigSquare(squareBlockSize, offset);
-                returnList.addAll(blockUpdates.stream()
+                List<BlockUpdate> newBlockUpdates = getBigSquare(squareBlockSize, offset);
+                blockUpdates.addAll(newBlockUpdates.stream()
                         .map(update -> new BlockUpdate(update.x() + target.getFirst(), update.y() + target.getSecond(), update.state()))
                         .toList());
             }
             addToLatestHits(target);
         }
-        return returnList;
     }
 
     public List<BlockUpdate> getBigSquare(int bigSquareSize, int offset) {
-        int blockSize = environmentService.getBlockSize();
         List<BlockUpdate> returnList = new ArrayList<>();
         for (int x = 0; x < bigSquareSize; x++) {
             for (int y = 0; y < bigSquareSize; y++) {
@@ -152,7 +153,6 @@ public class ChaosService {
     }
 
     private boolean[][] getSquare(int size, int offset) {
-       int blockSize = environmentService.getBlockSize();
        if (size/2 + offset > blockSize) {
            throw new IllegalArgumentException("Square is out off the block size. Size/2 + offset = %s, block size = %s".formatted(size/2 + offset, blockSize));
        }

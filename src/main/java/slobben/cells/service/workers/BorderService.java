@@ -1,56 +1,73 @@
-package slobben.cells.service;
+package slobben.cells.service.workers;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
+import slobben.cells.config.EnvironmentConfig;
+import slobben.cells.dto.BlockUpdate;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.Direction;
+import slobben.cells.service.ExecutorService;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static slobben.cells.util.BlockUtils.getKey;
 
 @RequiredArgsConstructor
 @Service
-public class StitchingService {
-    private final EnvironmentService environmentService;
-    private Map<String, BorderInfo> borderCellMap;
-    private int blockSize;
+public class BorderService implements Worker {
+    private final EnvironmentConfig environmentConfig;
+    private final ExecutorService executorService;
+    private final Set<Block> blocks;
     private int blockSizeWithBorder;
+    private final List<BlockUpdate> blockUpdates;
+    private final Map<String, BorderInfo> bordersMap;
+    @Value("${cells.size.blockSize}")
+    private int blockSize;
 
     @PostConstruct
     private void postConstruct() {
-        blockSize = environmentService.getBlockSize();
-        blockSizeWithBorder = environmentService.getBlockSizeWithBorder();
-        borderCellMap = new ConcurrentHashMap<>();
+        blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
     }
 
-    public void initializeStitch(Block block) {
-        borderCellMap.put(key(block.getX(), block.getY()), new BorderInfo(blockSize));
+    @Override
+    public String getName() {
+        return "Adding bordercells";
     }
 
-    public void resetStitch() {
-        borderCellMap.clear();
+    public void execute() {
+        bordersMap.clear();
+        blocks.forEach(block -> bordersMap.put(getKey(block.getX(), block.getY()), new BorderInfo(blockSize)));
+
+        Set<Runnable> tasks = blocks.stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
+        executorService.executeTasksParallel(tasks);
     }
 
-    @SuppressWarnings("java:S3776")
-    public List<Block> addBorderCells(Block block) {
-        List<Block> newBlocks = new ArrayList<>();
+
+    public void addBorderCells(Block block) {
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
                 if (i == 0 && j == 0) continue;
 
                 int neighborX = block.getX() + i;
                 int neighborY = block.getY() + j;
-                String neighborKey = key(neighborX, neighborY);
+                String neighborKey = getKey(neighborX, neighborY);
 
-                BorderInfo neighborMap = borderCellMap.get(neighborKey);
+                BorderInfo neighborMap;
                 boolean hasNeigherMap = true;
-                if (neighborMap == null) {
-                    hasNeigherMap = false;
-                    neighborMap = new BorderInfo(blockSize);
-                    borderCellMap.put(neighborKey, neighborMap);
+                synchronized (this) {
+                    neighborMap = bordersMap.get(neighborKey);
+                    if (neighborMap == null) {
+                        neighborMap = new BorderInfo(blockSize);
+                        bordersMap.put(neighborKey, neighborMap);
+                        hasNeigherMap = false;
+                    }
                 }
 
                 boolean hasLiveCells = setBorderCellsForDirection(neighborMap, i, j, block.getCells());
@@ -59,26 +76,11 @@ public class StitchingService {
                 }
 
                 if (!hasNeigherMap && hasLiveCells) {
-                    Block newBlock = new Block(neighborX, neighborY, new boolean[blockSizeWithBorder][blockSizeWithBorder]);
-                    newBlocks.add(newBlock);
+                    blockUpdates.add(new BlockUpdate(neighborX, neighborY, new boolean[blockSize][blockSize]));
                 }
             }
         }
-        return newBlocks;
     }
-
-    public void stitchBlock(Block block) {
-        removeBorders(block.getCells());
-        BorderInfo map = borderCellMap.get(key(block.getX(), block.getY()));
-        if (map.isHasAliveCells()) {
-            map.copyCells(block);
-        }
-    }
-
-    private String key(int x, int y) {
-        return x + "-" + y;
-    }
-
 
     private boolean setBorderCellsForDirection(BorderInfo neighbourMap, int i, int j, boolean[][] cells) {
         Direction direction = Direction.from(i, j);
@@ -149,17 +151,4 @@ public class StitchingService {
         return Pair.of(cellsToCopy, hasTrue);
     }
 
-    private void removeBorders(boolean[][] cells) {
-        int max = blockSize + 1;
-
-        // x keys
-        cells[0] = new boolean[blockSizeWithBorder];
-        cells[max] = new boolean[blockSizeWithBorder];
-
-        // y keys
-        for (int i = 0; i < cells[0].length; i++) {
-            cells[i][0] = false;
-            cells[i][max] = false;
-        }
-    }
 }

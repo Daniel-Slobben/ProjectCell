@@ -28,7 +28,6 @@ public class Block {
     }
 
     public EncodedBlock getEncodedBlock() {
-        final int blockSize = cells.length - 2;
         final int innerSize = cells.length - 2;
         final int totalBits = innerSize * innerSize;
         byte[] packed = new byte[(totalBits + 7) / 8];

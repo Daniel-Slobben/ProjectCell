@@ -10,14 +10,15 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.ClientUpdateRequest;
 import slobben.cells.dto.EncodedBlock;
 import slobben.cells.dto.Settings;
 import slobben.cells.dto.StateInfo;
-import slobben.cells.service.ChaosService;
-import slobben.cells.service.ClientService;
-import slobben.cells.service.EnvironmentService;
 import slobben.cells.service.RunnerService;
+import slobben.cells.service.workers.ChaosService;
+import slobben.cells.service.workers.ClientService;
+import slobben.cells.service.workers.NewBlockService;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,8 +29,9 @@ import java.util.UUID;
 public class CellController {
 
     private static final Logger log = LoggerFactory.getLogger(CellController.class);
+    private final NewBlockService newBlockService;
     private final RunnerService runnerService;
-    private final EnvironmentService environmentService;
+    private final EnvironmentConfig environmentConfig;
     private final ChaosService chaosService;
     private final ClientService clientService;
 
@@ -44,13 +46,13 @@ public class CellController {
         }
 
         Pair<Integer, Integer> initialXY = chaosService.getOneOfLatestHits();
-        return ResponseEntity.ok(new Settings(environmentService.getBlockSize(), clientId, initialXY.getFirst(), initialXY.getSecond()));
+        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, initialXY.getFirst(), initialXY.getSecond()));
     }
 
     @PutMapping("block/{x}/{y}/set-block")
     public ResponseEntity<HttpStatus> setBlock(@PathVariable int x, @PathVariable int y, @RequestBody boolean[][] body) {
         log.info("Received request to set block x: {}, y: {}", x, y);
-        runnerService.setBlock(x, y, body);
+        newBlockService.setBlock(x, y, body);
         return ResponseEntity.ok(HttpStatus.OK);
     }
 
@@ -63,7 +65,7 @@ public class CellController {
     @GetMapping("/state-info")
     public ResponseEntity<StateInfo> getStateInfo() {
         log.debug("Received request for state-info");
-        return ResponseEntity.ok(runnerService.getStateInfo());
+        return ResponseEntity.ok(null);
     }
 
     @DeleteMapping("/disconnect/{clientId}")

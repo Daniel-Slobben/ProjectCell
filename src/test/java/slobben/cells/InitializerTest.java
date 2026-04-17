@@ -3,33 +3,43 @@ package slobben.cells;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import slobben.cells.config.BlockConfig;
+import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.model.Block;
 
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SpringBootTest
+@ExtendWith(SpringExtension.class)
+@ComponentScan({"slobben.cells.service", "slobben.cells.config"})
+@ActiveProfiles(profiles = "unit")
 class InitializerTest {
+
+    @Autowired
+    private BlockConfig blockConfig;
+    @Autowired
+    private EnvironmentConfig environmentConfig;
 
     @Test
     void getEmptyMap() {
         // prepare
-        int blockSize = 200;
-        int blockAmount = 30;
-        int blockSizeWithBorder = blockSize + 2;
-
-        BlockConfig.setBlockSize(blockSize);
-        BlockConfig.setBlockAmount(blockAmount);
-        BlockConfig.setBlockSizeWithBorder(blockSizeWithBorder);
-
-        boolean[][] expectedDimensions = new boolean[blockSizeWithBorder][blockSizeWithBorder];
+        boolean[][] expectedDimensions = new boolean[environmentConfig.getBlockSizeWithBorder()][environmentConfig.getBlockSizeWithBorder()];
 
         // execute
-        Set<Block> blocks = BlockConfig.getEmptyMap();
+        Set<Block> blocks = blockConfig.getEmptyMap();
 
         // verify
         Assertions.assertNotNull(blocks);
+
+        int blockAmount = environmentConfig.getBlockAmount();
 
         for (int x = 0; x < blockAmount; x++) {
             for (int y = 0; y < blockAmount; y++) {
@@ -47,22 +57,12 @@ class InitializerTest {
 
     @Test
     void getRandomMap() {
-        int blockSize = 10;
-        int blockAmount = 10;
-        int blockPopulation = 2;
-        int cellPopulation = 2;
-
-        BlockConfig.setBlockSize(blockSize);
-        BlockConfig.setBlockAmount(blockAmount);
-        BlockConfig.setBlockSizeWithBorder(blockSize + 2);
-        BlockConfig.setBlockPopulation(blockPopulation);
-        BlockConfig.setCellPopulation(cellPopulation);
-
         // execute
-        Set<Block> blocks = BlockConfig.getRandomMap();
+        Set<Block> blocks = blockConfig.getRandomMap();
 
         // verify
         Assertions.assertNotNull(blocks);
+        int blockAmount = environmentConfig.getBlockAmount();
 
         int counter = 0;
         for (int x = 0; x < blockAmount; x++) {
@@ -85,6 +85,8 @@ class InitializerTest {
                 }
             }
         }
+        int blockSize = environmentConfig.getBlockSize();
+        int blockPopulation = environmentConfig.getBlockSize();
         assertThat(counter).isCloseTo((blockSize * blockSize) / blockPopulation, Offset.offset(10));
     }
 }

@@ -1,18 +1,17 @@
 spring:
-  data:
-    mongodb:
-      auto-index-creation: 'true'
   application:
     name: Cells
-properties:
+
+cells:
   pruning-per-generation: '100'
   threads: '1'
   setup: BIG_SQUARE
   chaos:
     enabled: 'false'
   ## Higher is less population -> ex: 1 in 15
-  blockPopulation: '2'
-  cellPopulation: '8'
+  random:
+    blockPopulation: '2'
+    cellPopulation: '8'
   size:
     x: '0'
     y: '0'
@@ -20,3 +19,4 @@ properties:
   big-square-size: '10'
   runmode: AUTO
   targetspeed: '250'
+

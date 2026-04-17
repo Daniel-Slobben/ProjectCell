@@ -1,17 +1,17 @@
 package slobben.cells.config;
 
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import slobben.cells.dto.BlockUpdate;
 import slobben.cells.entities.model.Block;
+import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.SetupMode;
-import slobben.cells.service.EnvironmentService;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -20,26 +20,20 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class BlockConfig {
 
-    private final EnvironmentService environmentService;
-
     private static final Random random = new Random();
-    @Setter
-    private static int blockAmount;
-    @Setter
-    private static int blockSize;
-    @Setter
-    private static int blockSizeWithBorder;
-    @Setter
-    private static int blockPopulation;
-    @Setter
-    private static int cellPopulation;
+    private final EnvironmentConfig environmentConfig;
+    @Value("${cells.random.blockPopulation}")
+    private int blockPopulation;
+    @Value("${cells.random.cellPopulation}")
+    private int cellPopulation;
+    @Value("${cells.setup}")
+    private String setupMode;
+    @Value("${cells.size.blockSize}")
+    private int blockSize;
 
-    public static Set<Block> getRandomMap() {
-        assert blockPopulation > 0;
-        assert cellPopulation > 0;
-
+    public Set<Block> getRandomMap() {
         return getBlockStream()
-                .map(BlockConfig::setBlockToRandom)
+                .map(this::setBlockToRandom)
                 .collect(Collectors.toSet());
     }
 
@@ -48,35 +42,42 @@ public class BlockConfig {
         return new HashMap<>();
     }
 
-    private static Stream<Block> getBlockStream() {
-        if (blockAmount == 0) {
-            return Stream.empty();
-        }
-        assert blockSize > 0;
-        assert blockSizeWithBorder > 0;
-
-        return IntStream.range(0, blockAmount * blockAmount).mapToObj(count -> {
-            int x = count / blockAmount;
-            int y = count % blockAmount;
-            return new Block(x, y, new boolean[blockSizeWithBorder][blockSizeWithBorder]);
-        });
+    @Bean
+    public List<BlockUpdate> blockUpdates() {
+        return new CopyOnWriteArrayList<>();
     }
 
-    public static Set<Block> getEmptyMap() {
-        return getBlockStream().collect(Collectors.toSet());
+    @Bean
+    public Map<String, BorderInfo> bordersMap() {
+        return new ConcurrentHashMap<>();
     }
 
     @Bean
     public Set<Block> blocks() {
-        return switch (SetupMode.valueOf(environmentService.getSetupMode())) {
-            case RANDOM -> BlockConfig.getRandomMap();
-            case EMPTY -> BlockConfig.getEmptyMap();
-            default ->
-                    throw new IllegalStateException("SetupMode has an unexpected value: " + environmentService.getSetupMode());
+        return switch (SetupMode.valueOf(setupMode)) {
+            case RANDOM -> getRandomMap();
+            case EMPTY -> getEmptyMap();
         };
     }
 
-    private static Block setBlockToRandom(Block block) {
+    private Stream<Block> getBlockStream() {
+        int blockAmount = environmentConfig.getBlockAmount();
+        if (environmentConfig.getBlockAmount() == 0) {
+            return Stream.empty();
+        }
+
+        return IntStream.range(0, blockAmount * blockAmount).mapToObj(count -> {
+            int x = count / blockAmount;
+            int y = count % blockAmount;
+            return new Block(x, y, new boolean[environmentConfig.getBlockSizeWithBorder()][environmentConfig.getBlockSizeWithBorder()]);
+        });
+    }
+
+    public Set<Block> getEmptyMap() {
+        return getBlockStream().collect(Collectors.toSet());
+    }
+
+    private Block setBlockToRandom(Block block) {
         if (random.nextInt(0, blockPopulation) != 0) {
             return block;
         }

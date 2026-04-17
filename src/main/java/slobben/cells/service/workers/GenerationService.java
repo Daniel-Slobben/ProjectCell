@@ -1,14 +1,45 @@
-package slobben.cells.service;
+package slobben.cells.service.workers;
 
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.model.Block;
+import slobben.cells.service.ExecutorService;
 
-public class GenerationService {
+import java.util.Set;
+import java.util.stream.Collectors;
 
-    @SuppressWarnings({"java:S3776", "java:S135"})
-    public static void setNextState(Block block) {
-        final int blockSizeWithBorder = block.getCells().length;
-        final int blockSize = blockSizeWithBorder - 2;
+@Service
+@RequiredArgsConstructor
+public class GenerationService implements Worker {
 
+    private final EnvironmentConfig environmentConfig;
+    private final ExecutorService executorService;
+    private final Set<Block> blocks;
+
+    private int blockSizeWithBorder;
+    @Value("${cells.size.blockSize}")
+    private int blockSize;
+
+    @Override
+    public String getName() {
+        return "Generation";
+    }
+
+    @PostConstruct
+    void init() {
+        this.blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
+    }
+
+    @Override
+    public void execute() {
+        Set<Runnable> tasks = blocks.stream().map(block -> ((Runnable) () -> setNextState(block))).collect(Collectors.toSet());
+        executorService.executeTasksParallel(tasks);
+    }
+
+    public void setNextState(Block block) {
         byte[][] heatmap = new byte[blockSizeWithBorder][blockSizeWithBorder];
         for (int x = 0; x < blockSizeWithBorder; x++) {
             for (int y = 0; y < blockSizeWithBorder; y++) {
@@ -40,5 +71,4 @@ public class GenerationService {
             }
         }
     }
-
 }

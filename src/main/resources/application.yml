@@ -2,19 +2,21 @@ logging.level.slobben: DEBUG
 spring:
   application:
     name: Cells
-properties:
-  setup: RANDOM
+
+cells:
+  setup: EMPTY
+
+  random:
+    blockPopulation: '1'
+    cellPopulation: '2'
+
   chaos:
-    enabled: 'false'
+    enabled: 'true'
   pruning-per-generation: '100'
-  threads: '4'
-
-  blockPopulation: '1'
-  cellPopulation: '6'
-
+  threads: '12'
   size:
-    x: '10000'
-    y: '10000'
+    x: '0'
+    y: '0'
     blockSize: '500'
   runmode: AUTO
-  targetspeed: '10000'
+  targetspeed: '1000'
