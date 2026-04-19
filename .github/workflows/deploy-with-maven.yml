@@ -1,6 +1,5 @@
 # .github/workflows/deploy.yml
-
-name: Build & Deploy
+name: Build, Test and Deploy
 
 on:
   push:
