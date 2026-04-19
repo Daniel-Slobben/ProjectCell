@@ -41,4 +41,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             sudo systemctl restart cellservice.service
-            sudo systemctl is-active --quiet cellservice.service && echo "Service is running" || echo "Service failed to start"
+            sudo systemctl is-active --quiet cellservice.service && echo "Service is running" || exit 1 
