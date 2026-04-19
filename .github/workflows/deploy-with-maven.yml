@@ -1,4 +1,5 @@
 # .github/workflows/deploy.yml
+
 name: Build & Deploy
 
 on:
@@ -29,7 +30,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "/target/CellService.jar"
+          source: "/home/runner/work/ProjectCell/ProjectCell/target/CellService.jar"
           target: ${{ secrets.TARGET }}
           strip_components: 1
 
