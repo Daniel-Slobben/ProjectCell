@@ -1,5 +1,4 @@
 # .github/workflows/deploy.yml
-
 name: Build & Deploy
 
 on:
@@ -22,7 +21,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Build JAR with Maven
-        run: mvn clean package -DskipTests
+        run: mvn clean install
 
       - name: Deploy JAR to server
         uses: appleboy/scp-action@v0.1.7
@@ -30,7 +29,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "/home/runner/work/ProjectCell/ProjectCell/target/CellService.jar"   
+          source: "/target/CellService.jar"
           target: ${{ secrets.TARGET }}
           strip_components: 1
 
@@ -42,4 +41,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             sudo systemctl restart cellservice.service
-            sudo systemctl is-active --quiet yourapp.service && echo "Service is running" || echo "Service failed to start"
+            sudo systemctl is-active --quiet cellservice.service && echo "Service is running" || echo "Service failed to start"
