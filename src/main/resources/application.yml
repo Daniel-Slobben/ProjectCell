@@ -15,7 +15,7 @@ cells:
     tics-to-spawn: 200
     world-target-range: 64000
     square-size-min: 600
-    square-size-max: 601
+    square-size-max: 1200
 
   pruning-per-generation: '100'
   threads: '4'
