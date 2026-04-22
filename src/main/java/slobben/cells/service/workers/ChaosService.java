@@ -1,5 +1,6 @@
 package slobben.cells.service.workers;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,17 +21,26 @@ public class ChaosService implements Worker {
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
-    private static final int BLOCK_TARGET_RANGE_X = 500;
-    private static final int BLOCK_TARGET_RANGE_Y = 500;
+    private static final int HIT_BUFFER_SIZE = 10;
+    @Value("${cells.chaos.world-target-range}")
+    private int WORLD_TARGET_RANGE;
+    @Value("${cells.chaos.square-size-min}")
+    private int SQUARE_SIZE_MIN;
     private static final Random random = new Random();
-
-    private static final int CHAOS_COUNTER_MAX = 60 * 5;
-    private int chaosCounter = CHAOS_COUNTER_MAX;
+    @Value("${cells.chaos.square-size-max}")
+    private int SQUARE_SIZE_MAX;
+    @Value("${cells.chaos.tics-to-spawn}")
+    private int ticsToSpawn;
     @Value("${cells.chaos.enabled}")
     private boolean chaosEnabled;
+    private int chaosCounter;
 
-    private static final int HIT_BUFFER_SIZE = 5;
     private final ArrayList<Pair<Integer, Integer>> latestHits = new ArrayList<>(HIT_BUFFER_SIZE);
+
+    @PostConstruct
+    void init() {
+        this.chaosCounter = ticsToSpawn;
+    }
 
     public String getName() {
         return "ChaosService";
@@ -41,16 +51,18 @@ public class ChaosService implements Worker {
 
         chaosCounter++;
 
-        if (chaosCounter > CHAOS_COUNTER_MAX) {
-            int squareSize = random.nextInt(600, 2000);
+        if (chaosCounter > ticsToSpawn) {
+            int squareSize = random.nextInt(SQUARE_SIZE_MIN, SQUARE_SIZE_MAX);
             chaosCounter = -squareSize;
 
-            Pair<Integer, Integer> target = findTarget();
+            Pair<Integer, Integer> worldTarget = findTarget();
+            Pair<Integer, Integer> target = Pair.of(worldTarget.getFirst() / blockSize, worldTarget.getSecond() / blockSize);
             log.info("Creating square with size: {}px at x: {}, y: {}", squareSize, target.getFirst(), target.getSecond());
 
             if (squareSize < blockSize) {
                 boolean[][] cells = getSquare(squareSize, (blockSize - squareSize) / 2);
                 blockUpdates.add(BlockUpdate.builder().x(target.getFirst()).y(target.getSecond()).state(cells).build());
+                worldTarget = Pair.of(worldTarget.getFirst() + blockSize / 2, worldTarget.getSecond() + blockSize / 2);
             } else {
                 int squareBlockSize = squareSize / blockSize + 1;
                 int offset = squareSize % blockSize;
@@ -59,8 +71,9 @@ public class ChaosService implements Worker {
                 blockUpdates.addAll(newBlockUpdates.stream()
                         .map(update -> new BlockUpdate(update.x() + target.getFirst(), update.y() + target.getSecond(), update.state()))
                         .toList());
+                worldTarget = Pair.of(worldTarget.getFirst() + offset, worldTarget.getSecond() + offset);
             }
-            addToLatestHits(target);
+            addToLatestHits(worldTarget);
         }
     }
 
@@ -145,12 +158,6 @@ public class ChaosService implements Worker {
         return returnList;
     }
 
-    private void addToLatestHits(Pair<Integer, Integer> target) {
-        latestHits.add(target);
-        if (latestHits.size() > HIT_BUFFER_SIZE) {
-            latestHits.removeLast();
-        }
-    }
 
     private boolean[][] getSquare(int size, int offset) {
        if (size/2 + offset > blockSize) {
@@ -187,7 +194,18 @@ public class ChaosService implements Worker {
     }
 
     private Pair<Integer, Integer> findTarget() {
-        return Pair.of(random.nextInt(10, BLOCK_TARGET_RANGE_X), random.nextInt(10, BLOCK_TARGET_RANGE_Y));
+        return Pair.of(random.nextInt(-WORLD_TARGET_RANGE, WORLD_TARGET_RANGE), random.nextInt(-WORLD_TARGET_RANGE, WORLD_TARGET_RANGE));
+    }
+
+    private void addToLatestHits(Pair<Integer, Integer> target) {
+        latestHits.addFirst(target);
+        if (latestHits.size() > HIT_BUFFER_SIZE) {
+            latestHits.removeLast();
+        }
+    }
+
+    public Pair<Integer, Integer> getLatestHit() {
+        return latestHits.getFirst();
     }
 
     public Pair<Integer, Integer> getOneOfLatestHits() {

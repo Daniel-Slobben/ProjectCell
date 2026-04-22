@@ -1,0 +1,11 @@
+cells:
+  setup: EMPTY
+  size:
+    x: '0'
+    y: '0'
+    blockSize: '500'
+
+  chaos:
+    enabled: true
+  runmode: MANUAL
+  targetspeed: '0'

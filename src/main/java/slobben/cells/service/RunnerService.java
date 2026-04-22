@@ -52,7 +52,7 @@ public class RunnerService {
         running = runMode.equals("AUTO");
         while (running) {
             generation++;
-            log.info("\nStarting run {} with {} amount of blocks in memory", generation, blocks.size());
+            log.info("Starting run {} with {} amount of blocks in memory", generation, blocks.size());
             long timer = System.currentTimeMillis();
 
             runCycle();
@@ -61,9 +61,9 @@ public class RunnerService {
             long timeDelta = timeTaken - targetSpeed;
             if (timeDelta < 0) {
                 Thread.sleep(Math.abs(timeDelta));
-                log.info("Ending run. Time Taken: {}ms, Waited for {}ms", timeTaken, Math.abs(timeDelta));
+                log.info("Ending run. Time Taken: {}ms, Waited for {}ms\n", timeTaken, Math.abs(timeDelta));
             } else {
-                log.info("Ending run. Time Taken: {}ms, No waiting!", timeTaken);
+                log.info("Ending run. Time Taken: {}ms, No waiting!\n", timeTaken);
             }
         }
     }

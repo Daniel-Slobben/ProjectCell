@@ -7,7 +7,11 @@ cells:
   threads: '4'
   setup: BIG_SQUARE
   chaos:
+    world-target-range: '50000'
     enabled: 'false'
+    tics-to-spawn: '100'
+    square-size-min: '600'
+    square-size-max: '601'
   ## Higher is less population -> ex: 1 in 15
   random:
     blockPopulation: '2'
