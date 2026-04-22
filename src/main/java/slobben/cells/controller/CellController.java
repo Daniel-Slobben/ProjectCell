@@ -45,7 +45,7 @@ public class CellController {
             session.setAttribute("clientId", clientId);
         }
 
-        Pair<Integer, Integer> initialXY = chaosService.getOneOfLatestHits();
+        Pair<Integer, Integer> initialXY = chaosService.getLatestHit();
         return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, initialXY.getFirst(), initialXY.getSecond()));
     }
 
