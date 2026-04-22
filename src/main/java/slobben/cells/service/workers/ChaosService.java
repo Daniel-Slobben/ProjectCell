@@ -57,12 +57,13 @@ public class ChaosService implements Worker {
 
             Pair<Integer, Integer> worldTarget = findTarget();
             Pair<Integer, Integer> target = Pair.of(worldTarget.getFirst() / blockSize, worldTarget.getSecond() / blockSize);
+            Pair<Integer, Integer> returnTarget = null;
             log.info("Creating square with size: {}px at x: {}, y: {}", squareSize, target.getFirst(), target.getSecond());
 
             if (squareSize < blockSize) {
                 boolean[][] cells = getSquare(squareSize, (blockSize - squareSize) / 2);
                 blockUpdates.add(BlockUpdate.builder().x(target.getFirst()).y(target.getSecond()).state(cells).build());
-                worldTarget = Pair.of(worldTarget.getFirst() + blockSize / 2, worldTarget.getSecond() + blockSize / 2);
+                returnTarget = Pair.of(worldTarget.getFirst() + blockSize / 2, worldTarget.getSecond() + blockSize / 2);
             } else {
                 int squareBlockSize = squareSize / blockSize + 1;
                 int offset = squareSize % blockSize;
@@ -71,9 +72,22 @@ public class ChaosService implements Worker {
                 blockUpdates.addAll(newBlockUpdates.stream()
                         .map(update -> new BlockUpdate(update.x() + target.getFirst(), update.y() + target.getSecond(), update.state()))
                         .toList());
-                worldTarget = Pair.of(worldTarget.getFirst() + offset, worldTarget.getSecond() + offset);
+
+                // get first alive pixel
+                BlockUpdate lastBlock = blockUpdates.getLast();
+                for (int x = 0; x < blockSize; x++) {
+                    for (int y = 0; y < blockSize; y++) {
+                        if (lastBlock.state()[x][y]) {
+                            returnTarget = Pair.of(lastBlock.x() * blockSize + x, lastBlock.y() * blockSize + y);
+                            break;
+                        }
+                    }
+                    if (returnTarget != null) {
+                        break;
+                    }
+                }
             }
-            addToLatestHits(worldTarget);
+            addToLatestHits(returnTarget);
         }
     }
 
