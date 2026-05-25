@@ -23,7 +23,7 @@ public class StitchingService implements Worker {
     private final ExecutorService executorService;
 
     private final Map<String, BorderInfo> bordersMap;
-    private final Set<Block> blocks;
+    private final Map<String, Block> blocks;
 
     @Value("${cells.size.blockSize}")
     private int blockSize;
@@ -41,7 +41,7 @@ public class StitchingService implements Worker {
 
     @Override
     public void execute() {
-        Set<Runnable> tasks = blocks.stream().map(block -> (Runnable) () -> stitchBlock(block)).collect(Collectors.toSet());
+        Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> stitchBlock(block)).collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks);
     }
 

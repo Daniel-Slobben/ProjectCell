@@ -17,7 +17,7 @@ import slobben.cells.service.workers.NewBlockService;
 import slobben.cells.service.workers.StitchingService;
 
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,13 +37,13 @@ class StitchingTest {
     @Autowired
     private StitchingService stitchingService;
     @Autowired
-    private Set<Block> blocks;
+    private Map<String, Block> blocks;
 
     @ParameterizedTest
     @EnumSource(value = Direction.class)
     void testStitching(Direction direction) {
         assert blocks.size() == 1;
-        var block = blocks.stream().findFirst().get();
+        var block = blocks.values().stream().findFirst().get();
         var cells = block.getCells();
         //corner cells
         cells[1][1] = true;
@@ -57,9 +57,9 @@ class StitchingTest {
         newBlockService.tic();
         assert blocks.size() == 9;
 
-        blocks.forEach(stitchingService::stitchBlock);
+        stitchingService.tic();
 
-        Block blockToCheck = blocks.stream().filter(b -> b.getX() == direction.getDx()).filter(b -> b.getY() == direction.getDy()).findFirst().get();
+        Block blockToCheck = blocks.values().stream().filter(b -> b.getX() == direction.getDx()).filter(b -> b.getY() == direction.getDy()).findFirst().get();
 
         switch(direction) {
             case Direction.TOP_LEFT -> assertThat(blockToCheck.getCells()[11][11]).isTrue();

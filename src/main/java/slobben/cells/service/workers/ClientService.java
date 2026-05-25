@@ -27,7 +27,7 @@ public class ClientService implements Worker {
     private final ExecutorService executorService;
 
     private final Map<UUID, ConcurrentLinkedQueue<Block>> activeClients = new ConcurrentHashMap<>();
-    private final Set<Block> blocks;
+    private final Map<String, Block> blocks;
     private final Map<String, Block> ghostBlocks;
 
     @Override
@@ -63,7 +63,7 @@ public class ClientService implements Worker {
     }
 
     public Block getBlock(int x, int y) {
-        var optionalBlock = blocks.stream().filter(block -> block.getX() == x && block.getY() == y).findFirst();
+        var optionalBlock = blocks.values().stream().filter(block -> block.getX() == x && block.getY() == y).findFirst();
         return optionalBlock.orElseGet(() -> getNewGhostBlock(Pair.of(x, y)));
     }
 

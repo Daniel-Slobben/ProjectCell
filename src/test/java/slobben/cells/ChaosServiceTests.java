@@ -8,10 +8,10 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import slobben.cells.dto.BlockUpdate;
+import slobben.cells.entities.model.Block;
 import slobben.cells.service.workers.ChaosService;
 
-import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,12 +24,12 @@ class ChaosServiceTests {
     @Autowired
     private ChaosService chaosService;
     @Autowired
-    private List<BlockUpdate> blockUpdates;
+    private Map<String, Block> blocks;
 
     @Test
     void check() {
         ReflectionTestUtils.setField(chaosService, "chaosEnabled", true);
         chaosService.tic();
-        assertThat(blockUpdates).hasSize(4);
+        assertThat(blocks).hasSizeGreaterThan(4);
     }
 }

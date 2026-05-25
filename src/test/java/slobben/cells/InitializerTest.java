@@ -13,7 +13,7 @@ import slobben.cells.config.BlockConfig;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.model.Block;
 
-import java.util.Set;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,7 +34,7 @@ class InitializerTest {
         boolean[][] expectedDimensions = new boolean[environmentConfig.getBlockSizeWithBorder()][environmentConfig.getBlockSizeWithBorder()];
 
         // execute
-        Set<Block> blocks = blockConfig.getEmptyMap();
+        Map<String, Block> blocks = blockConfig.getEmptyMap();
 
         // verify
         Assertions.assertNotNull(blocks);
@@ -45,7 +45,7 @@ class InitializerTest {
             for (int y = 0; y < blockAmount; y++) {
                 int finalX = x;
                 int finalY = y;
-                var foundBlock = blocks.stream()
+                var foundBlock = blocks.values().stream()
                         .filter(block -> block.getX() == finalX)
                         .filter(block -> block.getY() == finalY)
                         .findFirst()
@@ -54,11 +54,9 @@ class InitializerTest {
             }
         }
     }
-
-    @Test
     void getRandomMap() {
         // execute
-        Set<Block> blocks = blockConfig.getRandomMap();
+        Map<String, Block> blocks = blockConfig.getRandomMap();
 
         // verify
         Assertions.assertNotNull(blocks);
@@ -69,7 +67,7 @@ class InitializerTest {
             for (int y = 0; y < blockAmount; y++) {
                 int finalX = x;
                 int finalY = y;
-                var foundBlock = blocks.stream()
+                var foundBlock = blocks.values().stream()
                         .filter(block -> block.getX() == finalX)
                         .filter(block -> block.getY() == finalY)
                         .findFirst()

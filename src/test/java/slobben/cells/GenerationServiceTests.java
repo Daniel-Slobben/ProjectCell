@@ -10,7 +10,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import slobben.cells.entities.model.Block;
 import slobben.cells.service.workers.GenerationService;
 
-import java.util.Set;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,11 +23,11 @@ class GenerationServiceTests {
     @Autowired
     private GenerationService generationService;
     @Autowired
-    private Set<Block> blocks;
+    private Map<String, Block> blocks;
 
     @Test
     void checkTick() {
-        Block block = blocks.stream().filter(b -> b.getX() == 0).filter(b -> b.getY() == 0).findFirst().get();
+        Block block = blocks.values().stream().filter(b -> b.getX() == 0).filter(b -> b.getY() == 0).findFirst().get();
         block.getCells()[0][0] = true;
         block.getCells()[0][1] = true;
         block.getCells()[1][0] = true;

@@ -5,12 +5,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.model.Block;
 
-import java.util.Set;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class PruningService implements Worker {
-    private final Set<Block> blocks;
+    private final Map<String, Block> blocks;
 
     private int counter = 0;
     @Value("${cells.pruning-per-generation}")
@@ -33,8 +33,8 @@ public class PruningService implements Worker {
      * Removes all blocks that don't have any living cells.
      * @param blocks -> the blocks to check for pruning
      */
-    public void pruneBlocks(Set<Block> blocks) {
-        blocks.removeIf(block -> !hasTrueValue(block));
+    public void pruneBlocks(Map<String, Block> blocks) {
+        blocks.values().removeIf(block -> !hasTrueValue(block));
     }
 
     private boolean hasTrueValue(Block block) {

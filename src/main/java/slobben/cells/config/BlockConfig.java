@@ -1,6 +1,7 @@
 package slobben.cells.config;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,8 +9,13 @@ import slobben.cells.dto.BlockUpdate;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.SetupMode;
+import slobben.cells.util.BlockUtils;
+import slobben.cells.util.RleReader;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
@@ -18,10 +24,13 @@ import java.util.stream.Stream;
 
 @Configuration
 @RequiredArgsConstructor
+@Slf4j
 public class BlockConfig {
 
     private static final Random random = new Random();
     private final EnvironmentConfig environmentConfig;
+    private final RleReader rleReader;
+
     @Value("${cells.random.blockPopulation}")
     private int blockPopulation;
     @Value("${cells.random.cellPopulation}")
@@ -31,10 +40,10 @@ public class BlockConfig {
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
-    public Set<Block> getRandomMap() {
+    public Map<String, Block> getRandomMap() {
         return getBlockStream()
                 .map(this::setBlockToRandom)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toMap(Block::getKey, block -> block));
     }
 
     @Bean
@@ -53,7 +62,7 @@ public class BlockConfig {
     }
 
     @Bean
-    public Set<Block> blocks() {
+    public Map<String, Block> blocks() {
         return switch (SetupMode.valueOf(setupMode)) {
             case RANDOM -> getRandomMap();
             case EMPTY -> getEmptyMap();
@@ -73,8 +82,8 @@ public class BlockConfig {
         });
     }
 
-    public Set<Block> getEmptyMap() {
-        return getBlockStream().collect(Collectors.toSet());
+    public Map<String, Block> getEmptyMap() {
+        return getBlockStream().collect(Collectors.toMap((Block block) -> BlockUtils.getKey(block.getX(), block.getY()), (Block block) -> block));
     }
 
     private Block setBlockToRandom(Block block) {

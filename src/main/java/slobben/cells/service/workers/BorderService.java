@@ -24,7 +24,7 @@ import static slobben.cells.util.BlockUtils.getKey;
 public class BorderService implements Worker {
     private final EnvironmentConfig environmentConfig;
     private final ExecutorService executorService;
-    private final Set<Block> blocks;
+    private final Map<String, Block> blocks;
     private int blockSizeWithBorder;
     private final List<BlockUpdate> blockUpdates;
     private final Map<String, BorderInfo> bordersMap;
@@ -43,9 +43,9 @@ public class BorderService implements Worker {
 
     public void execute() {
         bordersMap.clear();
-        blocks.forEach(block -> bordersMap.put(getKey(block.getX(), block.getY()), new BorderInfo(blockSize)));
+        blocks.values().forEach(block -> bordersMap.put(getKey(block.getX(), block.getY()), new BorderInfo(blockSize)));
 
-        Set<Runnable> tasks = blocks.stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
+        Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks);
     }
 

@@ -14,6 +14,9 @@ public class EnvironmentConfig {
     @Value("${cells.size.y}")
     private int sizeY;
 
+    @Value("${cells.size.x}")
+    private int sizeX;
+
 
     public int getBlockAmount() {
         return sizeY / blockSize;

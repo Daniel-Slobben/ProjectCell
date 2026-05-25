@@ -10,7 +10,6 @@ import slobben.cells.util.BlockUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +17,7 @@ public class NewBlockService implements Worker {
 
     private final EnvironmentConfig environmentConfig;
     private final List<BlockUpdate> blockUpdates;
-    private final Set<Block> blocks;
+    private final Map<String, Block> blocks;
     private final Map<String, Block> ghostBlocks;
 
     public void setBlock(int x, int y, boolean[][] body) {
@@ -37,7 +36,7 @@ public class NewBlockService implements Worker {
 
     private void checkForExternalBlockUpdates() {
         for (BlockUpdate blockUpdate : blockUpdates) {
-            Optional<Block> optionalBlock = blocks.stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
+            Optional<Block> optionalBlock = blocks.values().stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
             if (optionalBlock.isPresent()) {
                 updateBlock(optionalBlock.get(), blockUpdate);
             } else {
@@ -69,7 +68,7 @@ public class NewBlockService implements Worker {
         }
 
         updateBlock(newBlock, blockUpdate);
-        blocks.add(newBlock);
+        blocks.put(newBlock.getKey(), newBlock);
     }
 
 }
