@@ -8,8 +8,8 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import slobben.cells.entities.model.Block;
-import slobben.cells.service.workers.ChaosService;
+import slobben.cells.dto.BlockUpdate;
+import slobben.cells.service.workers.chaos.ChaosService;
 
 import java.util.Map;
 
@@ -24,12 +24,12 @@ class ChaosServiceTests {
     @Autowired
     private ChaosService chaosService;
     @Autowired
-    private Map<String, Block> blocks;
+    private Map<String, BlockUpdate> blockUpdates;
 
     @Test
     void check() {
         ReflectionTestUtils.setField(chaosService, "chaosEnabled", true);
-        chaosService.tic();
-        assertThat(blocks).hasSizeGreaterThan(4);
+        chaosService.getLatestHit();
+        assertThat(blockUpdates).hasSizeGreaterThan(4);
     }
 }

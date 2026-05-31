@@ -7,7 +7,6 @@ import slobben.cells.dto.BlockUpdate;
 import slobben.cells.entities.model.Block;
 import slobben.cells.util.BlockUtils;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -16,12 +15,13 @@ import java.util.Optional;
 public class NewBlockService implements Worker {
 
     private final EnvironmentConfig environmentConfig;
-    private final List<BlockUpdate> blockUpdates;
+    private final Map<String, BlockUpdate> blockUpdates;
     private final Map<String, Block> blocks;
     private final Map<String, Block> ghostBlocks;
 
     public void setBlock(int x, int y, boolean[][] body) {
-        blockUpdates.add(BlockUpdate.builder().x(x).y(y).state(body).build());
+        BlockUpdate blockUpdate = BlockUpdate.builder().x(x).y(y).state(body).build();
+        blockUpdates.put(blockUpdate.getKey(), blockUpdate);
     }
 
     @Override
@@ -35,7 +35,7 @@ public class NewBlockService implements Worker {
     }
 
     private void checkForExternalBlockUpdates() {
-        for (BlockUpdate blockUpdate : blockUpdates) {
+        for (BlockUpdate blockUpdate : blockUpdates.values()) {
             Optional<Block> optionalBlock = blocks.values().stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
             if (optionalBlock.isPresent()) {
                 updateBlock(optionalBlock.get(), blockUpdate);

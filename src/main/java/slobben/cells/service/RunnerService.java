@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.model.Block;
 import slobben.cells.service.workers.*;
+import slobben.cells.service.workers.chaos.ChaosService;
 
 import java.util.Set;
 

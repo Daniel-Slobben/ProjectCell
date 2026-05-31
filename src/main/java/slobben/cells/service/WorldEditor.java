@@ -4,8 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
+import slobben.cells.dto.BlockUpdate;
 import slobben.cells.entities.Pattern;
-import slobben.cells.entities.model.Block;
 import slobben.cells.util.BlockUtils;
 
 import java.util.Map;
@@ -15,7 +15,7 @@ import java.util.Map;
 @Slf4j
 public class WorldEditor {
 
-    private final Map<String, Block> blocks;
+    private final Map<String, BlockUpdate> blockUpdates;
     private final EnvironmentConfig environmentConfig;
 
     public void setCells(long startingX, long startingY, Pattern pattern) {
@@ -37,13 +37,13 @@ public class WorldEditor {
                     relativeCellY = relativeCellY + blockSize;
                 }
 
-                Block block = blocks.get(BlockUtils.getKey(blockX, blockY));
+                BlockUpdate block = blockUpdates.get(BlockUtils.getKey(blockX, blockY));
                 if (block == null) {
-                    block = new Block(blockX, blockY, blockSize);
-                    blocks.put(block.getKey(), block);
+                    block = new BlockUpdate(blockX, blockY, new boolean[blockSize][blockSize]);
+                    blockUpdates.put(block.getKey(), block);
                 }
 
-                block.getCells()[relativeCellX + 1][relativeCellY + 1] = pattern.matrix()[x][y];
+                block.state()[relativeCellX][relativeCellY] = pattern.matrix()[x][y];
             }
         }
     }

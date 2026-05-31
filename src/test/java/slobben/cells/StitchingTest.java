@@ -16,7 +16,6 @@ import slobben.cells.service.workers.BorderService;
 import slobben.cells.service.workers.NewBlockService;
 import slobben.cells.service.workers.StitchingService;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,7 +30,7 @@ class StitchingTest {
     @Autowired
     private BorderService borderService;
     @Autowired
-    private List<BlockUpdate> blockUpdates;
+    private Map<String, BlockUpdate> blockUpdates;
     @Autowired
     private NewBlockService newBlockService;
     @Autowired

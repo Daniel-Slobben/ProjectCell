@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpSession;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -16,11 +15,13 @@ import slobben.cells.dto.EncodedBlock;
 import slobben.cells.dto.Settings;
 import slobben.cells.dto.StateInfo;
 import slobben.cells.service.RunnerService;
-import slobben.cells.service.workers.ChaosService;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.NewBlockService;
+import slobben.cells.service.workers.chaos.ChaosHit;
+import slobben.cells.service.workers.chaos.ChaosService;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Controller
@@ -45,8 +46,16 @@ public class CellController {
             session.setAttribute("clientId", clientId);
         }
 
-        Pair<Integer, Integer> initialXY = chaosService.getLatestHit();
-        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, initialXY.getFirst(), initialXY.getSecond()));
+        Optional<ChaosHit> optionalChaosHit = chaosService.getLatestHit();
+        int worldX = 0;
+        int worldY = 0;
+        if (optionalChaosHit.isPresent()) {
+            var chaosHit = optionalChaosHit.get();
+            worldX = chaosHit.getWorldX();
+            worldY = chaosHit.getWorldY();
+        }
+
+        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, worldX, worldY));
     }
 
     @PutMapping("block/{x}/{y}/set-block")

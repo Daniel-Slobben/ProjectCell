@@ -1,6 +1,5 @@
 package slobben.cells.util;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import slobben.cells.entities.Pattern;
@@ -8,9 +7,8 @@ import slobben.cells.entities.Pattern;
 import java.io.*;
 import java.util.Random;
 
-@Component
-@RequiredArgsConstructor
 @Slf4j
+@Component
 public class RleReader {
     private static final Random random = new Random();
     private static final int DIMENSION_LIMIT = 50_000;

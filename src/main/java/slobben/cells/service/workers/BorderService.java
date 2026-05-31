@@ -12,7 +12,6 @@ import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.ExecutorService;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,7 +25,7 @@ public class BorderService implements Worker {
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
     private int blockSizeWithBorder;
-    private final List<BlockUpdate> blockUpdates;
+    private final Map<String, BlockUpdate> blockUpdates;
     private final Map<String, BorderInfo> bordersMap;
     @Value("${cells.size.blockSize}")
     private int blockSize;
@@ -76,7 +75,8 @@ public class BorderService implements Worker {
                 }
 
                 if (!hasNeigherMap && hasLiveCells) {
-                    blockUpdates.add(new BlockUpdate(neighborX, neighborY, new boolean[blockSize][blockSize]));
+                    BlockUpdate blockUpdate = new BlockUpdate(neighborX, neighborY, new boolean[blockSize][blockSize]);
+                    blockUpdates.put(blockUpdate.getKey(), blockUpdate);
                 }
             }
         }

@@ -9,8 +9,8 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import slobben.cells.config.EnvironmentConfig;
+import slobben.cells.dto.BlockUpdate;
 import slobben.cells.entities.Pattern;
-import slobben.cells.entities.model.Block;
 import slobben.cells.util.BlockUtils;
 
 import java.util.Map;
@@ -26,13 +26,13 @@ class WorldEditorTest {
     @Autowired
     private WorldEditor worldEditor;
     @Autowired
-    private Map<String, Block> blocks;
+    private Map<String, BlockUpdate> blockUpdates;
     @Autowired
     private EnvironmentConfig environmentConfig;
 
     @BeforeEach
     void clearBlocks() {
-        this.blocks.clear();
+        this.blockUpdates.clear();
     }
 
     @Test
@@ -45,23 +45,23 @@ class WorldEditorTest {
         matrix[1][1] = true;
 
         Pattern pattern = new Pattern("test", 4, 4, matrix);
-        assertThat(blocks).isEmpty();
+        assertThat(blockUpdates).isEmpty();
 
         // execute
         worldEditor.setCells(0, 0, pattern);
 
         // verify
-        Block block = blocks.get(BlockUtils.getKey(0, 0));
+        BlockUpdate block = blockUpdates.get(BlockUtils.getKey(0, 0));
         assertThat(block).isNotNull();
 
-        boolean[][] cells = block.getCells();
+        boolean[][] cells = block.state();
 
         // remember to adjust for bordercells in Block.cells
+        assertThat(cells[0][0]).isTrue();
+        assertThat(cells[0][1]).isTrue();
+        assertThat(cells[1][0]).isTrue();
         assertThat(cells[1][1]).isTrue();
-        assertThat(cells[1][2]).isTrue();
-        assertThat(cells[2][1]).isTrue();
-        assertThat(cells[2][2]).isTrue();
-        assertThat(cells[2][3]).isFalse();
+        assertThat(cells[1][2]).isFalse();
     }
 
     @Test
@@ -74,18 +74,18 @@ class WorldEditorTest {
         matrix[1][1] = true;
 
         Pattern pattern = new Pattern("test", 4, 4, matrix);
-        assertThat(blocks).isEmpty();
+        assertThat(blockUpdates).isEmpty();
 
         // execute
         int blockSize = environmentConfig.getBlockSize();
         worldEditor.setCells(blockSize - 1, blockSize - 1, pattern);
 
         // verify
-        assertThat(blocks).hasSize(4);
-        assertThat(blocks.get(BlockUtils.getKey(0, 0)).getCells()[blockSize][blockSize]).isTrue();
-        assertThat(blocks.get(BlockUtils.getKey(0, 1)).getCells()[blockSize][1]).isTrue();
-        assertThat(blocks.get(BlockUtils.getKey(1, 0)).getCells()[1][blockSize]).isTrue();
-        assertThat(blocks.get(BlockUtils.getKey(1, 1)).getCells()[1][1]).isTrue();
+        assertThat(blockUpdates).hasSize(4);
+        assertThat(blockUpdates.get(BlockUtils.getKey(0, 0)).state()[blockSize - 1][blockSize - 1]).isTrue();
+        assertThat(blockUpdates.get(BlockUtils.getKey(0, 1)).state()[blockSize - 1][0]).isTrue();
+        assertThat(blockUpdates.get(BlockUtils.getKey(1, 0)).state()[0][blockSize - 1]).isTrue();
+        assertThat(blockUpdates.get(BlockUtils.getKey(1, 1)).state()[0][0]).isTrue();
     }
 
     @Test
@@ -99,14 +99,14 @@ class WorldEditorTest {
         matrix[1499][199] = true;
 
         Pattern pattern = new Pattern("test", 1500, 200, matrix);
-        assertThat(blocks).isEmpty();
+        assertThat(blockUpdates).isEmpty();
 
         // execute
         worldEditor.setCells(-600, -600, pattern);
 
         // verify
         int blockSize = environmentConfig.getBlockSize();
-        assertThat(blocks).hasSize(8);
-        assertThat(blocks.get(BlockUtils.getKey(-2, -2)).getCells()[blockSize - 99][blockSize - 99]).isTrue();
+        assertThat(blockUpdates).hasSize(8);
+        assertThat(blockUpdates.get(BlockUtils.getKey(-2, -2)).state()[blockSize - 100][blockSize - 100]).isTrue();
     }
 }

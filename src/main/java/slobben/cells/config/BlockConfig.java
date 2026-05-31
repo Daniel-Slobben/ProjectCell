@@ -10,14 +10,11 @@ import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.SetupMode;
 import slobben.cells.util.BlockUtils;
-import slobben.cells.util.RleReader;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -29,7 +26,6 @@ public class BlockConfig {
 
     private static final Random random = new Random();
     private final EnvironmentConfig environmentConfig;
-    private final RleReader rleReader;
 
     @Value("${cells.random.blockPopulation}")
     private int blockPopulation;
@@ -52,8 +48,8 @@ public class BlockConfig {
     }
 
     @Bean
-    public List<BlockUpdate> blockUpdates() {
-        return new CopyOnWriteArrayList<>();
+    public Map<String, BlockUpdate> blockUpdates() {
+        return new ConcurrentHashMap<>();
     }
 
     @Bean
