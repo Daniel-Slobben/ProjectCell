@@ -7,7 +7,7 @@ import slobben.cells.entities.Pattern;
 import java.util.Random;
 
 @Component
-public class SquareMaker {
+class SquareMaker {
 
     private static final Random random = new Random();
     @Value("${cells.chaos.square-size-min}")
