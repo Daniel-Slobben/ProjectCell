@@ -2,6 +2,7 @@ package slobben.cells.util;
 
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -32,15 +33,24 @@ class RleReaderTest {
     public static Stream<String> allPatterns() {
         File file = new File("src/main/resources/patterns");
         return Arrays.stream(Objects.requireNonNull(file.listFiles()))
+                .flatMap(cat -> Arrays.stream(Objects.requireNonNull(cat.listFiles())))
                 .map(File::getPath)
                 .map(path -> path.replace("src/main/resources/patterns/", ""));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"foureatershasslingfourbookends_synth", "fireshiprake", "pentapole", "1beacon_synth", "2c5greyshipwflatfrontandwick"})
+    @ValueSource(strings = {"syntheses/foureatershasslingfourbookends_synth", "gardens-of-eden/gardenofeden1", "oscillators/pentapole"})
     @SneakyThrows
     void readPatternFromFilename(String filename) {
         Pattern pattern = rleReader.readPatternFromFilename(filename);
+
+        assertThat(pattern).isNotNull();
+    }
+
+    @Test
+    @SneakyThrows
+    void randomPatternFromCategory() {
+        Pattern pattern = rleReader.readRandomPatternFromCategory("guns");
 
         assertThat(pattern).isNotNull();
     }

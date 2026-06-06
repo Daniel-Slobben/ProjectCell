@@ -21,6 +21,7 @@ public class ChaosService implements Worker {
     private final WorldEditor worldEditor;
     private final SquareMaker squareMaker;
     private final List<ChaosHit> latestHits = new ArrayList<>();
+    private final OscillatorMaker oscillatorMaker;
     @Value("${cells.chaos.world-target-range}")
     private int worldTargetRange;
     @Value("${cells.chaos.tics-to-spawn}")
@@ -51,7 +52,7 @@ public class ChaosService implements Worker {
         ChaosType type = getWeightedRandomType();
         ChaosHit chaosHit = switch (type) {
             case SQUARE -> squareMaker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
-            case GROWTH_PATTERN -> null;
+            case GROWTH_PATTERN -> oscillatorMaker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
             case OSCILLATORS -> null;
         };
         assert chaosHit != null;
@@ -61,7 +62,7 @@ public class ChaosService implements Worker {
     }
 
     private ChaosType getWeightedRandomType() {
-        return ChaosType.SQUARE;
+        return ChaosType.GROWTH_PATTERN;
     }
 
     private Pair<Integer, Integer> findTarget() {

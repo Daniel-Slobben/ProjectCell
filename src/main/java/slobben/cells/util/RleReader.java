@@ -13,6 +13,19 @@ public class RleReader {
     private static final Random random = new Random();
     private static final int DIMENSION_LIMIT = 50_000;
 
+    public Pattern readPatternFromFilename(String name) throws IOException {
+        name = name.replace(".rle", "");
+        File file = new File("src/main/resources/patterns/" + name + ".rle");
+
+        return getPatternFromResource(name, new FileInputStream(file.getPath()));
+    }
+
+    public Pattern readRandomPatternFromCategory(String category) throws IOException {
+        File file = new File("src/main/resources/patterns/" + category);
+        int chosenPattern = random.nextInt(0, file.listFiles().length);
+        return getPatternFromResource(file.listFiles()[chosenPattern].getPath(), new FileInputStream(file.listFiles()[chosenPattern].getPath()));
+    }
+
     private static Pattern getPatternFromResource(String name, InputStream inputStream) throws IOException {
         log.info("Reading file {}", name);
         int x = 0;
@@ -92,18 +105,5 @@ public class RleReader {
             }
         }
         throw new IllegalArgumentException("No '!' symbol was found in the file");
-    }
-
-    public Pattern readPatternFromFilename(String name) throws IOException {
-        name = name.replace(".rle", "");
-        File file = new File("src/main/resources/patterns/" + name + ".rle");
-
-        return getPatternFromResource(name, new FileInputStream(file.getPath()));
-    }
-
-    public Pattern readRandomPattern() throws IOException {
-        File file = new File("src/main/resources/patterns");
-        int chosenPattern = random.nextInt(0, file.listFiles().length);
-        return getPatternFromResource(file.listFiles()[chosenPattern].getPath(), new FileInputStream(file.listFiles()[chosenPattern].getPath()));
     }
 }
