@@ -5,7 +5,7 @@ spring:
 
 cells:
   setup: EMPTY
-  threads: '4'
+  threads: '20'
 
   random:
     blockPopulation: '1'

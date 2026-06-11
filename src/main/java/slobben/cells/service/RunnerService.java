@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.model.Block;
 import slobben.cells.service.workers.*;
@@ -43,12 +42,12 @@ public class RunnerService {
         chaosService.tic();
         newBlockService.tic();
         borderService.tic();
+        newBlockService.tic();
         stitchingService.tic();
         clientService.tic();
     }
 
     @SneakyThrows
-    @Scheduled
     public void run() {
         running = runMode.equals("AUTO");
         while (running) {

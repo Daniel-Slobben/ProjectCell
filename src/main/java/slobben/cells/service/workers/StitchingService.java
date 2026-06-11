@@ -56,13 +56,11 @@ public class StitchingService implements Worker {
 
     private void removeBorders(boolean[][] cells) {
         int max = blockSize + 1;
-
-        // x keys
-        cells[0] = new boolean[blockSizeWithBorder];
-        cells[max] = new boolean[blockSizeWithBorder];
-
-        // y keys
         for (int i = 0; i < cells[0].length; i++) {
+            cells[0][i] = false;
+            cells[max][i] = false;
+
+            // y keys
             cells[i][0] = false;
             cells[i][max] = false;
         }

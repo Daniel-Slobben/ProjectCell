@@ -11,9 +11,11 @@ import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.ExecutorService;
+import slobben.cells.util.BlockUtils;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static slobben.cells.util.BlockUtils.getKey;
@@ -30,6 +32,8 @@ public class BorderService implements Worker {
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
+    Map<String, BorderInfo> newBorderMaps = new ConcurrentHashMap<>();
+
     @PostConstruct
     private void postConstruct() {
         blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
@@ -42,12 +46,21 @@ public class BorderService implements Worker {
 
     public void execute() {
         bordersMap.clear();
+        newBorderMaps.clear();
+
         blocks.values().forEach(block -> bordersMap.put(getKey(block.getX(), block.getY()), new BorderInfo(blockSize)));
 
         Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks);
-    }
 
+        newBorderMaps.entrySet().stream()
+                .filter(entry -> entry.getValue().isHasAliveCells())
+                .forEach(entry -> {
+                    Pair<Integer, Integer> coorPair = BlockUtils.resolveKey(entry.getKey());
+                    BlockUpdate blockUpdate = new BlockUpdate(coorPair.getFirst(), coorPair.getSecond(), new boolean[blockSize][blockSize]);
+                    blockUpdates.put(blockUpdate.getKey(), blockUpdate);
+                });
+    }
 
     public void addBorderCells(Block block) {
         for (int i = -1; i <= 1; i++) {
@@ -59,13 +72,12 @@ public class BorderService implements Worker {
                 String neighborKey = getKey(neighborX, neighborY);
 
                 BorderInfo neighborMap;
-                boolean hasNeigherMap = true;
                 synchronized (this) {
                     neighborMap = bordersMap.get(neighborKey);
                     if (neighborMap == null) {
                         neighborMap = new BorderInfo(blockSize);
                         bordersMap.put(neighborKey, neighborMap);
-                        hasNeigherMap = false;
+                        newBorderMaps.put(BlockUtils.getKey(neighborX, neighborY), neighborMap);
                     }
                 }
 
@@ -74,10 +86,6 @@ public class BorderService implements Worker {
                     neighborMap.setHasAliveCells(true);
                 }
 
-                if (!hasNeigherMap && hasLiveCells) {
-                    BlockUpdate blockUpdate = new BlockUpdate(neighborX, neighborY, new boolean[blockSize][blockSize]);
-                    blockUpdates.put(blockUpdate.getKey(), blockUpdate);
-                }
             }
         }
     }

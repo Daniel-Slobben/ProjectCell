@@ -28,6 +28,16 @@ public class Block {
     private List<boolean[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
 
+    @Override
+    public int hashCode() {
+        return getKey().hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Block block && block.getKey().equals(this.getKey());
+    }
+
     public Block(int x, int y, int blockSize) {
         this.x = x;
         this.y = y;

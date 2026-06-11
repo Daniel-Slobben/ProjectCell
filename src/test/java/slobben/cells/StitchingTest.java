@@ -50,11 +50,10 @@ class StitchingTest {
         cells[10][1] = true;
         cells[10][10] = true;
 
-
-        borderService.addBorderCells(block);
-        assert blockUpdates.size() == 8;
+        borderService.execute();
+        assertThat(blockUpdates).hasSize(8);
         newBlockService.tic();
-        assert blocks.size() == 9;
+        assertThat(blocks).hasSize(9);
 
         stitchingService.tic();
 

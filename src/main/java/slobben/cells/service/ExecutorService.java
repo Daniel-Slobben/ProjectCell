@@ -21,7 +21,6 @@ public class ExecutorService {
     @SneakyThrows
     public void executeTasksParallel(Set<Runnable> tasks) {
         java.util.concurrent.ExecutorService executor = Executors.newFixedThreadPool(threads);
-
         tasks.forEach(executor::execute);
         executor.shutdown();
 
