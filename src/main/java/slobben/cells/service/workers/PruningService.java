@@ -1,6 +1,7 @@
 package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.model.Block;
@@ -9,6 +10,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PruningService implements Worker {
     private final Map<String, Block> blocks;
 
@@ -25,7 +27,9 @@ public class PruningService implements Worker {
     public void execute() {
         counter++;
         if (counter == pruningPerGeneration) {
+            log.info("Starting pruning");
             pruneBlocks(blocks);
+            counter = 0;
         }
     }
 

@@ -1,30 +1,25 @@
-package slobben.cells.service.workers.chaos;
+package slobben.cells.service.workers.chaos.makers;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import slobben.cells.entities.Pattern;
+import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.util.RleReader;
 
 import java.util.Random;
 
-@Component
-@RequiredArgsConstructor
 @Slf4j
-class OscillatorMaker {
+public class OscillatorMaker implements Maker {
     private static final Random random = new Random();
     private static final int DISTANCE_BETWEEN_PATTERN_MIN = 100;
     private static final int DISTANCE_BETWEEN_PATTERN_MAX = 250;
     private static final int RANDOM_OFFSET_RANGE = 40;
-    private final RleReader rleReader;
-    @Value("${cells.chaos.square-size-min}")
-    int squareSizeMin;
-    @Value("${cells.chaos.square-size-max}")
-    int squareSizeMax;
+    private static final int MIN_SIZE = 600;
+    private static final int MAX_SIZE = 1200;
+    private final RleReader rleReader = new RleReader();
 
+    @Override
     public ChaosHit getChaosHit(int worldTargetX, int worldTargetY) {
-        int squareSize = random.nextInt(squareSizeMin, squareSizeMax);
+        int squareSize = random.nextInt(MIN_SIZE, MAX_SIZE);
         boolean[][] matrix = new boolean[squareSize][squareSize];
         boolean matrixFull = false;
 

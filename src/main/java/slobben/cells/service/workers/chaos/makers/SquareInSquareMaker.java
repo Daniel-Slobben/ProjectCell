@@ -1,14 +1,14 @@
-package slobben.cells.service.workers.chaos;
+package slobben.cells.service.workers.chaos.makers;
 
-import org.springframework.stereotype.Component;
 import slobben.cells.entities.Pattern;
+import slobben.cells.service.workers.chaos.ChaosHit;
 
-@Component
-public class SquareInSquareMaker {
+public class SquareInSquareMaker implements Maker {
     private static final int SQUARE_SIZE = 2500;
     private static final int DISTANCE_BETWEEN_SQUARES = 300;
     private static final int AMOUNT_OF_SQUARES = 7;
 
+    @Override
     public ChaosHit getChaosHit(int worldTargetX, int worldTargetY) {
         boolean[][] matrix = new boolean[SQUARE_SIZE][SQUARE_SIZE];
 

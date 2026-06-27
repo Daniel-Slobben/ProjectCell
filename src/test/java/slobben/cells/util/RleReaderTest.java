@@ -3,15 +3,9 @@ package slobben.cells.util;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import slobben.cells.entities.Pattern;
 
 import java.io.File;
@@ -21,14 +15,9 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@ExtendWith(SpringExtension.class)
-@ComponentScan("slobben.cells.service")
-@ActiveProfiles(profiles = "normal")
 class RleReaderTest {
 
-    @Autowired
-    private RleReader rleReader;
+    private final RleReader rleReader = new RleReader();
 
     public static Stream<String> allPatterns() {
         File file = new File("src/main/resources/patterns");

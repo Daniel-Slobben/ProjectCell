@@ -5,30 +5,34 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
+import slobben.cells.entities.Pattern;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.Worker;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ChaosService implements Worker {
     private final WorldEditor worldEditor;
-    private final SquareMaker squareMaker;
+
     private final List<ChaosHit> latestHits = new ArrayList<>();
-    private final OscillatorMaker oscillatorMaker;
     private static final int SPIRAL_JUMP_LENGTH = 5000;
-    private final SquareInSquareMaker squareInSquareMaker;
     @Value("${cells.chaos.tics-to-spawn}")
     private int ticsToSpawn;
     @Value("${cells.chaos.enabled}")
     private boolean chaosEnabled;
+    private static final Random random = new Random();
+
     private int chaosCounter = 0;
-    private final LineMaker lineMaker;
+
     private int spiralGeneration = 1;
+    @Value("${cells.chaos.max-hits}")
+    private int maxHits;
 
     public String getName() {
         return "ChaosService";
@@ -47,32 +51,40 @@ public class ChaosService implements Worker {
     }
 
     private void createChaos() {
-        Pair<Integer, Integer> worldTarget = findTarget();
-
+        Pair<Integer, Integer> worldTarget = calculateTarget(spiralGeneration++);
         ChaosType type = getWeightedRandomType();
-        ChaosHit chaosHit = switch (type) {
-            case SQUARE -> squareMaker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
-            case SQUARE_IN_SQUARE -> squareInSquareMaker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
-            case LINE_MAKER -> lineMaker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
-            case GROWTH_PATTERN -> oscillatorMaker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
-            case OSCILLATORS -> null;
-        };
+//        ChaosType type = ChaosType.GROWTH_PATTERN;
+        ChaosHit chaosHit = type.getMaker().getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
         assert chaosHit != null;
         worldEditor.setCells(worldTarget.getFirst(), worldTarget.getSecond(), chaosHit.getPattern());
 
-        latestHits.add(chaosHit);
+        latestHits.addFirst(chaosHit);
+        if (latestHits.size() > maxHits) {
+            clearChaosHit(latestHits.getLast());
+            latestHits.removeLast();
+        }
+    }
+
+    private void clearChaosHit(ChaosHit chaosHit) {
+        final long xOffset = chaosHit.getPattern().x() / 2;
+        final int clearSizeX = chaosHit.getPattern().x() * 2;
+
+        final long yOffset = chaosHit.getPattern().y() / 2;
+        final int clearSizeY = chaosHit.getPattern().y() * 2;
+
+        Pattern pattern = new Pattern("clear", clearSizeX, clearSizeY, new boolean[clearSizeX][clearSizeY]);
+        worldEditor.setCells(chaosHit.getWorldX() - xOffset, chaosHit.getWorldY() - yOffset, pattern);
     }
 
     private ChaosType getWeightedRandomType() {
-        return ChaosType.SQUARE_IN_SQUARE;
-    }
-
-    private Pair<Integer, Integer> findTarget() {
-        return calculateTarget(spiralGeneration++);
-    }
-
-    private Pair<Integer, Integer> peekTarget() {
-        return calculateTarget(spiralGeneration);
+        return switch (random.nextInt(0, 10)) {
+            case 0, 1, 2 -> ChaosType.LINE_MAKER;
+            case 3, 4 -> ChaosType.SQUARE;
+            case 5, 6 -> ChaosType.SQUARE_IN_SQUARE;
+            case 7, 8 -> ChaosType.GROWTH_PATTERN;
+            case 9 -> ChaosType.GROWTH_PATTERN;
+            default -> throw new IllegalStateException("Unexpected value: " + random.nextInt(0, 10));
+        };
     }
 
     public Pair<Integer, Integer> calculateTarget(int generation) {
@@ -95,7 +107,7 @@ public class ChaosService implements Worker {
         if (latestHits.isEmpty()) {
             if (chaosEnabled) {
                 chaosCounter = ticsToSpawn;
-                Pair<Integer, Integer> nextTarget = peekTarget();
+                Pair<Integer, Integer> nextTarget = calculateTarget(spiralGeneration);
                 return Optional.of(new ChaosHit(nextTarget.getFirst(), nextTarget.getSecond(), null, null));
             } else {
                 return Optional.empty();

@@ -10,7 +10,7 @@ import slobben.cells.entities.model.Block;
 import slobben.cells.service.workers.*;
 import slobben.cells.service.workers.chaos.ChaosService;
 
-import java.util.Set;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class RunnerService {
     private final ClientService clientService;
     private final GenerationService generationService;
 
-    private final Set<Block> blocks;
+    private final Map<String, Block> blocks;
 
     @Value("${cells.targetspeed}")
     private int targetSpeed;

@@ -13,10 +13,8 @@ cells:
 
   chaos:
     enabled: 'true'
-    tics-to-spawn: 200
-    world-target-range: 64000
-    square-size-min: 600
-    square-size-max: 1200
+    max-hits: 100
+    tics-to-spawn: 100
 
   pruning-per-generation: '100'
   size:
@@ -24,7 +22,7 @@ cells:
     y: '0'
     blockSize: '500'
   runmode: AUTO
-  targetspeed: '1000'
+  targetspeed: '500'
 
   recording:
     max-recording-depth: 4

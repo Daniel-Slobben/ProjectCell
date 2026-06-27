@@ -1,15 +1,21 @@
 package slobben.cells.util;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import slobben.cells.entities.Pattern;
 
 import java.io.*;
 import java.util.Random;
 
 @Slf4j
-@Component
 public class RleReader {
+    public Pattern readRandomPatternFromCategoryWithSize(String category, int limit) throws IOException {
+        // dangerous and inefficient but effective
+        Pattern pattern = readRandomPatternFromCategory(category);
+        if (pattern.x() > limit || pattern.y() > limit) {
+            return readRandomPatternFromCategoryWithSize(category, limit);
+        }
+        return pattern;
+    }
     private static final Random random = new Random();
     private static final int DIMENSION_LIMIT = 50_000;
 
@@ -18,6 +24,17 @@ public class RleReader {
         File file = new File("src/main/resources/patterns/" + name + ".rle");
 
         return getPatternFromResource(name, new FileInputStream(file.getPath()));
+    }
+
+    public enum PatternCategories {
+        GROWTH_PATTERNS("growth-patterns"),
+        OSCILLATORS("oscillators");
+
+        public final String directory;
+
+        PatternCategories(String name) {
+            this.directory = name;
+        }
     }
 
     public Pattern readRandomPatternFromCategory(String category) throws IOException {

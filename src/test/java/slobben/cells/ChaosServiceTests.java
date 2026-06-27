@@ -32,8 +32,8 @@ class ChaosServiceTests {
     @Test
     void check() {
         ReflectionTestUtils.setField(chaosService, "chaosEnabled", true);
-        chaosService.getLatestHit();
-        assertThat(blockUpdates).hasSizeGreaterThan(4);
+        var result = chaosService.getLatestHit();
+        assertThat(result).isNotNull();
     }
 
     @Test

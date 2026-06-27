@@ -10,6 +10,7 @@ cells:
     world-target-range: '1'
     enabled: 'false'
     tics-to-spawn: '100'
+    max-hits: '2'
     square-size-min: '600'
     square-size-max: '601'
   ## Higher is less population -> ex: 1 in 15
