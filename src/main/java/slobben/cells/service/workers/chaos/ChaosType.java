@@ -3,36 +3,15 @@ package slobben.cells.service.workers.chaos;
 import slobben.cells.service.workers.chaos.makers.*;
 
 enum ChaosType {
-    SQUARE {
-        @Override
-        Maker getMaker() {
-            return new SquareMaker();
-        }
-    },
-    SQUARE_IN_SQUARE {
-        @Override
-        Maker getMaker() {
-            return new SquareInSquareMaker();
-        }
-    },
-    LINE_MAKER {
-        @Override
-        Maker getMaker() {
-            return new LineMaker();
-        }
-    },
-    GROWTH_PATTERN {
-        @Override
-        Maker getMaker() {
-            return new GrowthMaker();
-        }
-    },
-    OSCILLATORS {
-        @Override
-        Maker getMaker() {
-            return new OscillatorMaker();
-        }
-    };
+    SQUARE(new SquareMaker()),
+    SQUARE_IN_SQUARE(new SquareInSquareMaker()),
+    LINE_MAKER(new LineMaker()),
+    GROWTH_PATTERN(new GrowthMaker()),
+    OSCILLATORS(new OscillatorMaker());
 
-    abstract Maker getMaker();
+    final Maker maker;
+
+    ChaosType(Maker maker) {
+        this.maker = maker;
+    }
 }

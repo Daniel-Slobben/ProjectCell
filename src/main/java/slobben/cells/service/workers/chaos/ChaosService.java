@@ -53,8 +53,7 @@ public class ChaosService implements Worker {
     private void createChaos() {
         Pair<Integer, Integer> worldTarget = calculateTarget(spiralGeneration++);
         ChaosType type = getWeightedRandomType();
-//        ChaosType type = ChaosType.GROWTH_PATTERN;
-        ChaosHit chaosHit = type.getMaker().getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
+        ChaosHit chaosHit = type.maker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
         assert chaosHit != null;
         worldEditor.setCells(worldTarget.getFirst(), worldTarget.getSecond(), chaosHit.getPattern());
 
