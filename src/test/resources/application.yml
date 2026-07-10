@@ -8,7 +8,7 @@ cells:
   setup: EMPTY
   chaos:
     enabled: 'false'
-    tics-to-spawn: '150'
+    tics-to-spawn: '50'
     max-hits: '20'
   ## Higher is less population -> ex: 1 in 15
   random:

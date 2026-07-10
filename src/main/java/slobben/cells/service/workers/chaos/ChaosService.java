@@ -1,5 +1,6 @@
 package slobben.cells.service.workers.chaos;
 
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,8 +12,8 @@ import slobben.cells.service.workers.Worker;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +41,8 @@ public class ChaosService implements Worker {
 
     public void execute() {
         if (!chaosEnabled) return;
+
+        latestHits.forEach(ChaosHit::incrementAge);
 
         chaosCounter++;
 
@@ -102,16 +105,29 @@ public class ChaosService implements Worker {
         return Pair.of(currentX, currentY);
     }
 
-    public Optional<ChaosHit> getLatestHit() {
+    public @Nullable ChaosHit getLatestHit() {
         if (latestHits.isEmpty()) {
             if (chaosEnabled) {
                 chaosCounter = ticsToSpawn;
                 Pair<Integer, Integer> nextTarget = calculateTarget(spiralGeneration);
-                return Optional.of(new ChaosHit(nextTarget.getFirst(), nextTarget.getSecond(), null, null));
+                return new ChaosHit(nextTarget.getFirst(), nextTarget.getSecond(), null, null);
             } else {
-                return Optional.empty();
+                return null;
             }
         }
-        return Optional.of(latestHits.getFirst());
+        return latestHits.getFirst();
+    }
+
+    public ChaosHit getNextChaosHit(UUID id, boolean getNextHit) {
+        ChaosHit currentChaosHit = latestHits.stream()
+                .filter(hit -> hit.getId().equals(id))
+                .findFirst().orElseThrow(IllegalArgumentException::new);
+
+        int currentIndex = latestHits.indexOf(currentChaosHit);
+        try {
+            return latestHits.get(getNextHit ? currentIndex - 1 : currentIndex + 1);
+        } catch (IndexOutOfBoundsException e) {
+            return currentChaosHit;
+        }
     }
 }

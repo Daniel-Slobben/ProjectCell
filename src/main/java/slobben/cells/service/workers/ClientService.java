@@ -7,7 +7,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.ClientUpdateRequest;
-import slobben.cells.dto.EncodedBlock;
 import slobben.cells.entities.model.Block;
 import slobben.cells.errors.NotAClientException;
 import slobben.cells.service.ExecutorService;
@@ -48,6 +47,10 @@ public class ClientService implements Worker {
         activeClients.put(uuid, new ConcurrentLinkedQueue<>());
     }
 
+    public void updateClientWithId(UUID uuid) {
+        this.updateClient(uuid, activeClients.get(uuid));
+    }
+
     public void updateClient(UUID uuid, Queue<Block> blocks) {
         var copyOfBlocks = List.copyOf(blocks).stream()
                 .map(Block::getEncodedBlock).toList();
@@ -67,7 +70,7 @@ public class ClientService implements Worker {
         return optionalBlock.orElseGet(() -> getNewGhostBlock(Pair.of(x, y)));
     }
 
-    public List<EncodedBlock> updateClient(ClientUpdateRequest clientUpdateRequest) {
+    public void updateClientBlocks(ClientUpdateRequest clientUpdateRequest) {
         if (activeClients.containsKey(clientUpdateRequest.client())) {
             var clientBlocks = activeClients.get(clientUpdateRequest.client());
 
@@ -76,9 +79,6 @@ public class ClientService implements Worker {
         } else {
             throw new NotAClientException("Client not found: %s".formatted(clientUpdateRequest.client()));
         }
-        return activeClients.get(clientUpdateRequest.client()).stream()
-                .filter(block -> List.of(clientUpdateRequest.blocksToAdd()).contains(BlockUtils.getKey(block.getX(), block.getY())))
-                .map(Block::getEncodedBlock).toList();
     }
 
     public Set<Block> getBlocksFromKeys(Set<String> keys) {
