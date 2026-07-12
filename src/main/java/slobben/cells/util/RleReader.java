@@ -40,10 +40,11 @@ public class RleReader {
     }
 
     public Pattern readRandomPatternFromCategory(String category) throws IOException {
-        Resource resource = new ClassPathResource("src/main/resources/patterns/" + category);
-        File file = resource.getFile();
+        Resource categoryResource = new ClassPathResource("src/main/resources/patterns/" + category);
+        File file = categoryResource.getFile();
         int chosenPattern = random.nextInt(0, file.listFiles().length);
-        return getPatternFromResource(file.listFiles()[chosenPattern].getPath(), new FileInputStream(file.listFiles()[chosenPattern].getPath()));
+        Resource resource = new ClassPathResource(file.listFiles()[chosenPattern].getPath());
+        return getPatternFromResource(resource.getFile().getPath(), new FileInputStream(resource.getFile()));
     }
 
     private static Pattern getPatternFromResource(String name, InputStream inputStream) throws IOException {
