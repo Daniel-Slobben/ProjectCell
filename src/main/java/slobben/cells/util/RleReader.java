@@ -40,7 +40,8 @@ public class RleReader {
     }
 
     public Pattern readRandomPatternFromCategory(String category) throws IOException {
-        Resource categoryResource = new ClassPathResource("src/main/resources/patterns/" + category);
+        // TODO: FIX FOR JAR RELEASE. 12-07-2026: for now just disable reading resource patterns.
+        Resource categoryResource = new ClassPathResource("patterns/" + category);
         File file = categoryResource.getFile();
         int chosenPattern = random.nextInt(0, file.listFiles().length);
         Resource resource = new ClassPathResource(file.listFiles()[chosenPattern].getPath());
