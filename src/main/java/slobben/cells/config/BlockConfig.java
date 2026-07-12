@@ -74,7 +74,7 @@ public class BlockConfig {
         return IntStream.range(0, blockAmount * blockAmount).mapToObj(count -> {
             int x = count / blockAmount;
             int y = count % blockAmount;
-            return new Block(x, y, new boolean[environmentConfig.getBlockSizeWithBorder()][environmentConfig.getBlockSizeWithBorder()]);
+            return new Block(x, y, null, new boolean[environmentConfig.getBlockSizeWithBorder()][environmentConfig.getBlockSizeWithBorder()]);
         });
     }
 

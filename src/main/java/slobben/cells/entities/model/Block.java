@@ -5,6 +5,7 @@ import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import slobben.cells.dto.EncodedBlock;
 import slobben.cells.enums.BlockState;
+import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.util.BlockUtils;
 
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ public class Block {
     private int generation = 0;
     private boolean ghostBlock = false;
     private boolean[][] cells;
+    private ChaosHit responsibleChaosHit;
 
     private BlockState blockState = BlockState.ACTIVE;
     private List<boolean[][]> recordings = new ArrayList<>();
@@ -38,15 +40,17 @@ public class Block {
         return obj instanceof Block block && block.getKey().equals(this.getKey());
     }
 
-    public Block(int x, int y, int blockSize) {
+    public Block(int x, int y, ChaosHit responsibleChaosHit, int blockSize) {
         this.x = x;
         this.y = y;
+        this.responsibleChaosHit = responsibleChaosHit;
         this.cells = new boolean[blockSize + 2][blockSize + 2];
     }
 
-    public Block(int x, int y, boolean[][] cells) {
+    public Block(int x, int y, ChaosHit responsibleChaosHit, boolean[][] cells) {
         this.x = x;
         this.y = y;
+        this.responsibleChaosHit = responsibleChaosHit;
         this.cells = cells;
     }
 

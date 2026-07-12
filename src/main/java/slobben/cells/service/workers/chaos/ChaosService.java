@@ -6,20 +6,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
-import slobben.cells.entities.Pattern;
+import slobben.cells.entities.model.Block;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.Worker;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ChaosService implements Worker {
     private final WorldEditor worldEditor;
+    private final Map<String, Block> blocks;
 
     private final List<ChaosHit> latestHits = new ArrayList<>();
     private static final int SPIRAL_JUMP_LENGTH = 5000;
@@ -58,7 +56,7 @@ public class ChaosService implements Worker {
         ChaosType type = getWeightedRandomType();
         ChaosHit chaosHit = type.maker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
         assert chaosHit != null;
-        worldEditor.setCells(worldTarget.getFirst(), worldTarget.getSecond(), chaosHit.getPattern());
+        worldEditor.setCells(worldTarget.getFirst(), worldTarget.getSecond(), chaosHit);
 
         latestHits.addFirst(chaosHit);
         if (latestHits.size() > maxHits) {
@@ -68,14 +66,12 @@ public class ChaosService implements Worker {
     }
 
     private void clearChaosHit(ChaosHit chaosHit) {
-        final long xOffset = chaosHit.getPattern().x() / 2;
-        final int clearSizeX = chaosHit.getPattern().x() * 2;
-
-        final long yOffset = chaosHit.getPattern().y() / 2;
-        final int clearSizeY = chaosHit.getPattern().y() * 2;
-
-        Pattern pattern = new Pattern("clear", clearSizeX, clearSizeY, new boolean[clearSizeX][clearSizeY]);
-        worldEditor.setCells(chaosHit.getWorldX() - xOffset, chaosHit.getWorldY() - yOffset, pattern);
+        List<String> keysToRemove = blocks.entrySet().stream()
+                .filter(entrySet -> chaosHit.equals(entrySet.getValue().getResponsibleChaosHit()))
+                .map(Map.Entry::getKey)
+                .toList();
+        keysToRemove.forEach(blocks::remove);
+        log.info("Cleaned ChaosHit {} with age {}, total blocks: {}", chaosHit.getId(), chaosHit.getAge(), keysToRemove.size());
     }
 
     private ChaosType getWeightedRandomType() {

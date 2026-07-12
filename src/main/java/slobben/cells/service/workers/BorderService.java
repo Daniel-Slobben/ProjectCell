@@ -48,7 +48,7 @@ public class BorderService implements Worker {
         bordersMap.clear();
         newBorderMaps.clear();
 
-        blocks.values().forEach(block -> bordersMap.put(getKey(block.getX(), block.getY()), new BorderInfo(blockSize)));
+        blocks.values().forEach(block -> bordersMap.put(getKey(block.getX(), block.getY()), new BorderInfo(blockSize, block.getResponsibleChaosHit())));
 
         Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks);
@@ -57,7 +57,7 @@ public class BorderService implements Worker {
                 .filter(entry -> entry.getValue().isHasAliveCells())
                 .forEach(entry -> {
                     Pair<Integer, Integer> coorPair = BlockUtils.resolveKey(entry.getKey());
-                    BlockUpdate blockUpdate = new BlockUpdate(coorPair.getFirst(), coorPair.getSecond(), new boolean[blockSize][blockSize]);
+                    BlockUpdate blockUpdate = new BlockUpdate(coorPair.getFirst(), coorPair.getSecond(), new boolean[blockSize][blockSize], entry.getValue().getResponsibleChaosHit());
                     blockUpdates.put(blockUpdate.getKey(), blockUpdate);
                 });
     }
@@ -75,7 +75,7 @@ public class BorderService implements Worker {
                 synchronized (this) {
                     neighborMap = bordersMap.get(neighborKey);
                     if (neighborMap == null) {
-                        neighborMap = new BorderInfo(blockSize);
+                        neighborMap = new BorderInfo(blockSize, block.getResponsibleChaosHit());
                         bordersMap.put(neighborKey, neighborMap);
                         newBorderMaps.put(BlockUtils.getKey(neighborX, neighborY), neighborMap);
                     }

@@ -13,14 +13,16 @@ cells:
 
   chaos:
     enabled: 'true'
-    max-hits: 100
-    tics-to-spawn: 100
+    max-hits: 10
+    tics-to-spawn: 10
 
   pruning-per-generation: '100'
+
   size:
     x: '0'
     y: '0'
     blockSize: '500'
+
   runmode: AUTO
   targetspeed: '500'
 

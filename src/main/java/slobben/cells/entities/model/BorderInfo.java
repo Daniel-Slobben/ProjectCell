@@ -2,10 +2,13 @@ package slobben.cells.entities.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import slobben.cells.service.workers.chaos.ChaosHit;
 
 public class BorderInfo {
     private final int blockSizeWithBorder;
     private final int blockSize;
+    @Getter
+    private final ChaosHit responsibleChaosHit;
     @Setter
     @Getter
     private boolean hasAliveCells = false;
@@ -24,13 +27,14 @@ public class BorderInfo {
     @Setter
     private boolean bottomLeftCorner = false;
 
-    public BorderInfo(int blockSize) {
+    public BorderInfo(int blockSize, ChaosHit responsibleChaosHit) {
         this.blockSizeWithBorder =  blockSize + 2;
         this.blockSize = blockSize;
         this.topBorder = new boolean[blockSize];
         this.bottomBorder = new boolean[blockSize];
         this.leftBorder = new boolean[blockSize];
         this.rightBorder = new boolean[blockSize];
+        this.responsibleChaosHit = responsibleChaosHit;
     }
 
     public void copyCells(Block block) {

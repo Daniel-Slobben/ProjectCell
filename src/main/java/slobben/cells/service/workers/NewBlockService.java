@@ -63,8 +63,9 @@ public class NewBlockService implements Worker {
             ghostBlock.setGhostBlock(false);
             ghostBlocks.remove(key);
             newBlock = ghostBlock;
+            newBlock.setResponsibleChaosHit(blockUpdate.responsibleChaosHit());
         } else {
-            newBlock = new Block(blockUpdate.x(), blockUpdate.y(), matrix);
+            newBlock = new Block(blockUpdate.x(), blockUpdate.y(), blockUpdate.responsibleChaosHit(), matrix);
         }
 
         updateBlock(newBlock, blockUpdate);
