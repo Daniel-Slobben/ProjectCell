@@ -20,7 +20,10 @@ public class ChaosService implements Worker {
     private final Map<String, Block> blocks;
 
     private final List<ChaosHit> latestHits = new ArrayList<>();
-    private static final int SPIRAL_JUMP_LENGTH = 5000;
+
+    private static final double SPIRAL_SPACING = 500.0;
+    private static final double ARC_LENGTH_PER_STEP = 5000.0;
+
     @Value("${cells.chaos.tics-to-spawn}")
     private int ticsToSpawn;
     @Value("${cells.chaos.enabled}")
@@ -86,19 +89,19 @@ public class ChaosService implements Worker {
     }
 
     public Pair<Integer, Integer> calculateTarget(int generation) {
-        int currentX = 0;
-        int currentY = 0;
+        if (generation == 0) return Pair.of(0, 0);
 
+        double theta = 1;
         for (int i = 0; i < generation; i++) {
-            switch (i % 4) {
-                case 0 -> currentX += (SPIRAL_JUMP_LENGTH * i);
-                case 1 -> currentY += (SPIRAL_JUMP_LENGTH * i);
-                case 2 -> currentX -= (SPIRAL_JUMP_LENGTH * i);
-                case 3 -> currentY -= (SPIRAL_JUMP_LENGTH * i);
-                default -> throw new IllegalStateException();
-            }
+            double r = Math.max(SPIRAL_SPACING * theta, 1.0);
+            theta += ARC_LENGTH_PER_STEP / r;
         }
-        return Pair.of(currentX, currentY);
+
+        double r = SPIRAL_SPACING * theta;
+        int x = (int) Math.round(r * Math.cos(theta));
+        int y = (int) Math.round(r * Math.sin(theta));
+
+        return Pair.of(x, y);
     }
 
     public @Nullable ChaosHit getLatestHit() {
@@ -117,7 +120,7 @@ public class ChaosService implements Worker {
     public ChaosHit getNextChaosHit(UUID id, boolean getNextHit) {
         ChaosHit currentChaosHit = latestHits.stream()
                 .filter(hit -> hit.getId().equals(id))
-                .findFirst().orElseThrow(IllegalArgumentException::new);
+                .findFirst().orElse(latestHits.getFirst());
 
         int currentIndex = latestHits.indexOf(currentChaosHit);
         try {
