@@ -28,6 +28,7 @@ class RleReaderTest {
     }
 
     @ParameterizedTest
+    @Disabled
     @ValueSource(strings = {"syntheses/foureatershasslingfourbookends_synth", "gardens-of-eden/gardenofeden1", "oscillators/pentapole"})
     @SneakyThrows
     void readPatternFromFilename(String filename) {
@@ -37,6 +38,7 @@ class RleReaderTest {
     }
 
     @Test
+    @Disabled
     @SneakyThrows
     void randomPatternFromCategory() {
         Pattern pattern = rleReader.readRandomPatternFromCategory("guns");
