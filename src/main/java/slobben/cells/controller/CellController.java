@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import slobben.cells.config.EnvironmentConfig;
+import slobben.cells.dto.ChaosHitDto;
 import slobben.cells.dto.ClientUpdateRequest;
 import slobben.cells.dto.Settings;
 import slobben.cells.dto.StateInfo;
@@ -45,7 +46,8 @@ public class CellController {
 
         ChaosHit chaosHit = chaosService.getLatestHit();
 
-        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, chaosHit));
+        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId,
+                new ChaosHitDto(chaosHit.getId(), chaosHit.getWorldX(), chaosHit.getWorldY(), chaosHit.getName(), chaosHit.getAge())));
     }
 
     @GetMapping("/next-chaos-hit/{hitId}/{getNext}")
