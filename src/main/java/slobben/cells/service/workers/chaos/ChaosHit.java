@@ -2,6 +2,7 @@ package slobben.cells.service.workers.chaos;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import slobben.cells.dto.ChaosHitDto;
 import slobben.cells.entities.Pattern;
 
 import java.util.UUID;
@@ -18,5 +19,9 @@ public class ChaosHit {
 
     public void incrementAge() {
         age++;
+    }
+
+    public ChaosHitDto getDto() {
+        return new ChaosHitDto(id, worldX, worldY, name, age);
     }
 }

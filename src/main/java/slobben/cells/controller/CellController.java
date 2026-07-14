@@ -45,16 +45,19 @@ public class CellController {
         }
 
         ChaosHit chaosHit = chaosService.getLatestHit();
+        ChaosHitDto chaosHitDto = null;
+        if (chaosHit != null) {
+            chaosHitDto = chaosHit.getDto();
+        }
 
-        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId,
-                new ChaosHitDto(chaosHit.getId(), chaosHit.getWorldX(), chaosHit.getWorldY(), chaosHit.getName(), chaosHit.getAge())));
+        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, chaosHitDto));
     }
 
     @GetMapping("/next-chaos-hit/{hitId}/{getNext}")
-    public ResponseEntity<ChaosHit> returnNextHit(@PathVariable UUID hitId, @PathVariable boolean getNext) {
+    public ResponseEntity<ChaosHitDto> returnNextHit(@PathVariable UUID hitId, @PathVariable boolean getNext) {
         log.info("Received request for next chaoshit. CurrentID {}, nextBoolean: {}", hitId, getNext);
 
-        ChaosHit nextChaosHit = chaosService.getNextChaosHit(hitId, getNext);
+        ChaosHitDto nextChaosHit = chaosService.getNextChaosHit(hitId, getNext);
         return ResponseEntity.ok(nextChaosHit);
     }
 

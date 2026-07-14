@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.ChaosHitDto;
 import slobben.cells.entities.model.Block;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.Worker;
@@ -115,16 +116,16 @@ public class ChaosService implements Worker {
         return latestHits.getFirst();
     }
 
-    public ChaosHit getNextChaosHit(UUID id, boolean getNextHit) {
+    public ChaosHitDto getNextChaosHit(UUID id, boolean getNextHit) {
         ChaosHit currentChaosHit = latestHits.stream()
                 .filter(hit -> hit.getId().equals(id))
                 .findFirst().orElse(latestHits.getFirst());
 
         int currentIndex = latestHits.indexOf(currentChaosHit);
         try {
-            return latestHits.get(getNextHit ? currentIndex - 1 : currentIndex + 1);
+            return latestHits.get(getNextHit ? currentIndex - 1 : currentIndex + 1).getDto();
         } catch (IndexOutOfBoundsException e) {
-            return currentChaosHit;
+            return currentChaosHit.getDto();
         }
     }
 }
