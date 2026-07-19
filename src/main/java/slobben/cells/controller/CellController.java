@@ -36,13 +36,9 @@ public class CellController {
 
     @GetMapping("settings")
     public ResponseEntity<Settings> getSettings(HttpSession session) {
-        UUID clientId = (UUID) session.getAttribute("clientId");
-
-        if (clientId == null) {
-            clientId = UUID.randomUUID();
-            clientService.addClient(clientId);
-            session.setAttribute("clientId", clientId);
-        }
+        UUID clientId = UUID.randomUUID();
+        clientService.addClient(clientId);
+        session.setAttribute("clientId", clientId);
 
         ChaosHit chaosHit = chaosService.getLatestHit();
         ChaosHitDto chaosHitDto = null;

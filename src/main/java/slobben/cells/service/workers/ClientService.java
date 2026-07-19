@@ -37,6 +37,13 @@ public class ClientService implements Worker {
     public void execute() {
         Set<Runnable> tasks = activeClients.entrySet().stream().map(entrySet -> (Runnable) () -> updateClient(entrySet.getKey(), entrySet.getValue())).collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks);
+
+        activeClients.values()
+                .stream()
+                .flatMap(Collection::stream)
+                .distinct()
+                .parallel()
+                .forEach(Block::clearEncodedBlock);
     }
 
     public void disconnectClient(UUID uuid) {

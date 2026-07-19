@@ -29,6 +29,7 @@ public class Block {
     private BlockState blockState = BlockState.ACTIVE;
     private List<boolean[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
+    private EncodedBlock encodedBlock;
 
     @Override
     public int hashCode() {
@@ -58,12 +59,19 @@ public class Block {
         return getPacked(true);
     }
 
-    public EncodedBlock getEncodedBlock() {
-        byte[] packed = getPacked(false);
-        LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
-        byte[] compressed = compressor.compress(packed);
+    public synchronized EncodedBlock getEncodedBlock() {
+        if (encodedBlock == null) {
+            byte[] packed = getPacked(false);
+            LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
+            byte[] compressed = compressor.compress(packed);
 
-        return new EncodedBlock(x, y, Base64.getEncoder().encodeToString(compressed));
+            this.encodedBlock = new EncodedBlock(x, y, Base64.getEncoder().encodeToString(compressed));
+        }
+        return new EncodedBlock(encodedBlock.x(), encodedBlock.y(), encodedBlock.encodedCells());
+    }
+
+    public void clearEncodedBlock() {
+        this.encodedBlock = null;
     }
 
     public void setNextHibernationState() {
