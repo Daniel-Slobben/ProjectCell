@@ -40,6 +40,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sudo systemctl stop cellservice.service
-            sudo systemctl start cellservice.service
-            sudo systemctl is-active --quiet cellservice.service && echo "Service is running" || exit 1 
+            sudo systemctl stop world-of-cells.service
+            sudo systemctl start world-of-cells.service
+            sudo systemctl is-active --quiet world-of-cells.service && echo "Service is running" || exit 1 
