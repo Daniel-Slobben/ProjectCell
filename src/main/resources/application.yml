@@ -13,8 +13,8 @@ cells:
 
   chaos:
     enabled: 'true'
-    max-hits: 20
-    tics-to-spawn: 150
+    max-hits: 100
+    tics-to-spawn: 50
 
   pruning-per-generation: '100'
 
@@ -24,7 +24,7 @@ cells:
     blockSize: '500'
 
   runmode: AUTO
-  targetspeed: '500'
+  targetspeed: '800'
 
   recording:
     max-recording-depth: 4
