@@ -80,7 +80,7 @@ public class ChaosService implements Worker {
 
     private ChaosType getWeightedRandomType() {
         return switch (random.nextInt(0, 7)) {
-            case 0, 1, 2 -> ChaosType.LINE_MAKER;
+            case 0, 1, 2 -> ChaosType.LETTUCE;
             case 3, 4 -> ChaosType.SQUARE;
             case 5, 6 -> ChaosType.SQUARE_IN_SQUARE;
             default -> throw new IllegalStateException("Unexpected value: " + random.nextInt(0, 10));

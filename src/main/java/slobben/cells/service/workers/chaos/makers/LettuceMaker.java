@@ -5,25 +5,21 @@ import slobben.cells.service.workers.chaos.ChaosHit;
 
 import java.util.Random;
 
-public class LineMaker implements Maker {
+public class LettuceMaker implements Maker {
     private static final int MIN_AMOUNT_OF_LINES = 4;
-    private static final int MAX_AMOUNT_OF_LINES = 8;
+    private static final int MAX_AMOUNT_OF_LINES = 12;
     private static final int LINE_WIDTH = 2;
-    private static final int SIZE = 2000;
-    private static final int MIN_DISTANCE_BETWEEN_LINES = 100;
-    private static final int MAX_DISTANCE_BETWEEN_LINES = 400;
+    private static final int MIN_SIZE = 1500;
+    private static final int MAX_SIZE = 3000;
 
     private static final Random random = new Random();
 
     @Override
     public ChaosHit getChaosHit(int worldTargetX, int worldTargetY) {
         int amountOfLines = random.nextInt(MIN_AMOUNT_OF_LINES, MAX_AMOUNT_OF_LINES + 1);
-        int distanceBetweenLines = random.nextInt(MIN_DISTANCE_BETWEEN_LINES, MAX_DISTANCE_BETWEEN_LINES + 1);
-        int size = SIZE;
-        int lineAmountLength = amountOfLines * distanceBetweenLines;
-        if (amountOfLines * distanceBetweenLines > size) {
-            size = lineAmountLength;
-        }
+        int size = random.nextInt(MIN_SIZE, MAX_SIZE + 1);
+        int distanceBetweenLines = size / amountOfLines;
+        size += distanceBetweenLines + 2;
 
         boolean[][] matrix = new boolean[size][size];
 
@@ -35,7 +31,6 @@ public class LineMaker implements Maker {
                     matrix[adjustedI + line][j] = true;
                     // horizontals
                     matrix[j][adjustedI + line] = true;
-
                 }
             }
         }
