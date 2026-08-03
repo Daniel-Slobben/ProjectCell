@@ -11,6 +11,7 @@ import slobben.cells.util.BlockUtils;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -24,7 +25,7 @@ public class Block {
     private int generation = 0;
     private boolean ghostBlock = false;
     private boolean[][] cells;
-    private ChaosHit responsibleChaosHit;
+    private UUID responsibleChaosHit;
 
     private BlockState blockState = BlockState.ACTIVE;
     private List<boolean[][]> recordings = new ArrayList<>();
@@ -41,14 +42,14 @@ public class Block {
         return obj instanceof Block block && block.getKey().equals(this.getKey());
     }
 
-    public Block(int x, int y, ChaosHit responsibleChaosHit, int blockSize) {
+    public Block(int x, int y, UUID responsibleChaosHit, int blockSize) {
         this.x = x;
         this.y = y;
         this.responsibleChaosHit = responsibleChaosHit;
         this.cells = new boolean[blockSize + 2][blockSize + 2];
     }
 
-    public Block(int x, int y, ChaosHit responsibleChaosHit, boolean[][] cells) {
+    public Block(int x, int y, UUID responsibleChaosHit, boolean[][] cells) {
         this.x = x;
         this.y = y;
         this.responsibleChaosHit = responsibleChaosHit;

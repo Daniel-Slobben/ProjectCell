@@ -4,12 +4,14 @@ import lombok.Builder;
 import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.util.BlockUtils;
 
+import java.util.UUID;
+
 @Builder
 public record BlockUpdate(
         int x,
         int y,
         boolean[][] state,
-        ChaosHit responsibleChaosHit) {
+        UUID responsibleChaosHit) {
 
     public String getKey() {
         return BlockUtils.getKey(x, y);

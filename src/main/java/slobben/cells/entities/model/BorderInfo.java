@@ -4,11 +4,13 @@ import lombok.Getter;
 import lombok.Setter;
 import slobben.cells.service.workers.chaos.ChaosHit;
 
+import java.util.UUID;
+
 public class BorderInfo {
     private final int blockSizeWithBorder;
     private final int blockSize;
     @Getter
-    private final ChaosHit responsibleChaosHit;
+    private final UUID responsibleChaosHit;
     @Setter
     @Getter
     private boolean hasAliveCells = false;
@@ -27,7 +29,7 @@ public class BorderInfo {
     @Setter
     private boolean bottomLeftCorner = false;
 
-    public BorderInfo(int blockSize, ChaosHit responsibleChaosHit) {
+    public BorderInfo(int blockSize, UUID responsibleChaosHit) {
         this.blockSizeWithBorder =  blockSize + 2;
         this.blockSize = blockSize;
         this.topBorder = new boolean[blockSize];

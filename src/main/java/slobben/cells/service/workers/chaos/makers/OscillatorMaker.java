@@ -30,7 +30,7 @@ public class OscillatorMaker implements Maker {
 
         while (!matrixFull) {
             try {
-                Pattern patternToAdd = rleReader.readRandomPatternFromCategory("oscillators");
+                Pattern patternToAdd = rleReader.readPatternFromFilename("oscillators");
                 if (patternToAdd.x() < squareSize / 4 && patternToAdd.y() < squareSize / 4) {
                     xOffset += patternToAdd.x() + random.nextInt(DISTANCE_BETWEEN_PATTERN_MIN, DISTANCE_BETWEEN_PATTERN_MAX);
                     if (xOffset > matrix.length) {

@@ -10,20 +10,11 @@ import java.util.Random;
 
 @Slf4j
 public class RleReader {
-    public Pattern readRandomPatternFromCategoryWithSize(String category, int limit) throws IOException {
-        // dangerous and inefficient but effective
-        Pattern pattern = readRandomPatternFromCategory(category);
-        if (pattern.x() > limit || pattern.y() > limit) {
-            return readRandomPatternFromCategoryWithSize(category, limit);
-        }
-        return pattern;
-    }
-    private static final Random random = new Random();
     private static final int DIMENSION_LIMIT = 50_000;
 
     public Pattern readPatternFromFilename(String name) throws IOException {
         name = name.replace(".rle", "");
-        File file = new File("src/main/resources/patterns/" + name + ".rle");
+        File file = new File("/patterns/" + name + ".rle");
 
         return getPatternFromResource(name, new FileInputStream(file.getPath()));
     }
@@ -37,15 +28,6 @@ public class RleReader {
         PatternCategories(String name) {
             this.directory = name;
         }
-    }
-
-    public Pattern readRandomPatternFromCategory(String category) throws IOException {
-        // TODO: FIX FOR JAR RELEASE. 12-07-2026: for now just disable reading resource patterns.
-        Resource categoryResource = new ClassPathResource("patterns/" + category);
-        File file = categoryResource.getFile();
-        int chosenPattern = random.nextInt(0, file.listFiles().length);
-        Resource resource = new ClassPathResource(file.listFiles()[chosenPattern].getPath());
-        return getPatternFromResource(resource.getFile().getPath(), new FileInputStream(resource.getFile()));
     }
 
     private static Pattern getPatternFromResource(String name, InputStream inputStream) throws IOException {

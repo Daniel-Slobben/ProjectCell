@@ -46,7 +46,7 @@ public class WorldEditor {
 
                 BlockUpdate block = blockUpdates.get(BlockUtils.getKey(blockX, blockY));
                 if (block == null) {
-                    block = new BlockUpdate(blockX, blockY, new boolean[blockSize][blockSize], responsibleChaosHit);
+                    block = new BlockUpdate(blockX, blockY, new boolean[blockSize][blockSize], responsibleChaosHit.getId());
                     blockUpdates.put(block.getKey(), block);
                 }
 

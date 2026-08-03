@@ -17,20 +17,16 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class ChaosService implements Worker {
-    private final WorldEditor worldEditor;
-    private final Map<String, Block> blocks;
-
-    private final List<ChaosHit> latestHits = new ArrayList<>();
-
     private static final double SPIRAL_SPACING = 500.0;
     private static final double ARC_LENGTH_PER_STEP = 5000.0;
-
+    private static final Random random = new Random();
+    private final WorldEditor worldEditor;
+    private final Map<String, Block> blocks;
+    private final List<ChaosHit> latestHits = new ArrayList<>();
     @Value("${cells.chaos.tics-to-spawn}")
     private int ticsToSpawn;
     @Value("${cells.chaos.enabled}")
     private boolean chaosEnabled;
-    private static final Random random = new Random();
-
     private int chaosCounter = 0;
 
     private int spiralGeneration = 1;
@@ -71,7 +67,7 @@ public class ChaosService implements Worker {
 
     private void clearChaosHit(ChaosHit chaosHit) {
         List<String> keysToRemove = blocks.entrySet().stream()
-                .filter(entrySet -> chaosHit.equals(entrySet.getValue().getResponsibleChaosHit()))
+                .filter(entrySet -> chaosHit.getId().equals(entrySet.getValue().getResponsibleChaosHit()))
                 .map(Map.Entry::getKey)
                 .toList();
         keysToRemove.forEach(blocks::remove);
@@ -117,9 +113,7 @@ public class ChaosService implements Worker {
     }
 
     public ChaosHitDto getNextChaosHit(UUID id, boolean getNextHit) {
-        ChaosHit currentChaosHit = latestHits.stream()
-                .filter(hit -> hit.getId().equals(id))
-                .findFirst().orElse(latestHits.getFirst());
+        ChaosHit currentChaosHit = latestHits.stream().filter(hit -> hit.getId().equals(id)).findFirst().orElse(latestHits.getFirst());
 
         int currentIndex = latestHits.indexOf(currentChaosHit);
         try {

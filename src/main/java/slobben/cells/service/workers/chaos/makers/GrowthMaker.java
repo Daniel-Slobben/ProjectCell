@@ -28,8 +28,8 @@ public class GrowthMaker implements Maker {
 
     @SneakyThrows
     public GrowthMaker() {
-        allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller1"));
-        allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller2"));
+//        allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller1"));
+//        allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller2"));
     }
 
     @Override
@@ -51,7 +51,7 @@ public class GrowthMaker implements Maker {
                 pattern = getRandomFiller();
             } else {
                 try {
-                    pattern = rleReader.readRandomPatternFromCategoryWithSize(OSCILLATORS.name(), size / 3);
+                    pattern = rleReader.readPatternFromFilename(OSCILLATORS.name());
                 } catch (IOException e) {
                     log.error(e.getMessage());
                     population++;
