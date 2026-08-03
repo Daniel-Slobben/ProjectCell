@@ -19,7 +19,8 @@ public class LettuceMaker implements Maker {
         int amountOfLines = random.nextInt(MIN_AMOUNT_OF_LINES, MAX_AMOUNT_OF_LINES + 1);
         int size = random.nextInt(MIN_SIZE, MAX_SIZE + 1);
         int distanceBetweenLines = size / amountOfLines;
-        size -= distanceBetweenLines + 2;
+        size -= distanceBetweenLines;
+        size += 2;
 
         boolean[][] matrix = new boolean[size][size];
 
