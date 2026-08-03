@@ -2,7 +2,6 @@ package slobben.cells.util;
 
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -33,15 +32,6 @@ class RleReaderTest {
     @SneakyThrows
     void readPatternFromFilename(String filename) {
         Pattern pattern = rleReader.readPatternFromFilename(filename);
-
-        assertThat(pattern).isNotNull();
-    }
-
-    @Test
-    @Disabled
-    @SneakyThrows
-    void randomPatternFromCategory() {
-        Pattern pattern = rleReader.readRandomPatternFromCategory("guns");
 
         assertThat(pattern).isNotNull();
     }
