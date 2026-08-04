@@ -17,8 +17,8 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class ChaosService implements Worker {
-    private static final double SPIRAL_SPACING = 500.0;
-    private static final double ARC_LENGTH_PER_STEP = 5000.0;
+    private static final double SPIRAL_SPACING = 1000.0;
+    private static final double ARC_LENGTH_PER_STEP = 7000.0;
     private static final Random random = new Random();
     private final WorldEditor worldEditor;
     private final Map<String, Block> blocks;
