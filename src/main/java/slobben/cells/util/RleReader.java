@@ -1,9 +1,13 @@
 package slobben.cells.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import slobben.cells.entities.Pattern;
 
 import java.io.*;
+import java.util.Objects;
 import java.util.Random;
 
 @Slf4j
@@ -11,19 +15,33 @@ public class RleReader {
     private static final int DIMENSION_LIMIT = 50_000;
     private static final String DIR = "patterns/";
     private static final Random random = new Random();
+    private static final ResourcePatternResolver RESOLVER = new PathMatchingResourcePatternResolver(RleReader.class.getClassLoader());
 
     public Pattern readPatternFromFilename(String name) throws IOException {
         name = name.replace(".rle", "");
-        File file = new File(DIR + name + ".rle");
-
-        return getPatternFromResource(name, new FileInputStream(file.getPath()));
+        Resource resource = RESOLVER.getResource("classpath:" + DIR + name + ".rle");
+        if (!resource.exists()) {
+            throw new FileNotFoundException("No pattern on classpath: " + name + ".rle");
+        }
+        try (InputStream in = resource.getInputStream()) {
+            return getPatternFromResource(name, in);
+        }
     }
 
-    public Pattern readRandomPatternFromCategorie(String category) throws IOException {
-        File categoryDir = new File(DIR + category);
-        File file = categoryDir.listFiles()[random.nextInt(categoryDir.listFiles().length)];
+    public Pattern readRandomPatternFromCategory(PatternCategories category) throws IOException {
+        return readRandomPatternFromCategory(category.directory);
+    }
 
-        return getPatternFromResource(category, new FileInputStream(file.getPath()));
+    public Pattern readRandomPatternFromCategory(String category) throws IOException {
+        Resource[] found = RESOLVER.getResources("classpath*:" + DIR + category + "/*.rle");
+        if (found.length == 0) {
+            throw new FileNotFoundException("No .rle files in category " + category);
+        }
+        Resource picked = found[random.nextInt(found.length)];
+        String name = Objects.requireNonNullElse(picked.getFilename(), category).replace(".rle", "");
+        try (InputStream in = picked.getInputStream()) {
+            return getPatternFromResource(name, in);
+        }
     }
 
     public enum PatternCategories {
