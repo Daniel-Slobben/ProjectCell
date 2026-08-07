@@ -1,8 +1,6 @@
 package slobben.cells.util;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 import slobben.cells.entities.Pattern;
 
 import java.io.*;
@@ -11,12 +9,21 @@ import java.util.Random;
 @Slf4j
 public class RleReader {
     private static final int DIMENSION_LIMIT = 50_000;
+    private static final String DIR = "patterns/";
+    private static final Random random = new Random();
 
     public Pattern readPatternFromFilename(String name) throws IOException {
         name = name.replace(".rle", "");
-        File file = new File("/patterns/" + name + ".rle");
+        File file = new File(DIR + name + ".rle");
 
         return getPatternFromResource(name, new FileInputStream(file.getPath()));
+    }
+
+    public Pattern readRandomPatternFromCategorie(String category) throws IOException {
+        File categoryDir = new File(DIR + category);
+        File file = categoryDir.listFiles()[random.nextInt(categoryDir.listFiles().length)];
+
+        return getPatternFromResource(category, new FileInputStream(file.getPath()));
     }
 
     public enum PatternCategories {

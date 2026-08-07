@@ -54,6 +54,7 @@ public class ChaosService implements Worker {
     private void createChaos() {
         Pair<Integer, Integer> worldTarget = calculateTarget(spiralGeneration++);
         ChaosType type = getWeightedRandomType();
+        type = ChaosType.GROWTH_PATTERN;
         ChaosHit chaosHit = type.maker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
         assert chaosHit != null;
         worldEditor.setCells(worldTarget.getFirst(), worldTarget.getSecond(), chaosHit);
@@ -76,9 +77,10 @@ public class ChaosService implements Worker {
 
     private ChaosType getWeightedRandomType() {
         return switch (random.nextInt(0, 7)) {
-            case 0, 1, 2 -> ChaosType.LETTUCE;
-            case 3, 4 -> ChaosType.SQUARE;
-            case 5, 6 -> ChaosType.SQUARE_IN_SQUARE;
+            case 0, 1 -> ChaosType.LETTUCE;
+            case 2, 3 -> ChaosType.SQUARE;
+            case 4, 5 -> ChaosType.SQUARE_IN_SQUARE;
+            case 6 -> ChaosType.GROWTH_PATTERN;
             default -> throw new IllegalStateException("Unexpected value: " + random.nextInt(0, 10));
         };
     }

@@ -17,10 +17,10 @@ import static slobben.cells.util.RleReader.PatternCategories.OSCILLATORS;
 
 @Slf4j
 public class GrowthMaker implements Maker {
-    private static final int MIN_SIZE = 500;
-    private static final int MAX_SIZE = 1500;
-    private static final int MIN_POPULATION = 4;
-    private static final int MAX_POPULATION = 12;
+    private static final int MIN_SIZE = 1000;
+    private static final int MAX_SIZE = 3000;
+    private static final int MIN_POPULATION = 8;
+    private static final int MAX_POPULATION = 40;
 
     private final RleReader rleReader = new RleReader();
     private final Random random = new Random();
@@ -28,8 +28,8 @@ public class GrowthMaker implements Maker {
 
     @SneakyThrows
     public GrowthMaker() {
-//        allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller1"));
-//        allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller2"));
+        allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller1"));
+        allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller2"));
     }
 
     @Override
@@ -51,7 +51,7 @@ public class GrowthMaker implements Maker {
                 pattern = getRandomFiller();
             } else {
                 try {
-                    pattern = rleReader.readPatternFromFilename(OSCILLATORS.name());
+                    pattern = rleReader.readRandomPatternFromCategorie(OSCILLATORS.name());
                 } catch (IOException e) {
                     log.error(e.getMessage());
                     population++;
