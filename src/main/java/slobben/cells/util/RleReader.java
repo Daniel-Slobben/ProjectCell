@@ -9,7 +9,7 @@ import java.util.Random;
 @Slf4j
 public class RleReader {
     private static final int DIMENSION_LIMIT = 50_000;
-    private static final String DIR = "patterns/";
+    private static final String DIR = "/var/www/world-of-cells/backend/workspace/target/patterns/";
     private static final Random random = new Random();
 
     public Pattern readPatternFromFilename(String name) throws IOException {
