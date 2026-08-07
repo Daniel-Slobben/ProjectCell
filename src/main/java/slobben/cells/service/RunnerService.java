@@ -22,6 +22,7 @@ public class RunnerService {
     private final PruningService pruningService;
     private final NewBlockService newBlockService;
     private final StitchingService stitchingService;
+    private final CachingService cachingService;
     private final ClientService clientService;
     private final GenerationService generationService;
 
@@ -44,6 +45,7 @@ public class RunnerService {
         borderService.tic();
         newBlockService.tic();
         stitchingService.tic();
+        cachingService.tic();
         clientService.tic();
     }
 

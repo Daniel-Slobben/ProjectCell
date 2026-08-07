@@ -37,13 +37,13 @@ public class ClientService implements Worker {
     public void execute() {
         Set<Runnable> tasks = activeClients.entrySet().stream().map(entrySet -> (Runnable) () -> updateClient(entrySet.getKey(), entrySet.getValue())).collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks);
+    }
 
-        activeClients.values()
-                .stream()
-                .flatMap(Collection::stream)
-                .distinct()
-                .parallel()
-                .forEach(Block::clearEncodedBlock);
+    public void updateClient(UUID uuid, Queue<Block> blocks) {
+        var copyOfBlocks = List.copyOf(blocks).stream()
+                .map(Block::getEncodedBlock).toList();
+
+        simpMessagingTemplate.convertAndSend("/topic/%s".formatted(uuid), copyOfBlocks);
     }
 
     public void disconnectClient(UUID uuid) {
@@ -58,12 +58,6 @@ public class ClientService implements Worker {
         this.updateClient(uuid, activeClients.get(uuid));
     }
 
-    public void updateClient(UUID uuid, Queue<Block> blocks) {
-        var copyOfBlocks = List.copyOf(blocks).stream()
-                .map(Block::getEncodedBlock).toList();
-
-        simpMessagingTemplate.convertAndSend("/topic/%s".formatted(uuid), copyOfBlocks);
-    }
 
     private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
         var blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();

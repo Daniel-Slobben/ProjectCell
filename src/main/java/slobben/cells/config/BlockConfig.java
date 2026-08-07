@@ -9,11 +9,10 @@ import slobben.cells.dto.BlockUpdate;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.SetupMode;
+import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.util.BlockUtils;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -63,6 +62,11 @@ public class BlockConfig {
             case RANDOM -> getRandomMap();
             case EMPTY -> getEmptyMap();
         };
+    }
+
+    @Bean
+    public List<ChaosHit> chaosHits() {
+        return new ArrayList<>();
     }
 
     private Stream<Block> getBlockStream() {

@@ -11,7 +11,10 @@ import slobben.cells.entities.model.Block;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.Worker;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -20,9 +23,11 @@ public class ChaosService implements Worker {
     private static final double SPIRAL_SPACING = 1000.0;
     private static final double ARC_LENGTH_PER_STEP = 7000.0;
     private static final Random random = new Random();
+
     private final WorldEditor worldEditor;
     private final Map<String, Block> blocks;
-    private final List<ChaosHit> latestHits = new ArrayList<>();
+    private final List<ChaosHit> chaosHits;
+
     @Value("${cells.chaos.tics-to-spawn}")
     private int ticsToSpawn;
     @Value("${cells.chaos.enabled}")
@@ -40,7 +45,7 @@ public class ChaosService implements Worker {
     public void execute() {
         if (!chaosEnabled) return;
 
-        latestHits.forEach(ChaosHit::incrementAge);
+        chaosHits.forEach(ChaosHit::incrementAge);
 
         chaosCounter++;
 
@@ -58,10 +63,10 @@ public class ChaosService implements Worker {
         assert chaosHit != null;
         worldEditor.setCells(worldTarget.getFirst(), worldTarget.getSecond(), chaosHit);
 
-        latestHits.addFirst(chaosHit);
-        if (latestHits.size() > maxHits) {
-            clearChaosHit(latestHits.getLast());
-            latestHits.removeLast();
+        chaosHits.addFirst(chaosHit);
+        if (chaosHits.size() > maxHits) {
+            clearChaosHit(chaosHits.getLast());
+            chaosHits.removeLast();
         }
     }
 
@@ -101,7 +106,7 @@ public class ChaosService implements Worker {
     }
 
     public @Nullable ChaosHit getLatestHit() {
-        if (latestHits.isEmpty()) {
+        if (chaosHits.isEmpty()) {
             if (chaosEnabled) {
                 chaosCounter = ticsToSpawn;
                 Pair<Integer, Integer> nextTarget = calculateTarget(spiralGeneration);
@@ -110,15 +115,15 @@ public class ChaosService implements Worker {
                 return null;
             }
         }
-        return latestHits.getFirst();
+        return chaosHits.getFirst();
     }
 
     public ChaosHitDto getNextChaosHit(UUID id, boolean getNextHit) {
-        ChaosHit currentChaosHit = latestHits.stream().filter(hit -> hit.getId().equals(id)).findFirst().orElse(latestHits.getFirst());
+        ChaosHit currentChaosHit = chaosHits.stream().filter(hit -> hit.getId().equals(id)).findFirst().orElse(chaosHits.getFirst());
 
-        int currentIndex = latestHits.indexOf(currentChaosHit);
+        int currentIndex = chaosHits.indexOf(currentChaosHit);
         try {
-            return latestHits.get(getNextHit ? currentIndex - 1 : currentIndex + 1).getDto();
+            return chaosHits.get(getNextHit ? currentIndex - 1 : currentIndex + 1).getDto();
         } catch (IndexOutOfBoundsException e) {
             return currentChaosHit.getDto();
         }
