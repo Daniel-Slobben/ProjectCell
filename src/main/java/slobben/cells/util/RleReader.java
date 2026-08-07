@@ -7,7 +7,6 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import slobben.cells.entities.Pattern;
 
 import java.io.*;
-import java.util.Objects;
 import java.util.Random;
 
 @Slf4j
@@ -38,7 +37,7 @@ public class RleReader {
             throw new FileNotFoundException("No .rle files in category " + category);
         }
         Resource picked = found[random.nextInt(found.length)];
-        String name = Objects.requireNonNullElse(picked.getFilename(), category).replace(".rle", "");
+        String name = picked.getFilename().replace(".rle", "");
         try (InputStream in = picked.getInputStream()) {
             return getPatternFromResource(name, in);
         }
