@@ -119,7 +119,11 @@ public class ChaosService implements Worker {
                 return null;
             }
         }
-        return chaosHits.getFirst();
+        if (chaosHits.size() < 3) {
+            return chaosHits.getFirst();
+        }
+
+        return chaosHits.subList(0, 3).getLast();
     }
 
     public ChaosHitDto getNextChaosHit(UUID id, boolean getNextHit) {
