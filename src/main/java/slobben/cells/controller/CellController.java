@@ -59,10 +59,10 @@ public class CellController {
 
     @MessageMapping("/client-update")
     public void updateClient(@Payload ClientUpdateRequest message) {
-        log.debug("Received update request for clientId: {}", message.client());
+        log.info("Received update request for clientId: {}", message.client());
 
         clientService.updateClientBlocks(message);
-        clientService.updateClientWithId(message.client());
+        clientService.updateClientWithId(message.client(), message.blocksToAdd());
     }
 
     @GetMapping("/state-info")

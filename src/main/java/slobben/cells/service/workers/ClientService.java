@@ -35,13 +35,16 @@ public class ClientService implements Worker {
     }
 
     public void execute() {
-        Set<Runnable> tasks = activeClients.entrySet().stream().map(entrySet -> (Runnable) () -> updateClient(entrySet.getKey(), entrySet.getValue())).collect(Collectors.toSet());
+        Set<Runnable> tasks = activeClients.entrySet().stream()
+                .map(entrySet ->
+                        (Runnable) () -> updateClientWithBorder(entrySet.getKey(), entrySet.getValue()))
+                .collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks);
     }
 
-    public void updateClient(UUID uuid, Queue<Block> blocks) {
+    public void updateClientWithBorder(UUID uuid, Queue<Block> blocks) {
         var copyOfBlocks = List.copyOf(blocks).stream()
-                .map(Block::getEncodedBlock).toList();
+                .map(Block::getEncodedBlockBorders).toList();
 
         simpMessagingTemplate.convertAndSend("/topic/%s".formatted(uuid), copyOfBlocks);
     }
@@ -54,10 +57,12 @@ public class ClientService implements Worker {
         activeClients.put(uuid, new ConcurrentLinkedQueue<>());
     }
 
-    public void updateClientWithId(UUID uuid) {
-        this.updateClient(uuid, activeClients.get(uuid));
-    }
+    public void updateClientWithId(UUID uuid, String[] blocksToGet) {
+        var copyOfBlocks = getBlocksFromKeys(Arrays.stream(blocksToGet).collect(Collectors.toSet())).stream()
+                .map(Block::getEncodedBlock).toList();
 
+        simpMessagingTemplate.convertAndSend("/topic/full/%s".formatted(uuid), copyOfBlocks);
+    }
 
     private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
         var blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
