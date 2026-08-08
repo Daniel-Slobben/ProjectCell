@@ -59,15 +59,18 @@ public class ChaosService implements Worker {
     private void createChaos() {
         Pair<Integer, Integer> worldTarget = calculateTarget(spiralGeneration++);
         ChaosType type = getWeightedRandomType();
-        type = ChaosType.LETTUCE;
-        ChaosHit chaosHit = type.maker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
-        assert chaosHit != null;
-        worldEditor.setCells(worldTarget.getFirst(), worldTarget.getSecond(), chaosHit);
+        try {
+            ChaosHit chaosHit = type.maker.getChaosHit(worldTarget.getFirst(), worldTarget.getSecond());
+            assert chaosHit != null;
+            worldEditor.setCells(worldTarget.getFirst(), worldTarget.getSecond(), chaosHit);
 
-        chaosHits.addFirst(chaosHit);
-        if (chaosHits.size() > maxHits) {
-            clearChaosHit(chaosHits.getLast());
-            chaosHits.removeLast();
+            chaosHits.addFirst(chaosHit);
+            if (chaosHits.size() > maxHits) {
+                clearChaosHit(chaosHits.getLast());
+                chaosHits.removeLast();
+            }
+        } catch (Exception _) {
+            log.error("Chaoshit exception handled! worldTarget: {}, type: {}", worldTarget, type);
         }
     }
 
