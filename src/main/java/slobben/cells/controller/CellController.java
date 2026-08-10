@@ -65,6 +65,12 @@ public class CellController {
         clientService.updateClientWithId(message.client(), message.blocksToAdd());
     }
 
+    @MessageMapping("/block-request")
+    public void getBlocks(@Payload ClientUpdateRequest message) {
+        log.info("Received block request for clientId: {}", message.client());
+        clientService.addErrorClient(message.client());
+    }
+
     @GetMapping("/state-info")
     public ResponseEntity<StateInfo> getStateInfo() {
         log.debug("Received request for state-info");

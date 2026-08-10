@@ -26,6 +26,7 @@ public class ClientService implements Worker {
     private final ExecutorService executorService;
 
     private final Map<UUID, ConcurrentLinkedQueue<Block>> activeClients = new ConcurrentHashMap<>();
+    private final List<UUID> errorClients = new ArrayList<>();
     private final Map<String, Block> blocks;
     private final Map<String, Block> ghostBlocks;
 
@@ -36,10 +37,17 @@ public class ClientService implements Worker {
 
     public void execute() {
         Set<Runnable> tasks = activeClients.entrySet().stream()
+                .filter(entry -> !errorClients.contains(entry.getKey()))
                 .map(entrySet ->
                         (Runnable) () -> updateClientWithBorder(entrySet.getKey(), entrySet.getValue()))
                 .collect(Collectors.toSet());
+
+        tasks.addAll(errorClients.stream()
+                .map(uuid -> (Runnable) () -> updateClientWithFullBlocks(uuid, activeClients.get(uuid)))
+                .collect(Collectors.toSet()));
         executorService.executeTasksParallel(tasks);
+
+        errorClients.clear();
     }
 
     public void updateClientWithBorder(UUID uuid, Queue<Block> blocks) {
@@ -49,12 +57,23 @@ public class ClientService implements Worker {
         simpMessagingTemplate.convertAndSend("/topic/%s".formatted(uuid), copyOfBlocks);
     }
 
+    public void updateClientWithFullBlocks(UUID uuid, Queue<Block> blocks) {
+        var copyOfBlocks = List.copyOf(blocks).stream()
+                .map(Block::getEncodedBlock).toList();
+
+        simpMessagingTemplate.convertAndSend("/topic/full/%s".formatted(uuid), copyOfBlocks);
+    }
+
     public void disconnectClient(UUID uuid) {
         activeClients.remove(uuid);
     }
 
     public void addClient(UUID uuid) {
         activeClients.put(uuid, new ConcurrentLinkedQueue<>());
+    }
+
+    public void addErrorClient(UUID uuid) {
+        this.errorClients.add(uuid);
     }
 
     public void updateClientWithId(UUID uuid, String[] blocksToGet) {
