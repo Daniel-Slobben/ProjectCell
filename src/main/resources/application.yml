@@ -1,4 +1,4 @@
-logging.level.slobben: DEBUG
+logging.level.slobben: INFO
 spring:
   application:
     name: Cells

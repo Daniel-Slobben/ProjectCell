@@ -51,7 +51,7 @@ public class CellController {
 
     @GetMapping("/next-chaos-hit/{hitId}/{getNext}")
     public ResponseEntity<ChaosHitDto> returnNextHit(@PathVariable UUID hitId, @PathVariable boolean getNext) {
-        log.info("Received request for next chaoshit. CurrentID {}, nextBoolean: {}", hitId, getNext);
+        log.debug("Received request for next chaoshit. CurrentID {}, nextBoolean: {}", hitId, getNext);
 
         ChaosHitDto nextChaosHit = chaosService.getNextChaosHit(hitId, getNext);
         return ResponseEntity.ok(nextChaosHit);
@@ -59,7 +59,7 @@ public class CellController {
 
     @MessageMapping("/client-update")
     public void updateClient(@Payload ClientUpdateRequest message) {
-        log.info("Received update request for clientId: {}", message.client());
+        log.debug("Received update request for clientId: {}", message.client());
 
         clientService.updateClientBlocks(message);
         clientService.updateClientWithId(message.client(), message.blocksToAdd());
@@ -67,7 +67,7 @@ public class CellController {
 
     @MessageMapping("/block-request")
     public void getBlocks(@Payload ClientUpdateRequest message) {
-        log.info("Received block request for clientId: {}", message.client());
+        log.debug("Received block request for clientId: {}", message.client());
         clientService.addErrorClient(message.client());
     }
 
