@@ -19,19 +19,21 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Block {
-
     private final int x;
     private final int y;
+    @Builder.Default
     private int generation = 0;
-    private boolean ghostBlock = false;
     private boolean[][] cells;
+
+    private boolean ghostBlock = false;
     private UUID responsibleChaosHit;
+
+    private EncodedBlock encodedBlock;
+    private EncodedBlockBorders encodedBlockBorders;
 
     private BlockState blockState = BlockState.ACTIVE;
     private List<boolean[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
-    private EncodedBlock encodedBlock;
-    private EncodedBlockBorders encodedBlockBorders;
 
     public Block(int x, int y, UUID responsibleChaosHit, int blockSize) {
         this.x = x;
@@ -61,19 +63,15 @@ public class Block {
         return obj instanceof Block block && block.getKey().equals(this.getKey());
     }
 
-    public byte[] getByteValue() {
-        return getPacked(true);
-    }
-
     public synchronized EncodedBlock getEncodedBlock() {
         if (encodedBlock == null) {
             byte[] packed = getPacked(false);
             LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
-            this.encodedBlock = new EncodedBlock(x, y, Base64.getEncoder().encodeToString(compressed));
+            this.encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed));
         }
-        return new EncodedBlock(encodedBlock.x(), encodedBlock.y(), encodedBlock.encodedCells());
+        return new EncodedBlock(encodedBlock.x(), encodedBlock.y(), encodedBlock.generation(), encodedBlock.encodedCells());
     }
 
     public synchronized EncodedBlockBorders getEncodedBlockBorders() {
@@ -82,9 +80,9 @@ public class Block {
             LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
-            this.encodedBlockBorders = new EncodedBlockBorders(x, y, Base64.getEncoder().encodeToString(compressed));
+            this.encodedBlockBorders = new EncodedBlockBorders(x, y, generation, Base64.getEncoder().encodeToString(compressed));
         }
-        return new EncodedBlockBorders(encodedBlockBorders.x(), encodedBlockBorders.y(), encodedBlockBorders.encodedCells());
+        return new EncodedBlockBorders(encodedBlockBorders.x(), encodedBlockBorders.y(), encodedBlockBorders.generation(), encodedBlockBorders.encodedCells());
     }
 
     public void clearEncodedBlock() {

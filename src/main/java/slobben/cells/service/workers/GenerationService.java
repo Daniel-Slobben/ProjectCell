@@ -42,6 +42,7 @@ public class GenerationService implements Worker {
 
         byte[][] heatmap = getNeighboursHeatmap(block.getCells());
         applyGameOfLifeRulesFromHeatmap(block, heatmap);
+        block.setGeneration(block.getGeneration() + 1);
     }
 
     private void applyGameOfLifeRulesFromHeatmap(Block block, byte[][] heatmap) {
