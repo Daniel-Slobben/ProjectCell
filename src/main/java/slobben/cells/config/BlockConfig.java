@@ -40,7 +40,6 @@ public class BlockConfig {
                 .map(this::setBlockToRandom)
                 .collect(Collectors.toMap(Block::getKey, block -> block));
     }
-
     @Bean
     public Map<String, Block> ghostBlocks() {
         return new HashMap<>();
@@ -83,7 +82,7 @@ public class BlockConfig {
     }
 
     public Map<String, Block> getEmptyMap() {
-        return getBlockStream().collect(Collectors.toMap((Block block) -> BlockUtils.getKey(block.getX(), block.getY()), (Block block) -> block));
+        return getBlockStream().collect(Collectors.toConcurrentMap((Block block) -> BlockUtils.getKey(block.getX(), block.getY()), (Block block) -> block));
     }
 
     private Block setBlockToRandom(Block block) {

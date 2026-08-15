@@ -2,7 +2,6 @@ package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.util.Pair;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
@@ -83,16 +82,12 @@ public class ClientService implements Worker {
         simpMessagingTemplate.convertAndSend("/topic/full/%s".formatted(uuid), copyOfBlocks);
     }
 
-    private Block getNewGhostBlock(Pair<Integer, Integer> coordinates) {
+    private Block getNewGhostBlock(String key) {
         var blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
-        Block newBlock = Block.builder().x(coordinates.getFirst()).y(coordinates.getSecond()).cells(new boolean[blockSizeWithBorder][blockSizeWithBorder]).ghostBlock(true).build();
-        ghostBlocks.put(BlockUtils.getKey(newBlock.getX(), newBlock.getY()), newBlock);
+        var keyPair = BlockUtils.resolveKey(key);
+        Block newBlock = Block.builder().x(keyPair.getFirst()).y(keyPair.getSecond()).cells(new boolean[blockSizeWithBorder][blockSizeWithBorder]).ghostBlock(true).build();
+        ghostBlocks.put(key, newBlock);
         return newBlock;
-    }
-
-    public Block getBlock(int x, int y) {
-        var optionalBlock = blocks.values().stream().filter(block -> block.getX() == x && block.getY() == y).findFirst();
-        return optionalBlock.orElseGet(() -> getNewGhostBlock(Pair.of(x, y)));
     }
 
     public void updateClientBlocks(ClientUpdateRequest clientUpdateRequest) {
@@ -109,8 +104,11 @@ public class ClientService implements Worker {
     public Set<Block> getBlocksFromKeys(Set<String> keys) {
         Set<Block> blocksToAdd = new HashSet<>();
         for (String key : keys) {
-            var coordinates = BlockUtils.resolveKey(key);
-            blocksToAdd.add(getBlock(coordinates.getFirst(), coordinates.getSecond()));
+            Block block = blocks.get(key);
+            if (block == null) {
+                block = getNewGhostBlock(key);
+            }
+            blocksToAdd.add(block);
         }
         return blocksToAdd;
     }
