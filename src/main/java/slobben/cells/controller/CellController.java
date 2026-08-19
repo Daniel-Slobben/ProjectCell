@@ -4,18 +4,16 @@ import jakarta.servlet.http.HttpSession;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.incoming.ChaosHitDto;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
+import slobben.cells.dto.outgoing.ChaosHitDto;
 import slobben.cells.dto.outgoing.Settings;
 import slobben.cells.dto.outgoing.StateInfo;
 import slobben.cells.service.workers.ClientService;
@@ -72,17 +70,15 @@ public class CellController {
         clientService.addErrorClient(message.client());
     }
 
+    @MessageMapping("/health-check")
+    public void getBlocks(@Payload UUID clientId) {
+        log.debug("Received health-check for clientId: {}", clientId);
+        clientService.healthCheck(clientId);
+    }
+
     @GetMapping("/state-info")
     public ResponseEntity<StateInfo> getStateInfo() {
         log.debug("Received request for state-info");
         return ResponseEntity.ok(null);
     }
-
-    @DeleteMapping("/disconnect/{clientId}")
-    public ResponseEntity<HttpStatusCode> disconnect(@PathVariable UUID clientId) {
-        log.debug("Received request to disconnect client with id: {}", clientId);
-        clientService.disconnectClient(clientId);
-        return ResponseEntity.ok().build();
-    }
-
 }

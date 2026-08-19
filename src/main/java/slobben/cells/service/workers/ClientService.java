@@ -21,13 +21,16 @@ public class ClientService implements Worker {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
 
+    private static final int HEALTH_CHECK_LIMIT = 20;
+
     private final Map<UUID, List<String>> activeClients = new ConcurrentHashMap<>();
-    private final List<UUID> errorClients = new ArrayList<>();
     private final Map<String, Block> blocks;
+    private final Map<UUID, Integer> healthcheckClients = new HashMap<>();
+    private final Set<UUID> errorClients = new HashSet<>();
 
     @Override
     public String getName() {
-        return "Client updates";
+        return "Client updates with %s amount of clients".formatted(activeClients.size());
     }
 
     public void execute() {
@@ -47,6 +50,17 @@ public class ClientService implements Worker {
     }
 
     public void sendClientUpdate(UUID uuid, List<String> blockKeys, boolean sendBorderBlocks) {
+        // Client health check
+        if (sendBorderBlocks) {
+            Integer health = healthcheckClients.get(uuid);
+            if (health > HEALTH_CHECK_LIMIT) {
+                // deleting client after 20 ticks
+                disconnectClient(uuid);
+                return;
+            }
+            healthcheckClients.put(uuid, health + 1);
+        }
+
         List<EncodedBlock> copyOfBlocks = blockKeys.stream()
                 .map(blocks::get)
                 .filter(Objects::nonNull)
@@ -64,10 +78,18 @@ public class ClientService implements Worker {
 
     public void disconnectClient(UUID uuid) {
         activeClients.remove(uuid);
+        errorClients.remove(uuid);
+        healthcheckClients.remove(uuid);
     }
 
     public void addClient(UUID uuid) {
         activeClients.put(uuid, new ArrayList<>());
+        healthcheckClients.put(uuid, 0);
+    }
+
+    public void healthCheck(UUID clientId) {
+        log.info("RECEIVED HEALTHCHECK FOR CLIENT {}", clientId);
+        this.healthcheckClients.put(clientId, 0);
     }
 
     public void addErrorClient(UUID uuid) {

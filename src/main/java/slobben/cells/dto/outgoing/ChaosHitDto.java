@@ -1,4 +1,4 @@
-package slobben.cells.dto.incoming;
+package slobben.cells.dto.outgoing;
 
 import java.util.UUID;
 

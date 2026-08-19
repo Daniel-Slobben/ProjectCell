@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class CachingService implements Worker {
-    private static final int HITS_TO_CACHE = 100;
+    private static final int HITS_TO_CACHE = 0;
     private final List<ChaosHit> chaosHits;
     private final Map<String, Block> blocks;
 

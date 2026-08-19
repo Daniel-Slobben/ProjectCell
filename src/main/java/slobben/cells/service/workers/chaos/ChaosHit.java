@@ -2,7 +2,7 @@ package slobben.cells.service.workers.chaos;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import slobben.cells.dto.incoming.ChaosHitDto;
+import slobben.cells.dto.outgoing.ChaosHitDto;
 import slobben.cells.entities.Pattern;
 
 import java.util.UUID;
