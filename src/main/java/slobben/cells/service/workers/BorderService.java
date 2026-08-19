@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.BlockUpdate;
+import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.Direction;

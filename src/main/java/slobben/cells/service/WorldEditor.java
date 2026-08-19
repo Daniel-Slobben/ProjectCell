@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.BlockUpdate;
+import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.entities.Pattern;
 import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.util.BlockUtils;

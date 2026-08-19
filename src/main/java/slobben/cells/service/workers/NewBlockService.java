@@ -3,9 +3,8 @@ package slobben.cells.service.workers;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.BlockUpdate;
+import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.entities.model.Block;
-import slobben.cells.util.BlockUtils;
 
 import java.util.Map;
 import java.util.Optional;
@@ -17,12 +16,6 @@ public class NewBlockService implements Worker {
     private final EnvironmentConfig environmentConfig;
     private final Map<String, BlockUpdate> blockUpdates;
     private final Map<String, Block> blocks;
-    private final Map<String, Block> ghostBlocks;
-
-    public void setBlock(int x, int y, boolean[][] body) {
-        BlockUpdate blockUpdate = BlockUpdate.builder().x(x).y(y).state(body).build();
-        blockUpdates.put(blockUpdate.getKey(), blockUpdate);
-    }
 
     @Override
     public String getName() {
@@ -56,18 +49,7 @@ public class NewBlockService implements Worker {
     private void createBlock(BlockUpdate blockUpdate) {
         boolean[][] matrix = new boolean[environmentConfig.getBlockSizeWithBorder()][environmentConfig.getBlockSizeWithBorder()];
 
-        Block newBlock;
-        var key = BlockUtils.getKey(blockUpdate.x(), blockUpdate.y());
-        if (ghostBlocks.containsKey(key)) {
-            var ghostBlock = ghostBlocks.get(key);
-            ghostBlock.setGhostBlock(false);
-            ghostBlocks.remove(key);
-            newBlock = ghostBlock;
-            newBlock.setResponsibleChaosHit(blockUpdate.responsibleChaosHit());
-        } else {
-            newBlock = new Block(blockUpdate.x(), blockUpdate.y(), blockUpdate.responsibleChaosHit(), matrix);
-        }
-
+        Block newBlock = new Block(blockUpdate.x(), blockUpdate.y(), blockUpdate.responsibleChaosHit(), matrix);
         updateBlock(newBlock, blockUpdate);
         blocks.put(newBlock.getKey(), newBlock);
     }

@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
-import slobben.cells.dto.ChaosHitDto;
+import slobben.cells.dto.incoming.ChaosHitDto;
 import slobben.cells.entities.model.Block;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.Worker;

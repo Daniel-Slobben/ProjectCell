@@ -5,14 +5,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import slobben.cells.dto.BlockUpdate;
+import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.SetupMode;
 import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.util.BlockUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -40,11 +43,6 @@ public class BlockConfig {
                 .map(this::setBlockToRandom)
                 .collect(Collectors.toMap(Block::getKey, block -> block));
     }
-    @Bean
-    public Map<String, Block> ghostBlocks() {
-        return new HashMap<>();
-    }
-
     @Bean
     public Map<String, BlockUpdate> blockUpdates() {
         return new ConcurrentHashMap<>();

@@ -41,24 +41,25 @@ public class GenerationService implements Worker {
         }
 
         byte[][] heatmap = getNeighboursHeatmap(block.getCells());
-        applyGameOfLifeRulesFromHeatmap(block, heatmap);
-        block.setGeneration(block.getGeneration() + 1);
+        applyGameOfLifeRulesFromHeatmap(block.getCells(), heatmap);
+
+        block.blockUpdated();
     }
 
-    private void applyGameOfLifeRulesFromHeatmap(Block block, byte[][] heatmap) {
+    private void applyGameOfLifeRulesFromHeatmap(boolean[][] cells, byte[][] heatmap) {
         // loop inner matrix (no border cells)
         for (int x = 1; x < blockSize + 1; x++) {
             for (int y = 1; y < blockSize + 1; y++) {
                 // If cell was dead
-                if (!block.getCells()[x][y]) {
+                if (!cells[x][y]) {
                     if (heatmap[x][y] == 3) {
-                        block.getCells()[x][y] = true;
+                        cells[x][y] = true;
                     }
                 }
                 // If cell was alive
                 else {
                     if (!(heatmap[x][y] == 2 || heatmap[x][y] == 3)) {
-                        block.getCells()[x][y] = false;
+                        cells[x][y] = false;
                     }
                 }
             }

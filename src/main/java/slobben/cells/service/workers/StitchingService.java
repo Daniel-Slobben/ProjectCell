@@ -1,10 +1,8 @@
 package slobben.cells.service.workers;
 
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.service.ExecutorService;
@@ -19,7 +17,6 @@ import static slobben.cells.util.BlockUtils.getKey;
 @RequiredArgsConstructor
 public class StitchingService implements Worker {
 
-    private final EnvironmentConfig environmentConfig;
     private final ExecutorService executorService;
 
     private final Map<String, BorderInfo> bordersMap;
@@ -27,12 +24,6 @@ public class StitchingService implements Worker {
 
     @Value("${cells.size.blockSize}")
     private int blockSize;
-    private int blockSizeWithBorder;
-
-    @PostConstruct
-    void init() {
-        this.blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
-    }
 
     @Override
     public String getName() {
@@ -44,7 +35,6 @@ public class StitchingService implements Worker {
         Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> stitchBlock(block)).collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks);
     }
-
 
     public void stitchBlock(Block block) {
         removeBorders(block.getCells());

@@ -1,4 +1,6 @@
-package slobben.cells.dto;
+package slobben.cells.dto.outgoing;
+
+import slobben.cells.dto.incoming.ChaosHitDto;
 
 import java.util.UUID;
 

@@ -14,14 +14,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.ChaosHitDto;
-import slobben.cells.dto.ClientUpdateRequest;
-import slobben.cells.dto.Settings;
-import slobben.cells.dto.StateInfo;
+import slobben.cells.dto.incoming.ChaosHitDto;
+import slobben.cells.dto.incoming.ClientUpdateRequest;
+import slobben.cells.dto.outgoing.Settings;
+import slobben.cells.dto.outgoing.StateInfo;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.service.workers.chaos.ChaosService;
 
+import java.util.List;
 import java.util.UUID;
 
 @Controller
@@ -62,7 +63,7 @@ public class CellController {
         log.debug("Received update request for clientId: {}", message.client());
 
         clientService.updateClientBlocks(message);
-        clientService.updateClientWithId(message.client(), message.blocksToAdd());
+        clientService.sendClientUpdate(message.client(), List.of(message.blocksToAdd()), false);
     }
 
     @MessageMapping("/block-request")

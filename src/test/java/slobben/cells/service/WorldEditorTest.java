@@ -9,7 +9,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.BlockUpdate;
+import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.entities.Pattern;
 import slobben.cells.util.BlockUtils;
 

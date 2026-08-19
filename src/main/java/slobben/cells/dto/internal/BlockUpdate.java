@@ -1,7 +1,6 @@
-package slobben.cells.dto;
+package slobben.cells.dto.internal;
 
 import lombok.Builder;
-import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.util.BlockUtils;
 
 import java.util.UUID;

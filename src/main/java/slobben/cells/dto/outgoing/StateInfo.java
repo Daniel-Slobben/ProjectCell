@@ -1,4 +1,4 @@
-package slobben.cells.dto;
+package slobben.cells.dto.outgoing;
 
 import lombok.Builder;
 

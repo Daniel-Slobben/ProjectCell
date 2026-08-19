@@ -3,8 +3,8 @@ package slobben.cells.entities.model;
 import lombok.*;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
-import slobben.cells.dto.EncodedBlock;
-import slobben.cells.dto.EncodedBlockBorders;
+import slobben.cells.dto.outgoing.EncodedBlock;
+import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.BlockUtils;
 
@@ -25,13 +25,13 @@ public class Block {
     private int generation = 0;
     private boolean[][] cells;
 
-    private boolean ghostBlock = false;
     private UUID responsibleChaosHit;
 
     private EncodedBlock encodedBlock;
-    private EncodedBlockBorders encodedBlockBorders;
+    private EncodedBlock encodedBlockBorders;
 
-    private BlockState blockState = BlockState.ACTIVE;
+    @Builder.Default
+    private BlockState blockState = BlockState.NEW;
     private List<boolean[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
 
@@ -40,6 +40,7 @@ public class Block {
         this.y = y;
         this.responsibleChaosHit = responsibleChaosHit;
         this.cells = new boolean[blockSize + 2][blockSize + 2];
+        this.blockState = BlockState.NEW;
     }
 
     public Block(int x, int y, UUID responsibleChaosHit, boolean[][] cells) {
@@ -47,12 +48,8 @@ public class Block {
         this.y = y;
         this.responsibleChaosHit = responsibleChaosHit;
         this.cells = cells;
+        this.blockState = BlockState.NEW;
     }
-
-    private static void setBit(byte[] packed, int i) {
-        packed[i / 8] |= (byte) (1 << (i % 8));
-    }
-
     @Override
     public int hashCode() {
         return getKey().hashCode();
@@ -63,31 +60,47 @@ public class Block {
         return obj instanceof Block block && block.getKey().equals(this.getKey());
     }
 
+    private static void setBit(byte[] packed, int i) {
+        packed[i / 8] |= (byte) (1 << (i % 8));
+    }
+
     public synchronized EncodedBlock getEncodedBlock() {
         if (encodedBlock == null) {
-            byte[] packed = getPacked(false);
+            byte[] packed = getPacked();
             LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
-            this.encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed));
+            encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.FULL.name());
         }
-        return new EncodedBlock(encodedBlock.x(), encodedBlock.y(), encodedBlock.generation(), encodedBlock.encodedCells());
+        return encodedBlock.clone();
     }
 
-    public synchronized EncodedBlockBorders getEncodedBlockBorders() {
+    public synchronized EncodedBlock getEncodedBlockBorders() {
+        if (BlockState.NEW.equals(blockState)) {
+            return this.getEncodedBlock();
+        }
         if (encodedBlockBorders == null) {
             byte[] packed = getBorderPacked();
             LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
-            this.encodedBlockBorders = new EncodedBlockBorders(x, y, generation, Base64.getEncoder().encodeToString(compressed));
+            encodedBlockBorders = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.BORDER.name());
         }
-        return new EncodedBlockBorders(encodedBlockBorders.x(), encodedBlockBorders.y(), encodedBlockBorders.generation(), encodedBlockBorders.encodedCells());
+        return encodedBlockBorders.clone();
     }
 
     public void clearEncodedBlock() {
         this.encodedBlock = null;
         this.encodedBlockBorders = null;
+    }
+
+    public void blockUpdated() {
+        generation++;
+        blockState = BlockState.ACTIVE;
+    }
+
+    public String getKey() {
+        return BlockUtils.getKey(x, y);
     }
 
     public void setNextHibernationState() {
@@ -96,27 +109,7 @@ public class Block {
             recordingIndex = 0;
         }
         cells = recordings.get(recordingIndex);
-    }
-
-    public String getKey() {
-        return BlockUtils.getKey(x, y);
-    }
-
-    private byte[] getPacked(boolean fullBlock) {
-        final int size = fullBlock ? cells.length : cells.length - 2;
-        final int totalBits = size * size;
-        final int startingIndex = fullBlock ? 0 : 1;
-        byte[] packed = new byte[(totalBits + 7) / 8];
-
-        for (int xrow = startingIndex; xrow < cells.length - startingIndex; xrow++) {
-            for (int ycol = startingIndex; ycol < cells.length - startingIndex; ycol++) {
-                int i = (xrow - startingIndex) * size + (ycol - startingIndex);
-                if (cells[xrow][ycol]) {
-                    setBit(packed, i);
-                }
-            }
-        }
-        return packed;
+        generation++;
     }
 
     private byte[] getBorderPacked() {
@@ -148,6 +141,23 @@ public class Block {
         if (index != totalBits) {
             throw new IllegalStateException(
                     "index=" + index + " totalBits=" + totalBits + " size=" + size + " cells=" + cells.length);
+        }
+        return packed;
+    }
+
+    private byte[] getPacked() {
+        final int size = cells.length - 2;
+        final int totalBits = size * size;
+        final int startingIndex = 1;
+        byte[] packed = new byte[(totalBits + 7) / 8];
+
+        for (int xrow = startingIndex; xrow < cells.length - startingIndex; xrow++) {
+            for (int ycol = startingIndex; ycol < cells.length - startingIndex; ycol++) {
+                int i = (xrow - startingIndex) * size + (ycol - startingIndex);
+                if (cells[xrow][ycol]) {
+                    setBit(packed, i);
+                }
+            }
         }
         return packed;
     }
