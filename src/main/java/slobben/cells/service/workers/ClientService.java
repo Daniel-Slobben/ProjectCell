@@ -82,9 +82,20 @@ public class ClientService implements Worker {
         healthcheckClients.remove(uuid);
     }
 
-    public void addClient(UUID uuid) {
+    public boolean hasVisibleBlocks(String[] visibleBlocks) {
+        for (String key : visibleBlocks) {
+            if (blocks.containsKey(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public UUID createNewClient() {
+        UUID uuid = UUID.randomUUID();
         activeClients.put(uuid, new ArrayList<>());
         healthcheckClients.put(uuid, 0);
+        return uuid;
     }
 
     public void healthCheck(UUID clientId) {

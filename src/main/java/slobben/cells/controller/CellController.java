@@ -1,6 +1,5 @@
 package slobben.cells.controller;
 
-import jakarta.servlet.http.HttpSession;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,16 +7,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
+import slobben.cells.dto.incoming.ReconnectRequest;
 import slobben.cells.dto.outgoing.ChaosHitDto;
+import slobben.cells.dto.outgoing.ReconnectResponse;
 import slobben.cells.dto.outgoing.Settings;
 import slobben.cells.dto.outgoing.StateInfo;
 import slobben.cells.service.workers.ClientService;
-import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.service.workers.chaos.ChaosService;
 
 import java.util.List;
@@ -34,18 +32,23 @@ public class CellController {
     private final ClientService clientService;
 
     @GetMapping("settings")
-    public ResponseEntity<Settings> getSettings(HttpSession session) {
-        UUID clientId = UUID.randomUUID();
-        clientService.addClient(clientId);
-        session.setAttribute("clientId", clientId);
+    public ResponseEntity<Settings> getSettings() {
+        UUID clientId = clientService.createNewClient();
+        ChaosHitDto chaosHit = chaosService.getLatestHit().getDto();
 
-        ChaosHit chaosHit = chaosService.getLatestHit();
-        ChaosHitDto chaosHitDto = null;
-        if (chaosHit != null) {
-            chaosHitDto = chaosHit.getDto();
+        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, chaosHit));
+    }
+
+    @PostMapping("reconnect")
+    public ResponseEntity<ReconnectResponse> postReconnect(@RequestBody ReconnectRequest reconnectRequest) {
+        log.info("Reconnect request");
+        UUID clientId = clientService.createNewClient();
+        if (clientService.hasVisibleBlocks(reconnectRequest.visibleBlocks())) {
+            return ResponseEntity.ok(new ReconnectResponse(clientId, null));
         }
+        ChaosHitDto chaosHit = chaosService.getLatestHit().getDto();
 
-        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, chaosHitDto));
+        return ResponseEntity.ok(new ReconnectResponse(clientId, chaosHit));
     }
 
     @GetMapping("/next-chaos-hit/{hitId}/{getNext}")

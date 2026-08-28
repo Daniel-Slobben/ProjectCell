@@ -1,8 +1,8 @@
 package slobben.cells.service.workers.chaos;
 
-import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
@@ -109,20 +109,18 @@ public class ChaosService implements Worker {
         return Pair.of(x, y);
     }
 
-    public @Nullable ChaosHit getLatestHit() {
+    public @NonNull ChaosHit getLatestHit() {
+        if (!chaosEnabled) {
+            return new ChaosHit(0, 0, "default", null);
+        }
         if (chaosHits.isEmpty()) {
-            if (chaosEnabled) {
-                chaosCounter = ticsToSpawn;
-                Pair<Integer, Integer> nextTarget = calculateTarget(spiralGeneration);
-                return new ChaosHit(nextTarget.getFirst(), nextTarget.getSecond(), null, null);
-            } else {
-                return null;
-            }
+            chaosCounter = ticsToSpawn;
+            Pair<Integer, Integer> nextTarget = calculateTarget(spiralGeneration);
+            return new ChaosHit(nextTarget.getFirst(), nextTarget.getSecond(), null, null);
         }
         if (chaosHits.size() < 3) {
             return chaosHits.getFirst();
         }
-
         return chaosHits.subList(0, 3).getLast();
     }
 
