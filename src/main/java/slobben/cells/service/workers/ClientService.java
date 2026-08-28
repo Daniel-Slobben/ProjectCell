@@ -99,8 +99,17 @@ public class ClientService implements Worker {
     }
 
     public void healthCheck(UUID clientId) {
-        log.info("RECEIVED HEALTHCHECK FOR CLIENT {}", clientId);
-        this.healthcheckClients.put(clientId, 0);
+        log.info("Received healthcheck for client {}", clientId);
+
+        record HealthCheckResponse(String type) {
+        }
+        ;
+        if (activeClients.containsKey(clientId)) {
+            this.healthcheckClients.put(clientId, 0);
+            simpMessagingTemplate.convertAndSend("/topic/%s".formatted(clientId), new HealthCheckResponse("HEALTH_ACK"));
+            return;
+        }
+        simpMessagingTemplate.convertAndSend("/topic/%s".formatted(clientId), new HealthCheckResponse("SESSION_DEAD"));
     }
 
     public void addErrorClient(UUID uuid) {
