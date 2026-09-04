@@ -5,6 +5,8 @@ import slobben.cells.service.workers.chaos.ChaosHit;
 
 import java.util.Random;
 
+import static slobben.cells.util.Utils.makeEven;
+
 public class LettuceMaker implements Maker {
     private static final int MIN_AMOUNT_OF_LINES = 4;
     private static final int MAX_AMOUNT_OF_LINES = 12;
@@ -14,10 +16,14 @@ public class LettuceMaker implements Maker {
 
     private static final Random random = new Random();
 
+    private static int getIntersectionInteger(int amountOfLines) {
+        return random.nextInt(1, amountOfLines - 1);
+    }
+
     @Override
     public ChaosHit getChaosHit(int worldTargetX, int worldTargetY) {
         int amountOfLines = random.nextInt(MIN_AMOUNT_OF_LINES, MAX_AMOUNT_OF_LINES + 1);
-        int size = random.nextInt(MIN_SIZE, MAX_SIZE + 1);
+        int size = makeEven(random.nextInt(MIN_SIZE, MAX_SIZE + 1));
         int distanceBetweenLines = size / amountOfLines;
         size -= distanceBetweenLines;
         size += 2;
@@ -37,6 +43,6 @@ public class LettuceMaker implements Maker {
         }
 
         Pattern pattern = Pattern.builder().x(matrix.length).y(matrix[0].length).matrix(matrix).build();
-        return new ChaosHit(worldTargetX, worldTargetY, "LINES with size " + size, pattern);
+        return new ChaosHit(worldTargetX + (distanceBetweenLines * getIntersectionInteger(amountOfLines)), worldTargetY + (distanceBetweenLines * getIntersectionInteger(amountOfLines)), "LINES with size " + size, pattern);
     }
 }

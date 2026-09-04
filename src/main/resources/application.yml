@@ -13,8 +13,8 @@ cells:
 
   chaos:
     enabled: 'true'
-    max-hits: 100
-    tics-to-spawn: 15
+    max-hits: 75
+    tics-to-spawn: 50
 
   pruning-per-generation: '100'
 

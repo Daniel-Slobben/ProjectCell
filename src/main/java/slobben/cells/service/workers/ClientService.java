@@ -99,11 +99,11 @@ public class ClientService implements Worker {
     }
 
     public void healthCheck(UUID clientId) {
-        log.info("Received healthcheck for client {}", clientId);
+        log.debug("Received healthcheck for client {}", clientId);
 
         record HealthCheckResponse(String type) {
         }
-        ;
+
         if (activeClients.containsKey(clientId)) {
             this.healthcheckClients.put(clientId, 0);
             simpMessagingTemplate.convertAndSend("/topic/%s".formatted(clientId), new HealthCheckResponse("HEALTH_ACK"));

@@ -34,6 +34,8 @@ public class CellController {
     @GetMapping("settings")
     public ResponseEntity<Settings> getSettings() {
         UUID clientId = clientService.createNewClient();
+
+        log.debug("Received settings request. Assigning clientId {}", clientId);
         ChaosHitDto chaosHit = chaosService.getLatestHit().getDto();
 
         return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, chaosHit));
@@ -41,8 +43,9 @@ public class CellController {
 
     @PostMapping("reconnect")
     public ResponseEntity<ReconnectResponse> postReconnect(@RequestBody ReconnectRequest reconnectRequest) {
-        log.info("Reconnect request");
         UUID clientId = clientService.createNewClient();
+
+        log.debug("Reconnect request");
         if (clientService.hasVisibleBlocks(reconnectRequest.visibleBlocks())) {
             return ResponseEntity.ok(new ReconnectResponse(clientId, null));
         }
