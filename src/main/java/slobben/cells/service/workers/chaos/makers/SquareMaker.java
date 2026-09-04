@@ -33,6 +33,21 @@ public class SquareMaker implements Maker {
                 .y(matrix[0].length)
                 .matrix(matrix)
                 .build();
+
+        // select a corner
+        switch (random.nextInt(0, 4)) {
+            case 0 -> {
+                worldTargetX = worldTargetX + squareSize;
+            }
+            case 1 -> {
+                worldTargetY = worldTargetY + squareSize;
+            }
+            case 2 -> {
+                worldTargetY = worldTargetY + squareSize;
+                worldTargetX = worldTargetX + squareSize;
+            }
+            // do nothing for case 3
+        }
         return new ChaosHit(worldTargetX, worldTargetY, "Square with size " + squareSize, pattern);
     }
 }
