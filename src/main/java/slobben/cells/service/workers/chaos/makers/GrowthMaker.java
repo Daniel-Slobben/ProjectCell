@@ -7,13 +7,11 @@ import slobben.cells.entities.Pattern;
 import slobben.cells.service.workers.chaos.ChaosHit;
 import slobben.cells.util.RleReader;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 import static slobben.cells.util.RleReader.PatternCategories.GROWTH_PATTERNS;
-import static slobben.cells.util.RleReader.PatternCategories.OSCILLATORS;
 
 @Slf4j
 public class GrowthMaker implements Maker {
@@ -22,12 +20,12 @@ public class GrowthMaker implements Maker {
     private static final int MIN_POPULATION = 8;
     private static final int MAX_POPULATION = 40;
 
-    private final RleReader rleReader = new RleReader();
     private final Random random = new Random();
     private final List<Pattern> allowedGrowthPatterns = new ArrayList<>();
 
     @SneakyThrows
     public GrowthMaker() {
+        RleReader rleReader = new RleReader();
         allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller1.rle"));
         allowedGrowthPatterns.add(rleReader.readPatternFromFilename(GROWTH_PATTERNS.directory + "/spacefiller2.rle"));
     }
@@ -45,21 +43,8 @@ public class GrowthMaker implements Maker {
 
         // then fillup with leftover
         for (int p = 1; p < population; p++) {
-            Pattern pattern;
-            // either another filler or random
-            if (random.nextBoolean()) {
-                pattern = getRandomFiller();
-            } else {
-                try {
-                    pattern = rleReader.readRandomPatternFromCategory(OSCILLATORS);
-                } catch (IOException e) {
-                    log.error(e.getMessage());
-                    population++;
-                    continue;
-                }
-            }
-            var offsetPair = getRandomOffsetPair(pattern, matrix);
-            addPatternToMatrix(pattern, matrix, offsetPair.getFirst(), offsetPair.getSecond());
+            var randomCoordinates = getRandomOffsetPair(growthPattern, matrix);
+            addPatternToMatrix(getRandomFiller(), matrix, randomCoordinates.getFirst(), randomCoordinates.getSecond());
         }
 
         Pattern pattern = Pattern.builder()

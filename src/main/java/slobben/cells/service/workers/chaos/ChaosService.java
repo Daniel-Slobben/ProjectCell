@@ -38,6 +38,8 @@ public class ChaosService implements Worker {
     @Value("${cells.chaos.max-hits}")
     private int maxHits;
 
+    private ChaosType lastType = null;
+
     public String getName() {
         return "ChaosService";
     }
@@ -84,13 +86,21 @@ public class ChaosService implements Worker {
     }
 
     private ChaosType getWeightedRandomType() {
-        return switch (random.nextInt(0, 7)) {
+        ChaosType type = switch (random.nextInt(0, 9)) {
             case 0, 1 -> ChaosType.LETTUCE;
             case 2, 3 -> ChaosType.SQUARE;
             case 4, 5 -> ChaosType.SQUARE_IN_SQUARE;
-            case 6 -> ChaosType.GROWTH_PATTERN;
+            case 6, 7 -> ChaosType.DIAGONAL_LINES;
+            case 8 -> ChaosType.GROWTH_PATTERN;
             default -> throw new IllegalStateException("Unexpected value: " + random.nextInt(0, 10));
         };
+
+        // don't generate the same type twice in a row
+        if (type == lastType) {
+            return getWeightedRandomType();
+        }
+        this.lastType = type;
+        return type;
     }
 
     public Pair<Integer, Integer> calculateTarget(int generation) {

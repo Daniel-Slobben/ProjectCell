@@ -6,8 +6,8 @@ enum ChaosType {
     SQUARE(new SquareMaker()),
     SQUARE_IN_SQUARE(new SquareInSquareMaker()),
     LETTUCE(new LettuceMaker()),
-    GROWTH_PATTERN(new GrowthMaker());
-//    OSCILLATORS(new OscillatorMaker());
+    GROWTH_PATTERN(new GrowthMaker()),
+    DIAGONAL_LINES(new DiagonalMaker());
 
     final Maker maker;
 
