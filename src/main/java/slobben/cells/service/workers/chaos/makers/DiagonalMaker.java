@@ -8,8 +8,8 @@ import java.util.Random;
 public class DiagonalMaker implements Maker {
 
     private static final Random random = new Random();
-    private static final int MIN_SIZE = 500;
-    private static final int MAX_SIZE = 2500;
+    private static final int MIN_SIZE = 1500;
+    private static final int MAX_SIZE = 6000;
 
     @Override
     public ChaosHit getChaosHit(int worldTargetX, int worldTargetY) {

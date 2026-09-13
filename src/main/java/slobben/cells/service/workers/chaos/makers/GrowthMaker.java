@@ -16,9 +16,9 @@ import static slobben.cells.util.RleReader.PatternCategories.GROWTH_PATTERNS;
 @Slf4j
 public class GrowthMaker implements Maker {
     private static final int MIN_SIZE = 1000;
-    private static final int MAX_SIZE = 3000;
-    private static final int MIN_POPULATION = 8;
-    private static final int MAX_POPULATION = 40;
+    private static final int MAX_SIZE = 4000;
+    private static final int MIN_POPULATION = 4;
+    private static final int MAX_POPULATION = 20;
 
     private final Random random = new Random();
     private final List<Pattern> allowedGrowthPatterns = new ArrayList<>();

@@ -8,8 +8,8 @@ import java.util.Random;
 import static slobben.cells.util.Utils.makeEven;
 
 public class SquareInSquareMaker implements Maker {
-    private static final int SQUARE_SIZE_MIN = 1000;
-    private static final int SQUARE_SIZE_MAX = 2000;
+    private static final int SQUARE_SIZE_MIN = 1500;
+    private static final int SQUARE_SIZE_MAX = 4000;
     private static final int STARTING_DISTANCE_MIN = 10;
     private static final int STARTING_DISTANCE_MAX = 100;
     private static final double GROWTH_MULTIPLIER = 1.0;

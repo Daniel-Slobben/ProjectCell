@@ -23,10 +23,11 @@ public class LettuceMaker implements Maker {
     @Override
     public ChaosHit getChaosHit(int worldTargetX, int worldTargetY) {
         int amountOfLines = random.nextInt(MIN_AMOUNT_OF_LINES, MAX_AMOUNT_OF_LINES + 1);
-        int size = makeEven(random.nextInt(MIN_SIZE, MAX_SIZE + 1));
+        int size = random.nextInt(MIN_SIZE, MAX_SIZE + 1);
         int distanceBetweenLines = size / amountOfLines;
         size -= distanceBetweenLines;
         size += 2;
+        size = makeEven(size);
 
         boolean[][] matrix = new boolean[size][size];
 
