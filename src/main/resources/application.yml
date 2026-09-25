@@ -5,16 +5,10 @@ spring:
 
 cells:
   setup: EMPTY
-  threads: '20'
 
   random:
     blockPopulation: '1'
     cellPopulation: '2'
-
-  chaos:
-    enabled: 'true'
-    max-hits: 75
-    tics-to-spawn: 50
 
   pruning-per-generation: '100'
 
@@ -24,7 +18,7 @@ cells:
     blockSize: '500'
 
   runmode: AUTO
-  targetspeed: '800'
+  targetspeed: '1000'
 
   recording:
     max-recording-depth: 4

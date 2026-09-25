@@ -1,53 +1,66 @@
 package slobben.cells.service.workers.chaos.makers;
 
-import slobben.cells.entities.Pattern;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.util.Pair;
+import org.springframework.stereotype.Component;
+import slobben.cells.enums.CornerEnum;
+import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.chaos.ChaosHit;
 
 import java.util.Random;
+import java.util.UUID;
+import java.util.function.IntFunction;
 
+@Component
+@RequiredArgsConstructor
+@Slf4j
 public class SquareMaker implements Maker {
 
     private static final Random random = new Random();
     private static final int MIN_SIZE = 600;
     private static final int MAX_SIZE = 4000;
+    private final WorldEditor worldEditor;
+
+    private int size = 0;
 
     @Override
-    public ChaosHit getChaosHit(int worldTargetX, int worldTargetY) {
-        int squareSize = random.nextInt(MIN_SIZE, MAX_SIZE);
-        boolean[][] matrix = new boolean[squareSize][squareSize];
-        for (int i = 0; i < squareSize; i++) {
-            matrix[0][i] = true;
-            matrix[1][i] = true;
+    public ChaosHit getChaosHit() {
+        UUID chaosHitId = UUID.randomUUID();
+        size = random.nextInt(MIN_SIZE, MAX_SIZE);
 
-            matrix[squareSize - 1][i] = true;
-            matrix[squareSize - 2][i] = true;
+        final int startX = size / 2;
+        final int startY = size / 2;
 
-            matrix[i][0] = true;
-            matrix[i][1] = true;
+        setCells(startX, startY, chaosHitId);
 
-            matrix[i][squareSize - 1] = true;
-            matrix[i][squareSize - 2] = true;
+        IntFunction<Pair<Integer, Integer>> viewCalculator = getViewCalculator(startX, startY);
+
+        return new ChaosHit("2 pixels thick square " + size + " pixels wide", viewCalculator, size * 6);
+    }
+
+    private IntFunction<Pair<Integer, Integer>> getViewCalculator(final int startX, final int startY) {
+        return age -> switch (CornerEnum.getRandomCorner()) {
+            case TOP_LEFT -> Pair.of(startX + age, startY + age);
+            case TOP_RIGHT -> Pair.of(startX + size - age, startY + age);
+            case BOTTOM_LEFT -> Pair.of(startX + age, startY + size - age);
+            case BOTTOM_RIGHT -> Pair.of(startX + size - age, startY + size - age);
+        };
+    }
+
+    private void setCells(int startX, int startY, UUID hitId) {
+        for (int i = 0; i < size; i++) {
+            worldEditor.setCell(startX, startY + i, hitId);
+            worldEditor.setCell(startX + 1, startY + i, hitId);
+
+            worldEditor.setCell(startX + size - 1, startY + i, hitId);
+            worldEditor.setCell(startX + size - 2, startY + i, hitId);
+
+            worldEditor.setCell(startX + i, startY, hitId);
+            worldEditor.setCell(startX + i, startY + 1, hitId);
+
+            worldEditor.setCell(startX + i, startY + size - 1, hitId);
+            worldEditor.setCell(startX + i, startY + size - 2, hitId);
         }
-        Pattern pattern = Pattern.builder()
-                .x(matrix.length)
-                .y(matrix[0].length)
-                .matrix(matrix)
-                .build();
-
-        // select a corner
-        switch (random.nextInt(0, 4)) {
-            case 0 -> {
-                worldTargetX = worldTargetX + squareSize;
-            }
-            case 1 -> {
-                worldTargetY = worldTargetY + squareSize;
-            }
-            case 2 -> {
-                worldTargetY = worldTargetY + squareSize;
-                worldTargetX = worldTargetX + squareSize;
-            }
-            // do nothing for case 3
-        }
-        return new ChaosHit(worldTargetX, worldTargetY, "Square with size " + squareSize, pattern);
     }
 }

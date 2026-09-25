@@ -7,7 +7,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.incoming.ReconnectRequest;
@@ -54,13 +57,13 @@ public class CellController {
         return ResponseEntity.ok(new ReconnectResponse(clientId, chaosHit));
     }
 
-    @GetMapping("/next-chaos-hit/{hitId}/{getNext}")
-    public ResponseEntity<ChaosHitDto> returnNextHit(@PathVariable UUID hitId, @PathVariable boolean getNext) {
-        log.debug("Received request for next chaoshit. CurrentID {}, nextBoolean: {}", hitId, getNext);
-
-        ChaosHitDto nextChaosHit = chaosService.getNextChaosHit(hitId, getNext);
-        return ResponseEntity.ok(nextChaosHit);
-    }
+//    @GetMapping("/next-chaos-hit/{hitId}/{getNext}")
+//    public ResponseEntity<ChaosHitDto> returnNextHit(@PathVariable UUID hitId, @PathVariable boolean getNext) {
+//        log.debug("Received request for next chaoshit. CurrentID {}, nextBoolean: {}", hitId, getNext);
+//
+//        ChaosHitDto nextChaosHit = chaosService.getNextChaosHit(hitId, getNext);
+//        return ResponseEntity.ok(nextChaosHit);
+//    }
 
     @MessageMapping("/client-update")
     public void updateClient(@Payload ClientUpdateRequest message) {

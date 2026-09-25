@@ -1,17 +1,19 @@
 package slobben.cells.service.workers.chaos;
 
-import slobben.cells.service.workers.chaos.makers.*;
+import slobben.cells.service.workers.chaos.makers.DiagonalMaker;
+import slobben.cells.service.workers.chaos.makers.Maker;
+import slobben.cells.service.workers.chaos.makers.SquareMaker;
 
 enum ChaosType {
-    SQUARE(new SquareMaker()),
-    SQUARE_IN_SQUARE(new SquareInSquareMaker()),
-    LETTUCE(new LettuceMaker()),
-    GROWTH_PATTERN(new GrowthMaker()),
-    DIAGONAL_LINES(new DiagonalMaker());
+    SQUARE(SquareMaker.class),
+    //    SQUARE_IN_SQUARE(SquareInSquareMaker.class),
+//    LETTUCE(LettuceMaker.class),
+//    GROWTH_PATTERN(GrowthMaker.class),
+    DIAGONAL_LINES(DiagonalMaker.class);
 
-    final Maker maker;
+    final Class<? extends Maker> maker;
 
-    ChaosType(Maker maker) {
+    ChaosType(Class<? extends Maker> maker) {
         this.maker = maker;
     }
 }
