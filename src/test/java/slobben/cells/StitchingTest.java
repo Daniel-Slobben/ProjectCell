@@ -49,6 +49,7 @@ class StitchingTest {
         cells[1][10] = true;
         cells[10][1] = true;
         cells[10][10] = true;
+        blockUpdates.clear();
 
         borderService.execute();
         assertThat(blockUpdates).hasSize(8);

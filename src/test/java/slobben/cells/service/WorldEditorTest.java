@@ -10,10 +10,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.internal.BlockUpdate;
-import slobben.cells.entities.Pattern;
 import slobben.cells.util.BlockUtils;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,17 +38,13 @@ class WorldEditorTest {
     @Test
     void singleBlock() {
         // prepare
-        boolean[][] matrix = new boolean[4][4];
-        matrix[0][0] = true;
-        matrix[0][1] = true;
-        matrix[1][0] = true;
-        matrix[1][1] = true;
-
-        Pattern pattern = new Pattern("test", 4, 4, matrix);
-        assertThat(blockUpdates).isEmpty();
+        UUID id = UUID.randomUUID();
 
         // execute
-        worldEditor.setCells(0, 0, pattern);
+        worldEditor.setCell(0, 0, id);
+        worldEditor.setCell(0, 1, id);
+        worldEditor.setCell(1, 0, id);
+        worldEditor.setCell(1, 1, id);
 
         // verify
         BlockUpdate block = blockUpdates.get(BlockUtils.getKey(0, 0));
@@ -67,18 +63,15 @@ class WorldEditorTest {
     @Test
     void multipleBlocks() {
         // prepare
-        boolean[][] matrix = new boolean[4][4];
-        matrix[0][0] = true;
-        matrix[0][1] = true;
-        matrix[1][0] = true;
-        matrix[1][1] = true;
-
-        Pattern pattern = new Pattern("test", 4, 4, matrix);
-        assertThat(blockUpdates).isEmpty();
+        UUID id = UUID.randomUUID();
 
         // execute
         int blockSize = environmentConfig.getBlockSize();
-        worldEditor.setCells(blockSize - 1, blockSize - 1, pattern);
+        // execute
+        worldEditor.setCell(blockSize - 1, blockSize - 1, id);
+        worldEditor.setCell(blockSize - 1, blockSize, id);
+        worldEditor.setCell(blockSize, blockSize - 1, id);
+        worldEditor.setCell(blockSize, blockSize, id);
 
         // verify
         assertThat(blockUpdates).hasSize(4);
@@ -86,27 +79,5 @@ class WorldEditorTest {
         assertThat(blockUpdates.get(BlockUtils.getKey(0, 1)).state()[blockSize - 1][0]).isTrue();
         assertThat(blockUpdates.get(BlockUtils.getKey(1, 0)).state()[0][blockSize - 1]).isTrue();
         assertThat(blockUpdates.get(BlockUtils.getKey(1, 1)).state()[0][0]).isTrue();
-    }
-
-    @Test
-    void bigPattern() {
-        // prepare
-        boolean[][] matrix = new boolean[1500][200];
-        matrix[0][0] = true;
-        matrix[0][1] = true;
-        matrix[1][0] = true;
-        matrix[1][1] = true;
-        matrix[1499][199] = true;
-
-        Pattern pattern = new Pattern("test", 1500, 200, matrix);
-        assertThat(blockUpdates).isEmpty();
-
-        // execute
-        worldEditor.setCells(-600, -600, pattern);
-
-        // verify
-        int blockSize = environmentConfig.getBlockSize();
-        assertThat(blockUpdates).hasSize(8);
-        assertThat(blockUpdates.get(BlockUtils.getKey(-2, -2)).state()[blockSize - 100][blockSize - 100]).isTrue();
     }
 }
