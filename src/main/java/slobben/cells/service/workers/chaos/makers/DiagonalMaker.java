@@ -24,26 +24,29 @@ public class DiagonalMaker implements Maker {
     @Override
     public ChaosHit getChaosHit() {
         UUID chaosHitId = UUID.randomUUID();
-        final int squareSize = random.nextInt(MIN_SIZE, MAX_SIZE);
-        final int startX = squareSize / 2;
-        final int startY = squareSize / 2;
+        final int size = random.nextInt(MIN_SIZE, MAX_SIZE);
+        final int startX = size / 2;
+        final int startY = size / 2;
 
-        setCells(startX, startY, squareSize, chaosHitId);
+        setCells(startX, startY, size, chaosHitId);
 
-        final int centerX = startX + (squareSize - 1) / 2;
-        final int centerY = startY + (squareSize - 1) / 2;
+        final int centerX = startX + (size - 1) / 2;
+        final int centerY = startY + (size - 1) / 2;
 
-        IntFunction<Pair<Integer, Integer>> viewCalculator = getViewCalculator(centerX, centerY);
+        IntFunction<Pair<Integer, Integer>> viewCalculator = getViewCalculator(centerX, centerY, size);
 
-        return new ChaosHit("Diagonal cross " + squareSize + " pixels wide", viewCalculator, squareSize * 6);
+        return new ChaosHit("Diagonal cross " + size + " pixels wide", viewCalculator, size);
     }
 
-    private IntFunction<Pair<Integer, Integer>> getViewCalculator(final int centerX, final int centerY) {
-        return age -> switch (CornerEnum.getRandomCorner()) {
-            case TOP_LEFT -> Pair.of(centerX - age, centerY - age);
-            case TOP_RIGHT -> Pair.of(centerX + age, centerY - age);
-            case BOTTOM_LEFT -> Pair.of(centerX - age, centerY + age);
-            case BOTTOM_RIGHT -> Pair.of(centerX + age, centerY + age);
+    private IntFunction<Pair<Integer, Integer>> getViewCalculator(final int centerX, final int centerY, final int size) {
+        return age -> {
+            int adjustedAge = Math.min(age, size / 2);
+            return switch (CornerEnum.getRandomCorner()) {
+                case TOP_LEFT -> Pair.of(centerX - adjustedAge, centerY - adjustedAge);
+                case TOP_RIGHT -> Pair.of(centerX + adjustedAge, centerY - adjustedAge);
+                case BOTTOM_LEFT -> Pair.of(centerX - adjustedAge, centerY + adjustedAge);
+                case BOTTOM_RIGHT -> Pair.of(centerX + adjustedAge, centerY + adjustedAge);
+            };
         };
     }
 

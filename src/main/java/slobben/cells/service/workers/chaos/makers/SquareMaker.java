@@ -34,17 +34,20 @@ public class SquareMaker implements Maker {
 
         setCells(startX, startY, chaosHitId);
 
-        IntFunction<Pair<Integer, Integer>> viewCalculator = getViewCalculator(startX, startY);
+        IntFunction<Pair<Integer, Integer>> viewCalculator = getViewCalculator(startX, startY, size);
 
-        return new ChaosHit("2 pixels thick square " + size + " pixels wide", viewCalculator, size * 6);
+        return new ChaosHit("2 pixels thick square " + size + " pixels wide", viewCalculator, size);
     }
 
-    private IntFunction<Pair<Integer, Integer>> getViewCalculator(final int startX, final int startY) {
-        return age -> switch (CornerEnum.getRandomCorner()) {
-            case TOP_LEFT -> Pair.of(startX + age, startY + age);
-            case TOP_RIGHT -> Pair.of(startX + size - age, startY + age);
-            case BOTTOM_LEFT -> Pair.of(startX + age, startY + size - age);
-            case BOTTOM_RIGHT -> Pair.of(startX + size - age, startY + size - age);
+    private IntFunction<Pair<Integer, Integer>> getViewCalculator(final int startX, final int startY, final int size) {
+        return age -> {
+            age = Math.min(age, size / 2);
+            return switch (CornerEnum.getRandomCorner()) {
+                case TOP_LEFT -> Pair.of(startX + age, startY + age);
+                case TOP_RIGHT -> Pair.of(startX + size - age, startY + age);
+                case BOTTOM_LEFT -> Pair.of(startX + age, startY + size - age);
+                case BOTTOM_RIGHT -> Pair.of(startX + size - age, startY + size - age);
+            };
         };
     }
 
