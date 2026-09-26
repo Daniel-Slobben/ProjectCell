@@ -11,13 +11,13 @@ public class Utils {
     }
 
     public static @NonNull BlockCoordinatesResult getBlockCoordinates(int x, int y, int blockSize) {
-        int blockX = x / blockSize;
-        int blockY = y / blockSize;
-        int relativeCellX = Math.toIntExact(x % blockSize);
+        int blockX = Math.floorDiv(x, blockSize);
+        int blockY = Math.floorDiv(y, blockSize);
+        int relativeCellX = Math.floorMod(x, blockSize);
         if (relativeCellX < 0) {
             relativeCellX = relativeCellX + blockSize;
         }
-        int relativeCellY = Math.toIntExact(y % blockSize);
+        int relativeCellY = Math.floorMod(y, blockSize);
         if (relativeCellY < 0) {
             relativeCellY = relativeCellY + blockSize;
         }

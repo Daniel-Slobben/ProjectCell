@@ -40,7 +40,7 @@ public class DiagonalMaker implements Maker {
 
     private IntFunction<Coordinates> getViewCalculator(final int centerX, final int centerY, final int size) {
         return age -> {
-            int adjustedAge = Math.min(age, size / 4);
+            int adjustedAge = Math.min(age, size / 3);
             return switch (CornerEnum.getRandomCorner()) {
                 case TOP_LEFT -> new Coordinates(centerX - adjustedAge, centerY - adjustedAge);
                 case TOP_RIGHT -> new Coordinates(centerX + adjustedAge, centerY - adjustedAge);

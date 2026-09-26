@@ -3,7 +3,7 @@ cells:
   size:
     x: '0'
     y: '0'
-    blockSize: '500'
+    blockSize: '10'
 
   chaos:
     enabled: true
