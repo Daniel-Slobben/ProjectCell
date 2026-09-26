@@ -2,12 +2,10 @@ package slobben.cells.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.util.BlockUtils;
@@ -18,7 +16,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@ExtendWith(SpringExtension.class)
 @ComponentScan("slobben.cells.service")
 @ActiveProfiles(profiles = "normal")
 class WorldEditorTest {

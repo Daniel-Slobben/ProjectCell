@@ -2,7 +2,6 @@ package slobben.cells.entities.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import slobben.cells.service.workers.chaos.ChaosHit;
 
 import java.util.UUID;
 

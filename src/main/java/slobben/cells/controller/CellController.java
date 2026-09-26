@@ -57,14 +57,6 @@ public class CellController {
         return ResponseEntity.ok(new ReconnectResponse(clientId, chaosHit));
     }
 
-//    @GetMapping("/next-chaos-hit/{hitId}/{getNext}")
-//    public ResponseEntity<ChaosHitDto> returnNextHit(@PathVariable UUID hitId, @PathVariable boolean getNext) {
-//        log.debug("Received request for next chaoshit. CurrentID {}, nextBoolean: {}", hitId, getNext);
-//
-//        ChaosHitDto nextChaosHit = chaosService.getNextChaosHit(hitId, getNext);
-//        return ResponseEntity.ok(nextChaosHit);
-//    }
-
     @MessageMapping("/client-update")
     public void updateClient(@Payload ClientUpdateRequest message) {
         log.debug("Received update request for clientId: {}", message.client());

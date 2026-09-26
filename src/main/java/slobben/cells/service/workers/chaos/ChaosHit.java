@@ -2,8 +2,8 @@ package slobben.cells.service.workers.chaos;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.util.Pair;
 import slobben.cells.dto.outgoing.ChaosHitDto;
+import slobben.cells.entities.Coordinates;
 
 import java.util.UUID;
 import java.util.function.IntFunction;
@@ -13,7 +13,7 @@ import java.util.function.IntFunction;
 public class ChaosHit {
     private final UUID id = UUID.randomUUID();
     private final String name;
-    private final IntFunction<Pair<Integer, Integer>> getActiveView;
+    private final IntFunction<Coordinates> getActiveView;
     private final int maxAge;
 
     private int age;
@@ -24,7 +24,7 @@ public class ChaosHit {
     }
 
     public ChaosHitDto getDto() {
-        Pair<Integer, Integer> currentStartingView = getActiveView.apply(age);
-        return new ChaosHitDto(id, currentStartingView.getFirst(), currentStartingView.getSecond(), name, age);
+        Coordinates currentStartingView = getActiveView.apply(age);
+        return new ChaosHitDto(id, currentStartingView.x(), currentStartingView.x(), name, age);
     }
 }

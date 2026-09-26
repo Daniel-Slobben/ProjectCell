@@ -1,8 +1,8 @@
 package slobben.cells.service.workers.chaos.makers;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
+import slobben.cells.entities.Coordinates;
 import slobben.cells.enums.CornerEnum;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.chaos.ChaosHit;
@@ -33,19 +33,19 @@ public class DiagonalMaker implements Maker {
         final int centerX = startX + (size - 1) / 2;
         final int centerY = startY + (size - 1) / 2;
 
-        IntFunction<Pair<Integer, Integer>> viewCalculator = getViewCalculator(centerX, centerY, size);
+        IntFunction<Coordinates> viewCalculator = getViewCalculator(centerX, centerY, size);
 
         return new ChaosHit("Diagonal cross " + size + " pixels wide", viewCalculator, size);
     }
 
-    private IntFunction<Pair<Integer, Integer>> getViewCalculator(final int centerX, final int centerY, final int size) {
+    private IntFunction<Coordinates> getViewCalculator(final int centerX, final int centerY, final int size) {
         return age -> {
             int adjustedAge = Math.min(age, size / 2);
             return switch (CornerEnum.getRandomCorner()) {
-                case TOP_LEFT -> Pair.of(centerX - adjustedAge, centerY - adjustedAge);
-                case TOP_RIGHT -> Pair.of(centerX + adjustedAge, centerY - adjustedAge);
-                case BOTTOM_LEFT -> Pair.of(centerX - adjustedAge, centerY + adjustedAge);
-                case BOTTOM_RIGHT -> Pair.of(centerX + adjustedAge, centerY + adjustedAge);
+                case TOP_LEFT -> new Coordinates(centerX - adjustedAge, centerY - adjustedAge);
+                case TOP_RIGHT -> new Coordinates(centerX + adjustedAge, centerY - adjustedAge);
+                case BOTTOM_LEFT -> new Coordinates(centerX - adjustedAge, centerY + adjustedAge);
+                case BOTTOM_RIGHT -> new Coordinates(centerX + adjustedAge, centerY + adjustedAge);
             };
         };
     }

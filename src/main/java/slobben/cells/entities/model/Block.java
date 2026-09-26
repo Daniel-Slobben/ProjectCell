@@ -72,7 +72,7 @@ public class Block {
 
             encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.FULL.name());
         }
-        return encodedBlock.clone();
+        return encodedBlock.copy();
     }
 
     public synchronized EncodedBlock getEncodedBlockBorders() {
@@ -86,7 +86,7 @@ public class Block {
 
             encodedBlockBorders = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.BORDER.name());
         }
-        return encodedBlockBorders.clone();
+        return encodedBlockBorders.copy();
     }
 
     public void clearEncodedBlock() {

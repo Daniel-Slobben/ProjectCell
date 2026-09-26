@@ -10,35 +10,25 @@
     </parent>
     <groupId>slobben</groupId>
     <artifactId>CellService</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <name>Cells</name>
     <description>Multiplayer game for cells</description>
     <packaging>jar</packaging>
 
     <properties>
         <java.version>25</java.version>
-        <lombok.version>1.18.48</lombok.version>
         <lz4.version>1.8.1</lz4.version>
-        <maven-rewrite.version>6.46.1</maven-rewrite.version>
     </properties>
     <dependencies>
 
         <!-- spring starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-rest</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -50,7 +40,6 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -69,7 +58,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <annotationProcessorPaths>
                         <path>
@@ -84,16 +72,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.openrewrite.maven</groupId>
-                <artifactId>rewrite-maven-plugin</artifactId>
-                <version>${maven-rewrite.version}</version>
-                <configuration>
-                    <activeRecipes>
-                        <recipe>org.openrewrite.java.OrderImports</recipe>
-                    </activeRecipes>
-                </configuration>
             </plugin>
         </plugins>
     </build>

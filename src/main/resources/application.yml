@@ -2,6 +2,9 @@ logging.level.slobben: INFO
 spring:
   application:
     name: Cells
+  threads:
+    virtual:
+      enabled: true
 
 cells:
   setup: EMPTY

@@ -3,10 +3,10 @@ package slobben.cells.service.workers;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.internal.BlockUpdate;
+import slobben.cells.entities.Coordinates;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.BorderInfo;
 import slobben.cells.enums.Direction;
@@ -56,8 +56,8 @@ public class BorderService implements Worker {
         newBorderMaps.entrySet().stream()
                 .filter(entry -> entry.getValue().isHasAliveCells())
                 .forEach(entry -> {
-                    Pair<Integer, Integer> coorPair = BlockUtils.resolveKey(entry.getKey());
-                    BlockUpdate blockUpdate = new BlockUpdate(coorPair.getFirst(), coorPair.getSecond(), new boolean[blockSize][blockSize], entry.getValue().getResponsibleChaosHit());
+                    Coordinates coordinates = BlockUtils.resolveKey(entry.getKey());
+                    BlockUpdate blockUpdate = new BlockUpdate(coordinates.x(), coordinates.y(), new boolean[blockSize][blockSize], entry.getValue().getResponsibleChaosHit());
                     blockUpdates.put(blockUpdate.getKey(), blockUpdate);
                 });
     }
@@ -112,13 +112,13 @@ public class BorderService implements Worker {
             }
             case LEFT -> {
                 var result = getColumnCells(cells, 1);
-                neighbourMap.setRightBorder(result.getFirst());
-                return result.getSecond();
+                neighbourMap.setRightBorder(result.matrix());
+                return result.hasTrueValue();
             }
             case RIGHT -> {
                 var result = getColumnCells(cells, blockSize);
-                neighbourMap.setLeftBorder(result.getFirst());
-                return result.getSecond();
+                neighbourMap.setLeftBorder(result.matrix());
+                return result.hasTrueValue();
             }
             case BOTTOM_LEFT -> {
                 boolean cell = cells[blockSize][1];
@@ -147,7 +147,7 @@ public class BorderService implements Worker {
         return false;
     }
 
-    private Pair<boolean[], Boolean> getColumnCells(boolean[][] cells, int srcCol) {
+    private ColumnResult getColumnCells(boolean[][] cells, int srcCol) {
         boolean[] cellsToCopy = new boolean[cells.length - 2];
         boolean hasTrue = false;
         for (int i = 1; i < cells.length - 1; i++) {
@@ -156,7 +156,10 @@ public class BorderService implements Worker {
                 hasTrue = true;
             }
         }
-        return Pair.of(cellsToCopy, hasTrue);
+        return new ColumnResult(cellsToCopy, hasTrue);
+    }
+
+    private record ColumnResult(boolean[] matrix, boolean hasTrueValue) {
     }
 
 }

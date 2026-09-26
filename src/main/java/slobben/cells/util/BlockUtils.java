@@ -1,6 +1,6 @@
 package slobben.cells.util;
 
-import org.springframework.data.util.Pair;
+import slobben.cells.entities.Coordinates;
 
 public final class BlockUtils {
     private static final String SPLIT_CHAR = "/";
@@ -9,8 +9,8 @@ public final class BlockUtils {
         return x + SPLIT_CHAR + y;
     }
 
-    public static Pair<Integer, Integer> resolveKey(String key) {
+    public static Coordinates resolveKey(String key) {
         var split = key.split(SPLIT_CHAR);
-        return Pair.of(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
+        return new Coordinates(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
     }
 }
