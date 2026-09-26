@@ -41,7 +41,7 @@ public class CellController {
         log.debug("Received settings request. Assigning clientId {}", clientId);
         ChaosHitDto chaosHit = chaosService.getLatestHit().getDto();
 
-        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, chaosHit));
+        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, chaosHit, clientService.getInitialBlocks(chaosHit.worldX(), chaosHit.worldY())));
     }
 
     @PostMapping("reconnect")

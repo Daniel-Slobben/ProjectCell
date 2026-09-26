@@ -25,8 +25,8 @@ public class DiagonalMaker implements Maker {
     public ChaosHit getChaosHit() {
         UUID chaosHitId = UUID.randomUUID();
         final int size = random.nextInt(MIN_SIZE, MAX_SIZE);
-        final int startX = size / 2;
-        final int startY = size / 2;
+        final int startX = -(size / 2);
+        final int startY = -(size / 2);
 
         setCells(startX, startY, size, chaosHitId);
 
@@ -40,7 +40,7 @@ public class DiagonalMaker implements Maker {
 
     private IntFunction<Coordinates> getViewCalculator(final int centerX, final int centerY, final int size) {
         return age -> {
-            int adjustedAge = Math.min(age, size / 2);
+            int adjustedAge = Math.min(age, size / 4);
             return switch (CornerEnum.getRandomCorner()) {
                 case TOP_LEFT -> new Coordinates(centerX - adjustedAge, centerY - adjustedAge);
                 case TOP_RIGHT -> new Coordinates(centerX + adjustedAge, centerY - adjustedAge);

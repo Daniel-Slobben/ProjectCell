@@ -1,18 +1,27 @@
 package slobben.cells.service.workers;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.entities.model.Block;
+import slobben.cells.enums.CornerEnum;
 import slobben.cells.errors.NotAClientException;
 import slobben.cells.service.ExecutorService;
+import slobben.cells.util.BlockCoordinatesResult;
+import slobben.cells.util.BlockUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
+import static slobben.cells.enums.CornerEnum.*;
+import static slobben.cells.util.Utils.getBlockCoordinates;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +29,8 @@ import java.util.stream.Collectors;
 public class ClientService implements Worker {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
+    private final EnvironmentConfig environmentConfig;
+    private int blockSize;
 
     private static final int HEALTH_CHECK_LIMIT = 20;
 
@@ -31,6 +42,11 @@ public class ClientService implements Worker {
     @Override
     public String getName() {
         return "Client updates with %s amount of clients".formatted(activeClients.size());
+    }
+
+    @PostConstruct
+    void init() {
+        this.blockSize = environmentConfig.getBlockSize();
     }
 
     public void execute() {
@@ -61,7 +77,13 @@ public class ClientService implements Worker {
             healthcheckClients.put(uuid, health + 1);
         }
 
-        List<EncodedBlock> copyOfBlocks = blockKeys.stream()
+        List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks);
+
+        simpMessagingTemplate.convertAndSend("/topic/%s".formatted(uuid), copyOfBlocks);
+    }
+
+    private @NonNull List<EncodedBlock> getEncodedBlocks(List<String> blockKeys, boolean sendBorderBlocks) {
+        return blockKeys.stream()
                 .map(blocks::get)
                 .filter(Objects::nonNull)
                 .map(block -> {
@@ -72,8 +94,6 @@ public class ClientService implements Worker {
                     }
                 })
                 .toList();
-
-        simpMessagingTemplate.convertAndSend("/topic/%s".formatted(uuid), copyOfBlocks);
     }
 
     public void disconnectClient(UUID uuid) {
@@ -125,5 +145,45 @@ public class ClientService implements Worker {
         } else {
             throw new NotAClientException("Client not found: %s".formatted(clientUpdateRequest.client()));
         }
+    }
+
+    public List<EncodedBlock> getInitialBlocks(int worldX, int worldY) {
+        BlockCoordinatesResult result = getBlockCoordinates(worldX, worldY, blockSize);
+        CornerEnum corner;
+        if (result.relativeCellX() > blockSize / 2 && result.relativeCellY() > blockSize / 2) corner = BOTTOM_RIGHT;
+        else if (result.relativeCellX() <= blockSize / 2 && result.relativeCellY() > blockSize / 2) corner = TOP_RIGHT;
+        else if (result.relativeCellX() > blockSize / 2 && result.relativeCellY() <= blockSize / 2)
+            corner = BOTTOM_LEFT;
+        else if (result.relativeCellX() <= blockSize / 2 && result.relativeCellY() <= blockSize / 2) corner = TOP_LEFT;
+        else {
+            throw new IllegalStateException();
+        }
+
+        String centerBlock = BlockUtils.getKey(result.blockX(), result.blockY());
+        List<String> blocksToAdd = new ArrayList<>();
+        blocksToAdd.add(centerBlock);
+        switch (corner) {
+            case TOP_LEFT -> {
+                blocksToAdd.add(BlockUtils.getKey(result.blockX() - 1, result.blockY()));
+                blocksToAdd.add(BlockUtils.getKey(result.blockX() - 1, result.blockY() - 1));
+                blocksToAdd.add(BlockUtils.getKey(result.blockX(), result.blockY() - 1));
+            }
+            case TOP_RIGHT -> {
+                blocksToAdd.add(BlockUtils.getKey(result.blockX() + 1, result.blockY()));
+                blocksToAdd.add(BlockUtils.getKey(result.blockX() + 1, result.blockY() - 1));
+                blocksToAdd.add(BlockUtils.getKey(result.blockX(), result.blockY() - 1));
+            }
+            case BOTTOM_LEFT -> {
+                blocksToAdd.add(BlockUtils.getKey(result.blockX() - 1, result.blockY()));
+                blocksToAdd.add(BlockUtils.getKey(result.blockX() - 1, result.blockY() + 1));
+                blocksToAdd.add(BlockUtils.getKey(result.blockX(), result.blockY() + 1));
+            }
+            case BOTTOM_RIGHT -> {
+                blocksToAdd.add(BlockUtils.getKey(result.blockX() + 1, result.blockY()));
+                blocksToAdd.add(BlockUtils.getKey(result.blockX() + 1, result.blockY() + 1));
+                blocksToAdd.add(BlockUtils.getKey(result.blockX(), result.blockY() + 1));
+            }
+        }
+        return getEncodedBlocks(blocksToAdd, false);
     }
 }
