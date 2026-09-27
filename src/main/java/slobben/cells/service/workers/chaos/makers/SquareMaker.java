@@ -18,8 +18,8 @@ import java.util.function.IntFunction;
 public class SquareMaker implements Maker {
 
     private static final Random random = new Random();
-    private static final int MIN_SIZE = 600;
-    private static final int MAX_SIZE = 4000;
+    private static final int MIN_SIZE = 25000;
+    private static final int MAX_SIZE = 30000;
     private final WorldEditor worldEditor;
 
     private int size = 0;
