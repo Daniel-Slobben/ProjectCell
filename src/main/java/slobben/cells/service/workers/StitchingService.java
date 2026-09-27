@@ -33,7 +33,7 @@ public class StitchingService implements Worker {
     @Override
     public void execute() {
         Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> stitchBlock(block)).collect(Collectors.toSet());
-        executorService.executeTasksParallel(tasks);
+        executorService.executeTasksParallel(tasks, getName());
     }
 
     public void stitchBlock(Block block) {

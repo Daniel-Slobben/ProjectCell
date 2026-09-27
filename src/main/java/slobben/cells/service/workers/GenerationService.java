@@ -31,7 +31,7 @@ public class GenerationService implements Worker {
     @Override
     public void execute() {
         Set<Runnable> tasks = blocks.values().stream().map(block -> ((Runnable) () -> setNextState(block))).collect(Collectors.toSet());
-        executorService.executeTasksParallel(tasks);
+        executorService.executeTasksParallel(tasks, getName());
     }
 
     public void setNextState(Block block) {

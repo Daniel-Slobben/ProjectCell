@@ -57,10 +57,11 @@ public class ClientService implements Worker {
                 .collect(Collectors.toSet());
 
         tasks.addAll(errorClients.stream()
+                .filter(activeClients::containsKey)
                 .map(uuid -> (Runnable) () -> sendClientUpdate(uuid, activeClients.get(uuid), false))
                 .collect(Collectors.toSet()));
 
-        executorService.executeTasksParallel(tasks);
+        executorService.executeTasksParallel(tasks, getName());
 
         errorClients.clear();
     }

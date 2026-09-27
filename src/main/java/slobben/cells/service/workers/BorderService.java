@@ -51,7 +51,7 @@ public class BorderService implements Worker {
         blocks.values().forEach(block -> bordersMap.put(getKey(block.getX(), block.getY()), new BorderInfo(blockSize, block.getResponsibleChaosHit())));
 
         Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
-        executorService.executeTasksParallel(tasks);
+        executorService.executeTasksParallel(tasks, getName());
 
         newBorderMaps.entrySet().stream()
                 .filter(entry -> entry.getValue().isHasAliveCells())

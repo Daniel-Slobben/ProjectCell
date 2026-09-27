@@ -16,8 +16,8 @@ import java.util.function.IntFunction;
 public class DiagonalMaker implements Maker {
 
     private static final Random random = new Random();
-    private static final int MIN_SIZE = 60000;
-    private static final int MAX_SIZE = 90000;
+    private static final int MIN_SIZE = 40000;
+    private static final int MAX_SIZE = 50000;
 
     private final WorldEditor worldEditor;
 
@@ -35,7 +35,7 @@ public class DiagonalMaker implements Maker {
 
         IntFunction<Coordinates> viewCalculator = getViewCalculator(centerX, centerY, size);
 
-        return new ChaosHit("Diagonal cross " + size + " pixels wide", viewCalculator, size);
+        return new ChaosHit("Diagonal cross " + size + " pixels wide", viewCalculator, size / 2);
     }
 
     private IntFunction<Coordinates> getViewCalculator(final int centerX, final int centerY, final int size) {

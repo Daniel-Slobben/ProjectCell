@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -15,13 +14,16 @@ import java.util.concurrent.TimeUnit;
 public class ExecutorService {
 
     @SneakyThrows
-    public void executeTasksParallel(Set<Runnable> tasks) {
+    public void executeTasksParallel(Set<Runnable> tasks, String name) {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            tasks.forEach(executor::execute);
-            executor.shutdown();
-
-            if (!executor.awaitTermination(120, TimeUnit.SECONDS)) {
-                log.warn("Executor did not shut down cleanly within timeout.");
+            for (Runnable task : tasks) {
+                executor.execute(() -> {
+                    try {
+                        task.run();
+                    } catch (Exception e) {
+                        log.error("Task with Name {} gave exception!", name, e);
+                    }
+                });
             }
         }
     }
