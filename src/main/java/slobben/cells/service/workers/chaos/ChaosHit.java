@@ -25,6 +25,6 @@ public class ChaosHit {
 
     public ChaosHitDto getDto() {
         Coordinates currentStartingView = getActiveView.apply(age);
-        return new ChaosHitDto(id, currentStartingView.x(), currentStartingView.x(), name, age);
+        return new ChaosHitDto(id, currentStartingView.x(), currentStartingView.y(), name, age);
     }
 }

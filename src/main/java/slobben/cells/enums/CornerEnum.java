@@ -1,6 +1,6 @@
 package slobben.cells.enums;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public enum CornerEnum {
     TOP_LEFT,
@@ -8,9 +8,8 @@ public enum CornerEnum {
     BOTTOM_LEFT,
     BOTTOM_RIGHT;
 
-    private static final Random RANDOM = new Random();
-
     public static CornerEnum getRandomCorner() {
-        return CornerEnum.values()[RANDOM.nextInt(CornerEnum.values().length)];
+        CornerEnum[] values = CornerEnum.values();
+        return values[ThreadLocalRandom.current().nextInt(values.length)];
     }
 }
