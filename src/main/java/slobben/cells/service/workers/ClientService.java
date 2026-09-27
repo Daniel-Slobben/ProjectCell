@@ -10,7 +10,7 @@ import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.entities.model.Block;
-import slobben.cells.enums.CornerEnum;
+import slobben.cells.enums.Direction;
 import slobben.cells.errors.NotAClientException;
 import slobben.cells.service.ExecutorService;
 import slobben.cells.util.BlockCoordinatesResult;
@@ -20,7 +20,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import static slobben.cells.enums.CornerEnum.*;
 import static slobben.cells.util.Utils.getBlockCoordinates;
 
 @Service
@@ -150,40 +149,12 @@ public class ClientService implements Worker {
 
     public List<EncodedBlock> getInitialBlocks(int worldX, int worldY) {
         BlockCoordinatesResult result = getBlockCoordinates(worldX, worldY, blockSize);
-        CornerEnum corner;
-        if (result.relativeCellX() > blockSize / 2 && result.relativeCellY() > blockSize / 2) corner = BOTTOM_RIGHT;
-        else if (result.relativeCellX() <= blockSize / 2 && result.relativeCellY() > blockSize / 2) corner = TOP_RIGHT;
-        else if (result.relativeCellX() > blockSize / 2 && result.relativeCellY() <= blockSize / 2)
-            corner = BOTTOM_LEFT;
-        else if (result.relativeCellX() <= blockSize / 2 && result.relativeCellY() <= blockSize / 2) corner = TOP_LEFT;
-        else {
-            throw new IllegalStateException();
-        }
-
         String centerBlock = BlockUtils.getKey(result.blockX(), result.blockY());
-        List<String> blocksToAdd = new ArrayList<>();
+
+        List<String> blocksToAdd = new ArrayList<>(9);
         blocksToAdd.add(centerBlock);
-        switch (corner) {
-            case TOP_LEFT -> {
-                blocksToAdd.add(BlockUtils.getKey(result.blockX() - 1, result.blockY()));
-                blocksToAdd.add(BlockUtils.getKey(result.blockX() - 1, result.blockY() - 1));
-                blocksToAdd.add(BlockUtils.getKey(result.blockX(), result.blockY() - 1));
-            }
-            case TOP_RIGHT -> {
-                blocksToAdd.add(BlockUtils.getKey(result.blockX() + 1, result.blockY()));
-                blocksToAdd.add(BlockUtils.getKey(result.blockX() + 1, result.blockY() - 1));
-                blocksToAdd.add(BlockUtils.getKey(result.blockX(), result.blockY() - 1));
-            }
-            case BOTTOM_LEFT -> {
-                blocksToAdd.add(BlockUtils.getKey(result.blockX() - 1, result.blockY()));
-                blocksToAdd.add(BlockUtils.getKey(result.blockX() - 1, result.blockY() + 1));
-                blocksToAdd.add(BlockUtils.getKey(result.blockX(), result.blockY() + 1));
-            }
-            case BOTTOM_RIGHT -> {
-                blocksToAdd.add(BlockUtils.getKey(result.blockX() + 1, result.blockY()));
-                blocksToAdd.add(BlockUtils.getKey(result.blockX() + 1, result.blockY() + 1));
-                blocksToAdd.add(BlockUtils.getKey(result.blockX(), result.blockY() + 1));
-            }
+        for (Direction direction : Direction.values()) {
+            blocksToAdd.add(BlockUtils.getKey(result.blockX() + direction.getDx(), result.blockY() + direction.getDy()));
         }
         return getEncodedBlocks(blocksToAdd, false);
     }
