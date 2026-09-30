@@ -50,6 +50,11 @@ public class Block {
         this.cells = cells;
         this.blockState = BlockState.NEW;
     }
+
+    private static void setBit(byte[] packed, int i) {
+        packed[i / 8] |= (byte) (1 << (i % 8));
+    }
+
     @Override
     public int hashCode() {
         return getKey().hashCode();
@@ -58,10 +63,6 @@ public class Block {
     @Override
     public boolean equals(Object obj) {
         return obj instanceof Block block && block.getKey().equals(this.getKey());
-    }
-
-    private static void setBit(byte[] packed, int i) {
-        packed[i / 8] |= (byte) (1 << (i % 8));
     }
 
     public synchronized EncodedBlock getEncodedBlock() {
@@ -139,8 +140,7 @@ public class Block {
             index++;
         }
         if (index != totalBits) {
-            throw new IllegalStateException(
-                    "index=" + index + " totalBits=" + totalBits + " size=" + size + " cells=" + cells.length);
+            throw new IllegalStateException("index=" + index + " totalBits=" + totalBits + " size=" + size + " cells=" + cells.length);
         }
         return packed;
     }
