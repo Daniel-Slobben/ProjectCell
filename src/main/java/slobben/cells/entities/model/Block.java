@@ -65,19 +65,15 @@ public class Block {
         return obj instanceof Block block && block.getKey().equals(this.getKey());
     }
 
-    public synchronized EncodedBlock getEncodedBlock(int level) {
+    public synchronized EncodedBlock getEncodedBlock() {
         if (encodedBlock == null) {
             byte[] packed = getPacked();
             LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
-            encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.FULL.name(), level);
+            encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.FULL.name());
         }
         return encodedBlock.copy();
-    }
-
-    public EncodedBlock getEncodedBlock() {
-        return getEncodedBlock(0);
     }
 
     public synchronized EncodedBlock getEncodedBlockBorders() {

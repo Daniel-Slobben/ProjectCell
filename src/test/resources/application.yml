@@ -18,7 +18,6 @@ cells:
     x: '10000'
     y: '10000'
     blockSize: '500'
-    bigBlockCombineFactor: '4'
   runmode: AUTO
   targetspeed: '250'
 

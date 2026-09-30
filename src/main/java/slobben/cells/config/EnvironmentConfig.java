@@ -11,9 +11,6 @@ public class EnvironmentConfig {
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
-    @Value("${cells.size.bigBlockCombineFactor}")
-    private int bigBlockFactor;
-
     @Value("${cells.size.y}")
     private int sizeY;
 
