@@ -85,7 +85,7 @@ public class Block {
             LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
-            encodedBlockBorders = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.BORDER.name(), 0);
+            encodedBlockBorders = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.BORDER.name());
         }
         return encodedBlockBorders.copy();
     }
