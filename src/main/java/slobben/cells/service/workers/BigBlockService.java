@@ -27,6 +27,7 @@ public class BigBlockService implements Worker {
 
     @Override
     public void execute() {
+        bigBlocks.clear();
         blocks.values().forEach(block -> {
             String bigKey = BlockUtils.keyToBigKey(block.getKey(), bigBlockFactor);
             Block bigBlock = bigBlocks.get(bigKey);

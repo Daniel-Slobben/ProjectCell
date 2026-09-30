@@ -177,7 +177,9 @@ public class Block {
         for (int blockCellX = 1, currentX = startX; currentX < endX; currentX++, blockCellX += factor) {
             for (int blockCellY = 1, currentY = startY; currentY < endY; currentY++, blockCellY += factor) {
 
-                cells[currentX][currentY] = hasTrueValueInSector(factor, blockCellX, blockCellY);
+                if (hasTrueValueInSector(factor, blockCellX, blockCellY)) {
+                    cells[currentX][currentY] = true;
+                }
 
             }
         }

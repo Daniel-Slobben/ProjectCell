@@ -43,10 +43,7 @@ public class ClientService implements Worker {
     }
 
     public void execute() {
-        Set<Runnable> tasks = clients.stream()
-                .map(client -> (Runnable)
-                        () -> sendClientUpdate(client, client.getActiveBlocks(), !client.isInError()))
-                .collect(Collectors.toSet());
+        Set<Runnable> tasks = clients.stream().map(client -> (Runnable) () -> sendClientUpdate(client, client.getActiveBlocks(), !client.isInError())).collect(Collectors.toSet());
 
         executorService.executeTasksParallel(tasks, getName());
     }
@@ -73,19 +70,16 @@ public class ClientService implements Worker {
 
     private @NonNull List<EncodedBlock> getEncodedBlocks(List<String> blockKeys, boolean sendBorderBlocks) {
         return blockKeys.stream().map(blocks::get).filter(Objects::nonNull).map(block -> {
-                    if (sendBorderBlocks) {
-                        return block.getEncodedBlockBorders();
-                    } else {
-                        return block.getEncodedBlock();
-                    }
+            if (sendBorderBlocks) {
+                return block.getEncodedBlockBorders();
+            } else {
+                return block.getEncodedBlock();
+            }
         }).toList();
     }
 
     private @NonNull List<EncodedBlock> getEncodedBigBlocks(List<String> blockKeys) {
-        return blockKeys.stream().map(bigBlocks::get)
-                .filter(Objects::nonNull)
-                .map(block -> block.getEncodedBlock(1))
-                .toList();
+        return blockKeys.stream().map(bigBlocks::get).filter(Objects::nonNull).map(block -> block.getEncodedBlock(1)).toList();
     }
 
     public void disconnectClient(Client client) {
@@ -122,12 +116,14 @@ public class ClientService implements Worker {
         Client client = findClient(clientUpdateRequest.client());
         List<String> clientBlocks = client.getActiveBlocks();
 
+        if (clientUpdateRequest.blockLevel() != null && clientUpdateRequest.blockLevel() != client.getBlockLevel()) {
+            client.setBlockLevel(clientUpdateRequest.blockLevel());
+            clientBlocks.clear();
+        }
+
         clientBlocks.removeAll(Arrays.asList(clientUpdateRequest.blocksToRemove()));
         clientBlocks.addAll(Arrays.asList(clientUpdateRequest.blocksToAdd()));
 
-        if (clientUpdateRequest.blockLevel() != null) {
-            client.setBlockLevel(clientUpdateRequest.blockLevel());
-        }
         return client;
     }
 
