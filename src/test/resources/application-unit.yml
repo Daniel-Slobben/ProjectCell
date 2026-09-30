@@ -4,5 +4,6 @@ cells:
     x: '10'
     y: '10'
     blockSize: '10'
+    bigBlockCombineFactor: '2'
   runmode: MANUAL
   targetspeed: '0'

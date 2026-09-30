@@ -5,6 +5,7 @@ import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
+import slobben.cells.entities.Coordinates;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.BlockUtils;
 
@@ -50,6 +51,11 @@ public class Block {
         this.cells = cells;
         this.blockState = BlockState.NEW;
     }
+
+    private static void setBit(byte[] packed, int i) {
+        packed[i / 8] |= (byte) (1 << (i % 8));
+    }
+
     @Override
     public int hashCode() {
         return getKey().hashCode();
@@ -60,19 +66,19 @@ public class Block {
         return obj instanceof Block block && block.getKey().equals(this.getKey());
     }
 
-    private static void setBit(byte[] packed, int i) {
-        packed[i / 8] |= (byte) (1 << (i % 8));
-    }
-
-    public synchronized EncodedBlock getEncodedBlock() {
+    public synchronized EncodedBlock getEncodedBlock(int level) {
         if (encodedBlock == null) {
             byte[] packed = getPacked();
             LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
-            encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.FULL.name());
+            encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.FULL.name(), level);
         }
         return encodedBlock.copy();
+    }
+
+    public EncodedBlock getEncodedBlock() {
+        return getEncodedBlock(0);
     }
 
     public synchronized EncodedBlock getEncodedBlockBorders() {
@@ -84,7 +90,7 @@ public class Block {
             LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
-            encodedBlockBorders = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.BORDER.name());
+            encodedBlockBorders = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.BORDER.name(), 0);
         }
         return encodedBlockBorders.copy();
     }
@@ -139,8 +145,7 @@ public class Block {
             index++;
         }
         if (index != totalBits) {
-            throw new IllegalStateException(
-                    "index=" + index + " totalBits=" + totalBits + " size=" + size + " cells=" + cells.length);
+            throw new IllegalStateException("index=" + index + " totalBits=" + totalBits + " size=" + size + " cells=" + cells.length);
         }
         return packed;
     }
@@ -160,6 +165,33 @@ public class Block {
             }
         }
         return packed;
+    }
+
+    public void setBigCornerCells(boolean[][] cells, Coordinates coordinates, int factor) {
+        int factorSize = (cells.length - 2) / factor;
+        final int startX = factorSize * coordinates.x() + 1;
+        final int startY = factorSize * coordinates.y() + 1;
+        int endX = startX + factorSize;
+        int endY = startY + factorSize;
+
+        for (int blockCellX = 1, currentX = startX; currentX < endX; currentX++, blockCellX += factor) {
+            for (int blockCellY = 1, currentY = startY; currentY < endY; currentY++, blockCellY += factor) {
+
+                cells[currentX][currentY] = hasTrueValueInSector(factor, blockCellX, blockCellY);
+
+            }
+        }
+    }
+
+    private boolean hasTrueValueInSector(int factor, int x, int y) {
+        for (int fx = 0; fx < factor; fx++) {
+            for (int fy = 0; fy < factor; fy++) {
+                if (cells[x + fx][y + fy]) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 }

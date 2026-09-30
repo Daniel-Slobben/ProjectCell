@@ -19,6 +19,7 @@ cells:
     x: '0'
     y: '0'
     blockSize: '500'
+    bigBlockCombineFactor: '4' # 16 pixels are 1
 
   runmode: AUTO
   targetspeed: '1000'
