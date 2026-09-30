@@ -62,11 +62,6 @@ public class BlockConfig {
     }
 
     @Bean
-    public Map<String, Block> bigBlocks() {
-        return new ConcurrentHashMap<>();
-    }
-
-    @Bean
     public List<ChaosHit> chaosHits() {
         return new ArrayList<>();
     }

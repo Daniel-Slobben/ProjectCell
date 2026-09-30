@@ -36,7 +36,7 @@ public class SquareMaker implements Maker {
 
         IntFunction<Coordinates> viewCalculator = getViewCalculator(startX, startY, size);
 
-        return new ChaosHit("2 pixels thick square " + size + " pixels wide", viewCalculator, size);
+        return new ChaosHit("2 pixels thick square " + size + " pixels wide", viewCalculator, size / 2 + 1000);
     }
 
     private IntFunction<Coordinates> getViewCalculator(final int startX, final int startY, final int size) {

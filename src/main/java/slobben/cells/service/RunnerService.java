@@ -25,7 +25,6 @@ public class RunnerService {
     private final CachingService cachingService;
     private final ClientService clientService;
     private final GenerationService generationService;
-    private final BigBlockService bigBlockService;
 
     private final Map<String, Block> blocks;
 
@@ -47,7 +46,6 @@ public class RunnerService {
         newBlockService.tic();
         stitchingService.tic();
         cachingService.tic();
-        bigBlockService.tic();
         clientService.tic();
     }
 

@@ -10,21 +10,15 @@ import java.util.UUID;
 @Getter
 public class Client {
     private final UUID clientId = UUID.randomUUID();
-    @Getter
     private final List<String> activeBlocks = new ArrayList<>();
     @Setter
     private boolean inError = false;
     @Setter
     private int blockLevel = 0;
-    @Getter
-    private int healthCheck = 0;
-
-    public void incrementHealthCheck() {
-        healthCheck++;
-    }
+    private long healthCheck = 0;
 
     public void resetHealthCheck() {
-        healthCheck = 0;
+        healthCheck = System.currentTimeMillis();
     }
 
     public boolean isInError() {

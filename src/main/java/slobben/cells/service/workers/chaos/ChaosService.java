@@ -46,7 +46,6 @@ public class ChaosService implements Worker {
 
     private void createChaos() {
         ChaosType type = getWeightedRandomType();
-        type = ChaosType.SQUARE;
 
         Maker maker = beanFactory.getBean(type.maker);
         ChaosHit chaosHit = maker.getChaosHit();
@@ -57,6 +56,9 @@ public class ChaosService implements Worker {
     private void clearChaosHit(ChaosHit chaosHit) {
         List<String> keysToRemove = blocks.entrySet().stream().filter(entrySet -> chaosHit.getId().equals(entrySet.getValue().getResponsibleChaosHit())).map(Map.Entry::getKey).toList();
         keysToRemove.forEach(blocks::remove);
+
+        // cheat clear all. but works for now with only 1 active chaoshit
+        blocks.clear();
         log.info("Cleaned ChaosHit {} with age {}, total blocks: {}", chaosHit.getId(), chaosHit.getAge(), keysToRemove.size());
     }
 

@@ -5,7 +5,6 @@ import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
-import slobben.cells.entities.Coordinates;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.BlockUtils;
 
@@ -165,35 +164,6 @@ public class Block {
             }
         }
         return packed;
-    }
-
-    public void setBigCornerCells(boolean[][] cells, Coordinates coordinates, int factor) {
-        int factorSize = (cells.length - 2) / factor;
-        final int startX = factorSize * coordinates.x() + 1;
-        final int startY = factorSize * coordinates.y() + 1;
-        int endX = startX + factorSize;
-        int endY = startY + factorSize;
-
-        for (int blockCellX = 1, currentX = startX; currentX < endX; currentX++, blockCellX += factor) {
-            for (int blockCellY = 1, currentY = startY; currentY < endY; currentY++, blockCellY += factor) {
-
-                if (hasTrueValueInSector(factor, blockCellX, blockCellY)) {
-                    cells[currentX][currentY] = true;
-                }
-
-            }
-        }
-    }
-
-    private boolean hasTrueValueInSector(int factor, int x, int y) {
-        for (int fx = 0; fx < factor; fx++) {
-            for (int fy = 0; fy < factor; fy++) {
-                if (cells[x + fx][y + fy]) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
 }

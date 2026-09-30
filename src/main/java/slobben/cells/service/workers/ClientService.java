@@ -28,13 +28,12 @@ import static slobben.cells.util.Utils.getBlockCoordinates;
 @RequiredArgsConstructor
 @Slf4j
 public class ClientService implements Worker {
-    private static final int HEALTH_CHECK_LIMIT = 20;
+    private static final int HEALTH_CHECK_LIMIT_MS = 20_000;
     private static final String TOPIC = "/topic/%s";
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
     private final EnvironmentConfig environmentConfig;
     private final Map<String, Block> blocks;
-    private final Map<String, Block> bigBlocks;
     private final List<Client> clients = new ArrayList<>();
 
     @Override
@@ -50,21 +49,13 @@ public class ClientService implements Worker {
 
     public void sendClientUpdate(Client client, List<String> blockKeys, boolean sendBorderBlocks) {
         // Client health check
-        if (sendBorderBlocks) {
-            if (client.getHealthCheck() > HEALTH_CHECK_LIMIT) {
-                // deleting client after 20 ticks
-                disconnectClient(client);
-                return;
-            }
-            client.incrementHealthCheck();
+        if (sendBorderBlocks && client.getHealthCheck() + HEALTH_CHECK_LIMIT_MS < System.currentTimeMillis()) {
+            disconnectClient(client);
+            return;
         }
+        client.resetHealthCheck();
 
-        List<EncodedBlock> copyOfBlocks;
-        if (client.getBlockLevel() == 1) {
-            copyOfBlocks = getEncodedBigBlocks(blockKeys);
-        } else {
-            copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks);
-        }
+        List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks);
         simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), copyOfBlocks);
     }
 
@@ -78,12 +69,9 @@ public class ClientService implements Worker {
         }).toList();
     }
 
-    private @NonNull List<EncodedBlock> getEncodedBigBlocks(List<String> blockKeys) {
-        return blockKeys.stream().map(bigBlocks::get).filter(Objects::nonNull).map(block -> block.getEncodedBlock(1)).toList();
-    }
-
     public void disconnectClient(Client client) {
         this.clients.remove(client);
+        simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), new HealthCheckResponse(SESSION_DEAD));
     }
 
     public boolean hasVisibleBlocks(String[] visibleBlocks) {
@@ -115,11 +103,6 @@ public class ClientService implements Worker {
     public Client updateClientBlocks(ClientUpdateRequest clientUpdateRequest) {
         Client client = findClient(clientUpdateRequest.client());
         List<String> clientBlocks = client.getActiveBlocks();
-
-        if (clientUpdateRequest.blockLevel() != null && clientUpdateRequest.blockLevel() != client.getBlockLevel()) {
-            client.setBlockLevel(clientUpdateRequest.blockLevel());
-            clientBlocks.clear();
-        }
 
         clientBlocks.removeAll(Arrays.asList(clientUpdateRequest.blocksToRemove()));
         clientBlocks.addAll(Arrays.asList(clientUpdateRequest.blocksToAdd()));
