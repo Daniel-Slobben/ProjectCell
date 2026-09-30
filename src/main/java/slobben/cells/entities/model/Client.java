@@ -3,14 +3,14 @@ package slobben.cells.entities.model;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Getter
 public class Client {
     private final UUID clientId = UUID.randomUUID();
-    private final List<String> activeBlocks = new ArrayList<>();
+    private final List<String> activeBlocks = new CopyOnWriteArrayList<>();
     @Setter
     private boolean inError = false;
     @Setter
