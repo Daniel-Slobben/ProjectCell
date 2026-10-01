@@ -35,6 +35,8 @@ public class Block {
     private List<boolean[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
 
+    private static LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
+
     public Block(int x, int y, UUID responsibleChaosHit, int blockSize) {
         this.x = x;
         this.y = y;
@@ -68,7 +70,6 @@ public class Block {
     public synchronized EncodedBlock getEncodedBlock() {
         if (encodedBlock == null) {
             byte[] packed = getPacked();
-            LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
             encodedBlock = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.FULL.name());
@@ -82,7 +83,6 @@ public class Block {
         }
         if (encodedBlockBorders == null) {
             byte[] packed = getBorderPacked();
-            LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
             byte[] compressed = compressor.compress(packed);
 
             encodedBlockBorders = new EncodedBlock(x, y, generation, Base64.getEncoder().encodeToString(compressed), EncodedBlockType.BORDER.name());
