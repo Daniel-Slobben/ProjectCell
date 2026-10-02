@@ -18,11 +18,9 @@ import slobben.cells.dto.outgoing.ChaosHitDto;
 import slobben.cells.dto.outgoing.ReconnectResponse;
 import slobben.cells.dto.outgoing.Settings;
 import slobben.cells.dto.outgoing.StateInfo;
-import slobben.cells.entities.model.Client;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.chaos.ChaosService;
 
-import java.util.List;
 import java.util.UUID;
 
 @Controller
@@ -62,8 +60,7 @@ public class CellController {
     public void updateClient(@Payload ClientUpdateRequest message) {
         log.debug("Received update request for clientId: {}", message.client());
 
-        Client client = clientService.updateClientBlocks(message);
-        clientService.sendClientUpdate(client, List.of(message.blocksToAdd()), false);
+        clientService.updateClientBlocks(message);
     }
 
     @MessageMapping("/block-request")

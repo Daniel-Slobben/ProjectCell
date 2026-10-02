@@ -16,8 +16,8 @@ import java.util.function.IntFunction;
 public class DiagonalMaker implements Maker {
 
     private static final Random random = new Random();
-    private static final int MIN_SIZE = 40000;
-    private static final int MAX_SIZE = 50000;
+    private static final int MIN_SIZE = 45000;
+    private static final int MAX_SIZE = 60000;
 
     private final WorldEditor worldEditor;
 
@@ -40,7 +40,7 @@ public class DiagonalMaker implements Maker {
 
     private IntFunction<Coordinates> getViewCalculator(final int centerX, final int centerY, final int size) {
         return age -> {
-            int adjustedAge = Math.min(age, size / 3);
+            int adjustedAge = Math.min(age, size / 3 - 500);
             return switch (CornerEnum.getRandomCorner()) {
                 case TOP_LEFT -> new Coordinates(centerX - adjustedAge, centerY - adjustedAge);
                 case TOP_RIGHT -> new Coordinates(centerX + adjustedAge, centerY - adjustedAge);

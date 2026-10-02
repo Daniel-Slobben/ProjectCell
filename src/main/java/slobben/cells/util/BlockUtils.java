@@ -6,7 +6,7 @@ public final class BlockUtils {
     private static final String SPLIT_CHAR = "/";
 
     public static String getKey(int x, int y) {
-        return x + SPLIT_CHAR + y;
+        return (x + SPLIT_CHAR + y);
     }
 
     public static Coordinates resolveKey(String key) {

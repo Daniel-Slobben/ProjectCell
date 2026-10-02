@@ -9,6 +9,7 @@ import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.HealthCheckResponse;
+import slobben.cells.entities.Coordinates;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.Client;
 import slobben.cells.enums.Direction;
@@ -18,6 +19,7 @@ import slobben.cells.util.BlockCoordinatesResult;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static slobben.cells.dto.outgoing.HealthCheckResponse.HEALTH_CHECK_TYPE.HEALTH_ACK;
@@ -34,7 +36,7 @@ public class ClientService implements Worker {
     private final ExecutorService executorService;
     private final EnvironmentConfig environmentConfig;
     private final Map<String, Block> blocks;
-    private final List<Client> clients = new ArrayList<>();
+    private final List<Client> clients = new CopyOnWriteArrayList<>();
 
     @Override
     public String getName() {
@@ -47,7 +49,7 @@ public class ClientService implements Worker {
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    public void sendClientUpdate(Client client, List<String> blockKeys, boolean sendBorderBlocks) {
+    public void sendClientUpdate(Client client, Set<String> blockKeys, boolean sendBorderBlocks) {
         // Client health check
         if (sendBorderBlocks && client.getHealthCheck() + HEALTH_CHECK_LIMIT_MS < System.currentTimeMillis()) {
             disconnectClient(client);
@@ -59,7 +61,7 @@ public class ClientService implements Worker {
         simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), copyOfBlocks);
     }
 
-    private @NonNull List<EncodedBlock> getEncodedBlocks(List<String> blockKeys, boolean sendBorderBlocks) {
+    private @NonNull List<EncodedBlock> getEncodedBlocks(Set<String> blockKeys, boolean sendBorderBlocks) {
         return blockKeys.stream().map(blocks::get).filter(Objects::nonNull).map(block -> {
             if (sendBorderBlocks) {
                 return block.getEncodedBlockBorders();
@@ -100,21 +102,33 @@ public class ClientService implements Worker {
         findClient(clientId).setInError(true);
     }
 
-    public Client updateClientBlocks(ClientUpdateRequest clientUpdateRequest) {
+    public void updateClientBlocks(ClientUpdateRequest clientUpdateRequest) {
         Client client = findClient(clientUpdateRequest.client());
-        List<String> clientBlocks = client.getActiveBlocks();
+        Coordinates topLeft = BlockUtils.resolveKey(clientUpdateRequest.keyTopLeft());
+        Coordinates bottomRight = BlockUtils.resolveKey(clientUpdateRequest.keyBottomRight());
 
-        clientBlocks.removeAll(Arrays.asList(clientUpdateRequest.blocksToRemove()));
-        clientBlocks.addAll(Arrays.asList(clientUpdateRequest.blocksToAdd()));
+        Set<String> newBlocks = new HashSet<>();
+        Set<String> allBlocks = new HashSet<>();
 
-        return client;
+        for (int x = topLeft.x(); x < bottomRight.x(); x++) {
+            for (int y = topLeft.y(); y < bottomRight.y(); y++) {
+                String key = BlockUtils.getKey(x, y);
+                allBlocks.add(key);
+                if (!client.getActiveBlocks().contains(key)) {
+                    newBlocks.add(key);
+                }
+            }
+        }
+        client.setActiveBlocks(allBlocks);
+
+        sendClientUpdate(client, newBlocks, false);
     }
 
     public List<EncodedBlock> getInitialBlocks(int worldX, int worldY) {
         BlockCoordinatesResult result = getBlockCoordinates(worldX, worldY, environmentConfig.getBlockSize());
         String centerBlock = BlockUtils.getKey(result.blockX(), result.blockY());
 
-        List<String> blocksToAdd = new ArrayList<>(9);
+        Set<String> blocksToAdd = HashSet.newHashSet(9);
         blocksToAdd.add(centerBlock);
         for (Direction direction : Direction.values()) {
             blocksToAdd.add(BlockUtils.getKey(result.blockX() + direction.getDx(), result.blockY() + direction.getDy()));

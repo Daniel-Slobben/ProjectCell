@@ -3,14 +3,15 @@ package slobben.cells.entities.model;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 @Getter
 public class Client {
     private final UUID clientId = UUID.randomUUID();
-    private final List<String> activeBlocks = new CopyOnWriteArrayList<>();
+    @Setter
+    private Set<String> activeBlocks = new HashSet<>();
     @Setter
     private boolean inError = false;
     @Setter
