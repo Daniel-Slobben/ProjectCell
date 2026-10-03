@@ -2,6 +2,7 @@ package slobben.cells.entities.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import slobben.cells.entities.Coordinates;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -10,6 +11,10 @@ import java.util.UUID;
 @Getter
 public class Client {
     private final UUID clientId = UUID.randomUUID();
+    @Setter
+    private Coordinates topLeft;
+    @Setter
+    private Coordinates bottomRight;
     @Setter
     private Set<String> activeBlocks = new HashSet<>();
     @Setter
