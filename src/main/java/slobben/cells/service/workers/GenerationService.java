@@ -21,7 +21,7 @@ public class GenerationService implements Worker {
     private final Map<String, Block> blocks;
 
     @Value("${cells.size.blockSize}")
-    private int blockSize;
+    private int blockSize = 500;
 
     @Override
     public String getName() {
@@ -34,31 +34,41 @@ public class GenerationService implements Worker {
         executorService.executeTasksParallel(tasks, getName());
     }
 
+    private static void neighborLoopWithIndexCheck(int x, int y, int blockSizeWithBorder, byte[][] heatmap) {
+        for (int i = -1; i <= 1; i++) {
+            if (x + i < 0 || x + i >= blockSizeWithBorder) continue;
+            for (int j = -1; j <= 1; j++) {
+                if (y + j < 0 || y + j >= blockSizeWithBorder) continue;
+
+                heatmap[x + i][y + j]++;
+            }
+        }
+    }
+
     public void setNextState(Block block) {
         if (block.getBlockState() == BlockState.HIBERNATION) {
             block.setNextHibernationState();
             return;
         }
 
-        byte[][] heatmap = getNeighboursHeatmap(block.getCells());
+        byte[][] heatmap = getNewHeatmap(block.getCells());
         applyGameOfLifeRulesFromHeatmap(block.getCells(), heatmap);
 
         block.blockUpdated();
     }
 
     private void applyGameOfLifeRulesFromHeatmap(boolean[][] cells, byte[][] heatmap) {
-        // loop inner matrix (no border cells)
         for (int x = 1; x < blockSize + 1; x++) {
             for (int y = 1; y < blockSize + 1; y++) {
-                // If cell was dead
+                byte heat = heatmap[x][y];
                 if (!cells[x][y]) {
-                    if (heatmap[x][y] == 3) {
+                    if (heat == 3) {
                         cells[x][y] = true;
                     }
                 }
-                // If cell was alive
                 else {
-                    if (!(heatmap[x][y] == 2 || heatmap[x][y] == 3)) {
+                    // 3 and 4 cause we increment itself if cell is true
+                    if (!(heat == 4 || heat == 3)) {
                         cells[x][y] = false;
                     }
                 }
@@ -66,13 +76,31 @@ public class GenerationService implements Worker {
         }
     }
 
-    private byte[][] getNeighboursHeatmap(boolean[][] matrix) {
-        int blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
+    private byte[][] getNewHeatmap(boolean[][] matrix) {
+        int blockSizeWithBorder = blockSize + 2;
         byte[][] heatmap = new byte[blockSizeWithBorder][blockSizeWithBorder];
 
-        // loop over every cell in the matrix
+        // border loops
         for (int x = 0; x < blockSizeWithBorder; x++) {
-            for (int y = 0; y < blockSizeWithBorder; y++) {
+            if (matrix[x][0]) {
+                neighborLoopWithIndexCheck(x, 0, blockSizeWithBorder, heatmap);
+            }
+            if (matrix[x][blockSizeWithBorder - 1]) {
+                neighborLoopWithIndexCheck(x, blockSizeWithBorder - 1, blockSizeWithBorder, heatmap);
+            }
+        }
+        for (int y = 1; y < blockSizeWithBorder - 1; y++) {
+            if (matrix[0][y]) {
+                neighborLoopWithIndexCheck(0, y, blockSizeWithBorder, heatmap);
+            }
+            if (matrix[blockSizeWithBorder - 1][y]) {
+                neighborLoopWithIndexCheck(blockSizeWithBorder - 1, y, blockSizeWithBorder, heatmap);
+            }
+        }
+
+        // inner loop
+        for (int x = 1; x < blockSizeWithBorder - 1; x++) {
+            for (int y = 1; y < blockSizeWithBorder - 1; y++) {
 
                 // skip when the current cell is dead
                 if (!matrix[x][y]) continue;
@@ -80,14 +108,6 @@ public class GenerationService implements Worker {
                 // loop over all the neighbors to increment neighbor count
                 for (int i = -1; i <= 1; i++) {
                     for (int j = -1; j <= 1; j++) {
-
-                        // skip itself
-                        if (i == 0 && j == 0) continue;
-
-                        // skip out of index cells
-                        if (x + i < 0 || y + j < 0) continue;
-                        if (x + i >= blockSizeWithBorder || y + j >= blockSizeWithBorder) continue;
-
                         heatmap[x + i][y + j]++;
                     }
                 }

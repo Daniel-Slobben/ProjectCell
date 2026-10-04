@@ -83,10 +83,7 @@ public class BlockConfig {
         return getBlockStream().collect(Collectors.toConcurrentMap((Block block) -> BlockUtils.getKey(block.getX(), block.getY()), (Block block) -> block));
     }
 
-    private Block setBlockToRandom(Block block) {
-        if (random.nextInt(0, blockPopulation) != 0) {
-            return block;
-        }
+    public Block setBlockToRandom(Block block) {
         for (int x = 0; x < blockSize; x++) {
             for (int y = 0; y < blockSize; y++) {
                 if (random.nextInt(0, cellPopulation) == 0) {
