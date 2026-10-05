@@ -16,7 +16,7 @@ public class Client {
     private boolean inError = false;
     @Setter
     private int blockLevel = 0;
-    private long healthCheck = 0;
+    private long healthCheck = System.currentTimeMillis();
 
     public void resetHealthCheck() {
         healthCheck = System.currentTimeMillis();

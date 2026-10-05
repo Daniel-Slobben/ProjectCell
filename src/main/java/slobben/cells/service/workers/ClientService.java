@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
+import slobben.cells.dto.incoming.DeleteBlocksRequest;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.HealthCheckResponse;
 import slobben.cells.entities.Coordinates;
@@ -55,7 +56,6 @@ public class ClientService implements Worker {
             disconnectClient(client);
             return;
         }
-        client.resetHealthCheck();
 
         List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks);
         simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), copyOfBlocks);
@@ -72,6 +72,7 @@ public class ClientService implements Worker {
     }
 
     public void disconnectClient(Client client) {
+        log.info("Disconnecting client: {}", client.getClientId());
         this.clients.remove(client);
         simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), new HealthCheckResponse(SESSION_DEAD));
     }
@@ -108,18 +109,17 @@ public class ClientService implements Worker {
         Coordinates bottomRight = BlockUtils.resolveKey(clientUpdateRequest.keyBottomRight());
 
         Set<String> newBlocks = new HashSet<>();
-        Set<String> allBlocks = new HashSet<>();
 
-        for (int x = topLeft.x(); x < bottomRight.x(); x++) {
-            for (int y = topLeft.y(); y < bottomRight.y(); y++) {
+        // not very efficient to loop all blocks in the client visible area.
+        // we could probably be faster if we saved the previous key pair and do some if checks.
+        for (int x = topLeft.x(); x <= bottomRight.x(); x++) {
+            for (int y = topLeft.y(); y <= bottomRight.y(); y++) {
                 String key = BlockUtils.getKey(x, y);
-                allBlocks.add(key);
-                if (!client.getActiveBlocks().contains(key)) {
+                if (!client.getActiveBlocks().add(key)) {
                     newBlocks.add(key);
                 }
             }
         }
-        client.setActiveBlocks(allBlocks);
 
         sendClientUpdate(client, newBlocks, false);
     }
@@ -145,5 +145,10 @@ public class ClientService implements Worker {
         }
 
         return optionalClient.get();
+    }
+
+    public void deleteBlocks(DeleteBlocksRequest message) {
+        Client client = findClient(message.client());
+        message.blocksToDelete().forEach(client.getActiveBlocks()::remove);
     }
 }
