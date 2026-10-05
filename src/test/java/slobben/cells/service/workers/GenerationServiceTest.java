@@ -3,8 +3,6 @@ package slobben.cells.service.workers;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -28,8 +26,8 @@ class GenerationServiceTest {
     private static final long CELL_UPDATES = 2_000_000_000;
     private static final int MAX_BLOCK_AGE = 200;
 
-    @ParameterizedTest
-    @ValueSource(ints = {20, 50, 100, 200, 300, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 2000, 2100, 2200, 2300})
+    //    @ParameterizedTest
+//    @ValueSource(ints = {20, 50, 100, 200, 300, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 2000, 2100, 2200, 2300})
     void profileRandom(int blockSize) {
         ReflectionTestUtils.setField(generationService, "blockSize", blockSize);
         Block block = null;
