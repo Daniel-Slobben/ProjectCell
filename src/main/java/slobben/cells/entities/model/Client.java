@@ -10,8 +10,7 @@ import java.util.UUID;
 @Getter
 public class Client {
     private final UUID clientId = UUID.randomUUID();
-    @Setter
-    private Set<String> activeBlocks = new HashSet<>();
+    private final Set<String> activeBlocks = new HashSet<>();
     @Setter
     private boolean inError = false;
     @Setter

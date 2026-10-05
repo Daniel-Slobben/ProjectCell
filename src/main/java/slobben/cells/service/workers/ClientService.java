@@ -10,7 +10,6 @@ import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.incoming.DeleteBlocksRequest;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.HealthCheckResponse;
-import slobben.cells.entities.Coordinates;
 import slobben.cells.entities.model.Block;
 import slobben.cells.entities.model.Client;
 import slobben.cells.enums.Direction;
@@ -105,23 +104,12 @@ public class ClientService implements Worker {
 
     public void updateClientBlocks(ClientUpdateRequest clientUpdateRequest) {
         Client client = findClient(clientUpdateRequest.client());
-        Coordinates topLeft = BlockUtils.resolveKey(clientUpdateRequest.keyTopLeft());
-        Coordinates bottomRight = BlockUtils.resolveKey(clientUpdateRequest.keyBottomRight());
+        Set<String> clientBlocks = client.getActiveBlocks();
 
-        Set<String> newBlocks = new HashSet<>();
+        Arrays.asList(clientUpdateRequest.blocksToRemove()).forEach(clientBlocks::remove);
+        clientBlocks.addAll(Arrays.asList(clientUpdateRequest.blocksToAdd()));
 
-        // not very efficient to loop all blocks in the client visible area.
-        // we could probably be faster if we saved the previous key pair and do some if checks.
-        for (int x = topLeft.x(); x <= bottomRight.x(); x++) {
-            for (int y = topLeft.y(); y <= bottomRight.y(); y++) {
-                String key = BlockUtils.getKey(x, y);
-                if (!client.getActiveBlocks().add(key)) {
-                    newBlocks.add(key);
-                }
-            }
-        }
-
-        sendClientUpdate(client, newBlocks, false);
+        sendClientUpdate(client, Set.of(clientUpdateRequest.blocksToAdd()), false);
     }
 
     public List<EncodedBlock> getInitialBlocks(int worldX, int worldY) {

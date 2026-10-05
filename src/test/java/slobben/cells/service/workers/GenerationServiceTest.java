@@ -1,9 +1,10 @@
 package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,25 +25,30 @@ class GenerationServiceTest {
     @Mock
     private EnvironmentConfig environmentConfig;
 
-    @BeforeEach
-    void init() {
-        ReflectionTestUtils.setField(generationService, "blockSize", 500);
-    }
+    private static final long CELL_UPDATES = 2_000_000_000;
+    private static final int MAX_BLOCK_AGE = 200;
 
-    @Test
-    void profileRandom() {
-        Block block = new Block(0, 0, UUID.randomUUID(), 500);
-        setBlockToRandom(block, 6, 500);
-
-        for (int i = 0; i < 10000; i++) {
+    @ParameterizedTest
+    @ValueSource(ints = {20, 50, 100, 200, 300, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 2000, 2100, 2200, 2300})
+    void profileRandom(int blockSize) {
+        ReflectionTestUtils.setField(generationService, "blockSize", blockSize);
+        Block block = null;
+        for (int i = 0; i < CELL_UPDATES / ((long) blockSize * blockSize); i++) {
+            if (i % MAX_BLOCK_AGE == 0) {
+                block = new Block(0, 0, UUID.randomUUID(), blockSize);
+                setBlockToRandom(block, 6, blockSize);
+            }
             generationService.setNextState(block);
         }
     }
 
     @Test
     void profileLine() {
-        Block block = new Block(0, 0, UUID.randomUUID(), 500);
-        setLine(block, 500);
+        int blockSize = 500;
+        ReflectionTestUtils.setField(generationService, "blockSize", blockSize);
+
+        Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
+        setLine(block, blockSize);
 
         for (int i = 0; i < 10000; i++) {
             generationService.setNextState(block);

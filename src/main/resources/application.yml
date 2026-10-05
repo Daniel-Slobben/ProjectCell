@@ -18,7 +18,7 @@ cells:
   size:
     x: '0'
     y: '0'
-    blockSize: '500'
+    blockSize: '2000'
 
   runmode: AUTO
   targetspeed: '1000'
