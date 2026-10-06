@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
-import slobben.cells.dto.incoming.DeleteBlocksRequest;
 import slobben.cells.dto.incoming.ReconnectRequest;
 import slobben.cells.dto.outgoing.ChaosHitDto;
 import slobben.cells.dto.outgoing.ReconnectResponse;
@@ -62,18 +61,6 @@ public class CellController {
         log.debug("Received update request for clientId: {}", message.client());
 
         clientService.updateClientBlocks(message);
-    }
-
-    @MessageMapping("/block-request")
-    public void getBlocks(@Payload ClientUpdateRequest message) {
-        log.debug("Received block request for clientId: {}", message.client());
-        clientService.addErrorClient(message.client());
-    }
-
-    @MessageMapping("/inactive-blocks")
-    public void getBlocks(@Payload DeleteBlocksRequest message) {
-        log.debug("Received delete blocks request for clientId: {}", message.client());
-        clientService.deleteBlocks(message);
     }
 
     @MessageMapping("/health-check")

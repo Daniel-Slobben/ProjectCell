@@ -98,10 +98,6 @@ public class ClientService implements Worker {
         simpMessagingTemplate.convertAndSend(TOPIC.formatted(clientId), new HealthCheckResponse(HEALTH_ACK));
     }
 
-    public void addErrorClient(UUID clientId) {
-        findClient(clientId).setInError(true);
-    }
-
     public void updateClientBlocks(ClientUpdateRequest clientUpdateRequest) {
         Client client = findClient(clientUpdateRequest.client());
         Set<String> clientBlocks = client.getActiveBlocks();
