@@ -2,8 +2,8 @@ package slobben.cells.service.workers.chaos;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.dto.outgoing.ChaosHitDto;
-import slobben.cells.entities.Coordinates;
 
 import java.util.UUID;
 import java.util.function.IntFunction;

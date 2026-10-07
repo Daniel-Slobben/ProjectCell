@@ -8,7 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.entities.model.Block;
+import slobben.cells.entities.Block;
 import slobben.cells.service.ExecutorService;
 
 import java.util.Map;

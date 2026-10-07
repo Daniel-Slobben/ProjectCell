@@ -1,4 +1,4 @@
-package slobben.cells.entities.model;
+package slobben.cells.entities;
 
 import lombok.Getter;
 import lombok.Setter;

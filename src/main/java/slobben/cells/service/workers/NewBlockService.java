@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.internal.BlockUpdate;
-import slobben.cells.entities.model.Block;
+import slobben.cells.entities.Block;
 
 import java.util.Map;
 import java.util.Optional;
@@ -47,9 +47,7 @@ public class NewBlockService implements Worker {
     }
 
     private void createBlock(BlockUpdate blockUpdate) {
-        boolean[][] matrix = new boolean[environmentConfig.getBlockSizeWithBorder()][environmentConfig.getBlockSizeWithBorder()];
-
-        Block newBlock = new Block(blockUpdate.x(), blockUpdate.y(), blockUpdate.responsibleChaosHit(), matrix);
+        Block newBlock = new Block(blockUpdate.x(), blockUpdate.y(), blockUpdate.responsibleChaosHit(), environmentConfig.getBlockSize());
         updateBlock(newBlock, blockUpdate);
         blocks.put(newBlock.getKey(), newBlock);
     }

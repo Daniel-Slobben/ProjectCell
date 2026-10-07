@@ -3,7 +3,7 @@ package slobben.cells.service.workers.chaos.makers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import slobben.cells.entities.Coordinates;
+import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.enums.CornerEnum;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.chaos.ChaosHit;

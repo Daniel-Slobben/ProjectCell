@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import slobben.cells.entities.Pattern;
+import slobben.cells.dto.internal.Pattern;
 
 import java.io.File;
 import java.util.Arrays;

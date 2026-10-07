@@ -8,7 +8,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import slobben.cells.dto.internal.BlockUpdate;
-import slobben.cells.entities.model.Block;
+import slobben.cells.entities.Block;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.workers.BorderService;
 import slobben.cells.service.workers.NewBlockService;

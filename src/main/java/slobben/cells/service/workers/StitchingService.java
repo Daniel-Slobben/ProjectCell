@@ -3,8 +3,8 @@ package slobben.cells.service.workers;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import slobben.cells.entities.model.Block;
-import slobben.cells.entities.model.BorderInfo;
+import slobben.cells.entities.Block;
+import slobben.cells.entities.BorderInfo;
 import slobben.cells.service.ExecutorService;
 
 import java.util.Map;

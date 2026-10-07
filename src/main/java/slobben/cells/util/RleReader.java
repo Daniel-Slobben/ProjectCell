@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
-import slobben.cells.entities.Pattern;
+import slobben.cells.dto.internal.Pattern;
 
 import java.io.*;
 import java.util.Random;

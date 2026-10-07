@@ -1,7 +1,7 @@
 package slobben.cells.util;
 
 import org.junit.jupiter.api.Test;
-import slobben.cells.entities.Coordinates;
+import slobben.cells.dto.internal.Coordinates;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

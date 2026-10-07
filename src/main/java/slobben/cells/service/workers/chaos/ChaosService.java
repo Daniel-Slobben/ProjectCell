@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.stereotype.Service;
-import slobben.cells.entities.model.Block;
+import slobben.cells.entities.Block;
 import slobben.cells.service.workers.Worker;
 import slobben.cells.service.workers.chaos.makers.Maker;
 

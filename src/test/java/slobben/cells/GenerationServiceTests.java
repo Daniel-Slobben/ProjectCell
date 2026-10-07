@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
-import slobben.cells.entities.model.Block;
+import slobben.cells.entities.Block;
 import slobben.cells.service.workers.GenerationService;
 
 import java.util.Map;

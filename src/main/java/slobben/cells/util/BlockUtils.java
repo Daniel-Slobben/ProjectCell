@@ -1,6 +1,6 @@
 package slobben.cells.util;
 
-import slobben.cells.entities.Coordinates;
+import slobben.cells.dto.internal.Coordinates;
 
 public final class BlockUtils {
     private static final String SPLIT_CHAR = "/";

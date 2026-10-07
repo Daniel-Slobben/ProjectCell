@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.entities.model.Block;
+import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.ExecutorService;
 

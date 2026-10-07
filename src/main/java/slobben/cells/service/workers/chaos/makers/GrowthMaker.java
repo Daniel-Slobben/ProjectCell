@@ -3,7 +3,7 @@
 //import lombok.SneakyThrows;
 //import lombok.extern.slf4j.Slf4j;
 //import org.springframework.data.util.Pair;
-//import slobben.cells.entities.Pattern;
+//import slobben.cells.dto.internal.Pattern;
 //import slobben.cells.service.workers.chaos.ChaosHit;
 //import slobben.cells.util.RleReader;
 //

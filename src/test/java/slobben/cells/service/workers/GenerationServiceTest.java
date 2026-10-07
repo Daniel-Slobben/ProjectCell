@@ -8,7 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.entities.model.Block;
+import slobben.cells.entities.Block;
 
 import java.util.Random;
 import java.util.UUID;

@@ -6,7 +6,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import slobben.cells.entities.model.Block;
+import slobben.cells.entities.Block;
 import slobben.cells.service.workers.*;
 import slobben.cells.service.workers.chaos.ChaosService;
 
@@ -22,7 +22,7 @@ public class RunnerService {
     private final PruningService pruningService;
     private final NewBlockService newBlockService;
     private final StitchingService stitchingService;
-    private final CachingService cachingService;
+    private final PackingService packingService;
     private final ClientService clientService;
     private final GenerationService generationService;
 
@@ -45,7 +45,7 @@ public class RunnerService {
         borderService.tic();
         newBlockService.tic();
         stitchingService.tic();
-        cachingService.tic();
+        packingService.tic();
         clientService.tic();
     }
 
