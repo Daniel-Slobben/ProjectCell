@@ -12,7 +12,7 @@ import static slobben.cells.enums.BlockState.ACTIVE;
 
 @Service
 @RequiredArgsConstructor
-public class RecordingService implements Worker {
+public class LoopDetection implements Worker {
     private final Map<String, Block> blocks;
     private final Set<Block> checkedBlock = new HashSet<>();
     @Value("${cells.recording.max-blocks:10}")

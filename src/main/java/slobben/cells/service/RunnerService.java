@@ -18,12 +18,11 @@ import java.util.Map;
 public class RunnerService {
 
     private final ChaosService chaosService;
-    private final NewBlockService newBlockService;
-    private final GenerationService generationService;
-    private final BorderService borderService;
-    private final PruningService pruningService;
-    private final StitchingService stitchingService;
-    private final PackingService packingService;
+    private final AddNewBlocks addNewBlocks;
+    private final AlgorithmGol algorithmGol;
+    private final Stitching stitching;
+    private final Pruning pruning;
+    private final Packer packingService;
     private final ClientService clientService;
 
     private final Map<String, Block> blocks;
@@ -35,26 +34,29 @@ public class RunnerService {
 
     private boolean running = false;
 
-    private int generation = 0;
+    private int ticks = 0;
 
     public void runCycle() {
-        pruningService.tic();
-        generationService.tic();
+        algorithmGol.tic();
+
         chaosService.tic();
-        newBlockService.tic();
-        borderService.tic();
-        newBlockService.tic();
-        stitchingService.tic();
+        addNewBlocks.tic();
+
+        stitching.tic();
+        addNewBlocks.tic();
+
         packingService.tic();
         clientService.tic();
+
+        pruning.tic();
     }
 
     @SneakyThrows
     public void run() {
         running = runMode.equals("AUTO");
         while (running) {
-            generation++;
-            log.info("Starting run {} with {} amount of blocks in memory", generation, blocks.size());
+            ticks++;
+            log.info("Starting run {} with {} amount of blocks in memory", ticks, blocks.size());
             long timer = System.currentTimeMillis();
 
             runCycle();

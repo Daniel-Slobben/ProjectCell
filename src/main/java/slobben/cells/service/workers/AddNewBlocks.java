@@ -8,7 +8,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class NewBlockService implements Worker {
+public class AddNewBlocks implements Worker {
 
     private final Map<String, Block> newBlocks;
     private final Map<String, Block> blocks;

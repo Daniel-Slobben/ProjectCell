@@ -11,7 +11,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PruningService implements Worker {
+public class Pruning implements Worker {
     private final Map<String, Block> blocks;
 
     private int counter = 0;

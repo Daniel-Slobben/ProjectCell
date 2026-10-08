@@ -10,9 +10,8 @@ import org.springframework.test.context.ActiveProfiles;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.Direction;
-import slobben.cells.service.workers.BorderService;
-import slobben.cells.service.workers.NewBlockService;
-import slobben.cells.service.workers.StitchingService;
+import slobben.cells.service.workers.AddNewBlocks;
+import slobben.cells.service.workers.Stitching;
 import slobben.cells.util.BlockUtils;
 
 import java.util.Map;
@@ -27,13 +26,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StitchingTest {
 
     @Autowired
-    private BorderService borderService;
+    private Stitching stitching;
     @Autowired
     private Map<String, Block> newBlocks;
     @Autowired
-    private NewBlockService newBlockService;
-    @Autowired
-    private StitchingService stitchingService;
+    private AddNewBlocks addNewBlocks;
     @Autowired
     private Map<String, Block> blocks;
     @Autowired
@@ -57,12 +54,10 @@ class StitchingTest {
         cells[1][2] = true;
         newBlocks.clear();
 
-        borderService.execute();
+        stitching.execute();
         assertThat(newBlocks).hasSize(8);
-        newBlockService.execute();
+        addNewBlocks.execute();
         assertThat(blocks).hasSize(9);
-
-        stitchingService.tic();
 
         Block blockToCheck = blocks.get(BlockUtils.getKey(direction.getDx(), direction.getDy()));
 

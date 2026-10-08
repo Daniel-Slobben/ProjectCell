@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class GenerationService implements Worker {
+public class AlgorithmGol implements Worker {
 
     private final EnvironmentConfig environmentConfig;
     private final ExecutorService executorService;
@@ -67,8 +67,7 @@ public class GenerationService implements Worker {
                     }
                 }
                 else {
-                    // 3 and 4 cause we increment itself if cell is true
-                    if (!(heat == 4 || heat == 3)) {
+                    if (!(heat == 3 || heat == 2)) {
                         cells[x][y] = false;
                     }
                 }
@@ -80,7 +79,7 @@ public class GenerationService implements Worker {
         int blockSizeWithBorder = blockSize + 2;
         byte[][] heatmap = new byte[blockSizeWithBorder][blockSizeWithBorder];
 
-        // border loops
+        // border loops. Only those need the expensive out-of-index guards
         for (int x = 0; x < blockSizeWithBorder; x++) {
             if (matrix[x][0]) {
                 neighborLoopWithIndexCheck(x, 0, blockSizeWithBorder, heatmap);
@@ -98,7 +97,7 @@ public class GenerationService implements Worker {
             }
         }
 
-        // inner loop
+        // inner loop go zooming
         for (int x = 1; x < blockSizeWithBorder - 1; x++) {
             for (int y = 1; y < blockSizeWithBorder - 1; y++) {
 
@@ -106,11 +105,16 @@ public class GenerationService implements Worker {
                 if (!matrix[x][y]) continue;
 
                 // loop over all the neighbors to increment neighbor count
-                for (int i = -1; i <= 1; i++) {
-                    for (int j = -1; j <= 1; j++) {
-                        heatmap[x + i][y + j]++;
-                    }
-                }
+                heatmap[x - 1][y - 1]++;
+                heatmap[x - 1][y]++;
+                heatmap[x - 1][y + 1]++;
+
+                heatmap[x][y - 1]++;
+                heatmap[x][y + 1]++;
+
+                heatmap[x + 1][y - 1]++;
+                heatmap[x + 1][y]++;
+                heatmap[x + 1][y + 1]++;
             }
         }
         return heatmap;

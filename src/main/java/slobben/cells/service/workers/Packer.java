@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PackingService implements Worker {
+public class Packer implements Worker {
     private static final LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
     private final Map<String, Block> blocks;
     private final ExecutorService executorService;

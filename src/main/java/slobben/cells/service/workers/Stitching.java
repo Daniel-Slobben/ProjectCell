@@ -19,7 +19,7 @@ import static slobben.cells.util.BlockUtils.getKey;
 
 @RequiredArgsConstructor
 @Service
-public class BorderService implements Worker {
+public class Stitching implements Worker {
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
     private final Map<String, Block> newBlocks;
@@ -81,7 +81,7 @@ public class BorderService implements Worker {
                 boolean cell = block.getCells()[1][1];
                 if (cell) {
                     getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .setHighXhighYcorner(true);
+                            .getCells()[blockSize + 1][blockSize + 1] = true;
                 }
             }
             case LOW_X_MID_Y -> {
@@ -89,38 +89,42 @@ public class BorderService implements Worker {
                 System.arraycopy(block.getCells()[1], 1, cellsToCopy, 0, blockSize);
 
                 if (hasTrueValue(cellsToCopy)) {
-                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .setHighXBorder(cellsToCopy);
+                    Block nBlock = getBlockOrCreateNew(key, block.getResponsibleChaosHit());
+                    System.arraycopy(cellsToCopy, 0, nBlock.getCells()[blockSize + 1], 1, blockSize);
                 }
             }
             case LOW_X_HIGH_Y -> {
                 boolean cell = block.getCells()[1][blockSize];
                 if (cell) {
                     getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .setHighXlowYcorner(true);
+                            .getCells()[blockSize + 1][0] = true;
                 }
             }
             case MID_X_LOW_Y -> {
                 boolean[] cellsToCopy = getColumnCells(block.getCells(), 1);
 
                 if (hasTrueValue(cellsToCopy)) {
-                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .setHighYBorder(cellsToCopy);
+                    Block nBlock = getBlockOrCreateNew(key, block.getResponsibleChaosHit());
+                    for (int i = 0; i < blockSize; i++) {
+                        nBlock.getCells()[i + 1][blockSize + 1] = cellsToCopy[i];
+                    }
                 }
             }
             case MID_X_HIGH_Y -> {
                 boolean[] cellsToCopy = getColumnCells(block.getCells(), blockSize);
 
                 if (hasTrueValue(cellsToCopy)) {
-                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .setLowYBorder(cellsToCopy);
+                    Block nBlock = getBlockOrCreateNew(key, block.getResponsibleChaosHit());
+                    for (int i = 0; i < blockSize; i++) {
+                        nBlock.getCells()[i + 1][0] = cellsToCopy[i];
+                    }
                 }
             }
             case HIGH_X_LOW_Y -> {
                 boolean cell = block.getCells()[blockSize][1];
                 if (cell) {
                     getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .setLowXhighYcorner(true);
+                            .getCells()[0][blockSize + 1] = true;
                 }
             }
             case HIGH_X_MID_Y -> {
@@ -128,21 +132,22 @@ public class BorderService implements Worker {
                 System.arraycopy(block.getCells()[blockSize], 1, cellsToCopy, 0, blockSize);
 
                 if (hasTrueValue(cellsToCopy)) {
-                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .setLowXBorder(cellsToCopy);
+                    Block nBlock = getBlockOrCreateNew(key, block.getResponsibleChaosHit());
+                    System.arraycopy(cellsToCopy, 0, nBlock.getCells()[0], 1, blockSize);
                 }
             }
             case HIGH_X_HIGH_Y -> {
                 boolean cell = block.getCells()[blockSize][blockSize];
                 if (cell) {
                     getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .setLowXlowYcorner(true);
+                            .getCells()[0][0] = true;
+
                 }
             }
         }
     }
 
-    private Block getBlockOrCreateNew(String key, UUID responsibleHit) {
+    private synchronized Block getBlockOrCreateNew(String key, UUID responsibleHit) {
         Block block = blocks.get(key);
         if (block == null) {
             Coordinates coordinates = BlockUtils.resolveKey(key);
