@@ -7,12 +7,6 @@ spring:
       enabled: true
 
 cells:
-  setup: EMPTY
-
-  random:
-    blockPopulation: '1'
-    cellPopulation: '2'
-
   pruning-per-generation: '100'
 
   size:
@@ -21,7 +15,7 @@ cells:
     blockSize: '2000'
 
   runmode: AUTO
-  targetspeed: '1000'
+  targetspeed: '300'
 
   recording:
     max-recording-depth: 4
