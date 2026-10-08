@@ -4,14 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.BorderInfo;
 import slobben.cells.service.ExecutorService;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static slobben.cells.util.BlockUtils.getKey;
 
 @Service
 @RequiredArgsConstructor
@@ -19,7 +16,6 @@ public class StitchingService implements Worker {
 
     private final ExecutorService executorService;
 
-    private final Map<String, BorderInfo> bordersMap;
     private final Map<String, Block> blocks;
 
     @Value("${cells.size.blockSize}")
@@ -37,22 +33,17 @@ public class StitchingService implements Worker {
     }
 
     public void stitchBlock(Block block) {
-        removeBorders(block.getCells());
-        BorderInfo map = bordersMap.get(getKey(block.getX(), block.getY()));
-        if (map != null && map.isHasAliveCells()) {
-            map.copyCells(block);
-        }
-    }
+        block.getCells()[0][0] = block.isLowXlowYcorner();
+        block.getCells()[0][blockSize + 1] = block.isLowXhighYcorner();
+        block.getCells()[blockSize + 1][0] = block.isHighXlowYcorner();
+        block.getCells()[blockSize + 1][blockSize + 1] = block.isHighXhighYcorner();
 
-    private void removeBorders(boolean[][] cells) {
-        int max = blockSize + 1;
-        for (int i = 0; i < cells[0].length; i++) {
-            cells[0][i] = false;
-            cells[max][i] = false;
+        System.arraycopy(block.getLowXBorder(), 0, block.getCells()[0], 1, blockSize);
+        System.arraycopy(block.getHighXBorder(), 0, block.getCells()[blockSize + 1], 1, blockSize);
 
-            // y keys
-            cells[i][0] = false;
-            cells[i][max] = false;
+        for (int i = 0; i < blockSize; i++) {
+            block.getCells()[i + 1][0] = block.getLowYBorder()[i];
+            block.getCells()[i + 1][blockSize + 1] = block.getHighYBorder()[i];
         }
     }
 }

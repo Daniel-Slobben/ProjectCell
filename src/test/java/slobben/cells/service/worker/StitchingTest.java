@@ -1,4 +1,4 @@
-package slobben.cells;
+package slobben.cells.service.worker;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -7,14 +7,16 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import slobben.cells.dto.internal.BlockUpdate;
+import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.workers.BorderService;
 import slobben.cells.service.workers.NewBlockService;
 import slobben.cells.service.workers.StitchingService;
+import slobben.cells.util.BlockUtils;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,57 +29,65 @@ class StitchingTest {
     @Autowired
     private BorderService borderService;
     @Autowired
-    private Map<String, BlockUpdate> blockUpdates;
+    private Map<String, Block> newBlocks;
     @Autowired
     private NewBlockService newBlockService;
     @Autowired
     private StitchingService stitchingService;
     @Autowired
     private Map<String, Block> blocks;
+    @Autowired
+    private EnvironmentConfig environmentConfig;
 
     @ParameterizedTest
     @EnumSource(value = Direction.class)
     void testStitching(Direction direction) {
+        // prepare
+        Block block = new Block(0, 0, UUID.randomUUID(), environmentConfig.getBlockSize());
+
+        blocks.put(block.getKey(), block);
         assert blocks.size() == 1;
-        var block = blocks.values().stream().findFirst().get();
+
         var cells = block.getCells();
-        //corner cells
         cells[1][1] = true;
         cells[1][10] = true;
         cells[10][1] = true;
         cells[10][10] = true;
-        blockUpdates.clear();
+
+        cells[1][2] = true;
+        newBlocks.clear();
 
         borderService.execute();
-        assertThat(blockUpdates).hasSize(8);
-        newBlockService.tic();
+        assertThat(newBlocks).hasSize(8);
+        newBlockService.execute();
         assertThat(blocks).hasSize(9);
 
         stitchingService.tic();
 
-        Block blockToCheck = blocks.values().stream().filter(b -> b.getX() == direction.getDx()).filter(b -> b.getY() == direction.getDy()).findFirst().get();
+        Block blockToCheck = blocks.get(BlockUtils.getKey(direction.getDx(), direction.getDy()));
 
         switch(direction) {
-            case Direction.TOP_LEFT -> assertThat(blockToCheck.getCells()[11][11]).isTrue();
-            case Direction.TOP -> {
+            case Direction.LOW_X_LOW_Y -> assertThat(blockToCheck.getCells()[11][11]).isTrue();
+            case Direction.LOW_X_MID_Y -> {
                 assertThat(blockToCheck.getCells()[11][10]).isTrue();
                 assertThat(blockToCheck.getCells()[11][1]).isTrue();
+                assertThat(blockToCheck.getCells()[11][2]).isTrue();
             }
-            case Direction.TOP_RIGHT-> assertThat(blockToCheck.getCells()[11][0]).isTrue();
-            case Direction.LEFT -> {
+            case Direction.LOW_X_HIGH_Y -> assertThat(blockToCheck.getCells()[11][0]).isTrue();
+            case Direction.MID_X_LOW_Y -> {
                 assertThat(blockToCheck.getCells()[1][11]).isTrue();
                 assertThat(blockToCheck.getCells()[10][11]).isTrue();
             }
-            case Direction.RIGHT -> {
+            case Direction.MID_X_HIGH_Y -> {
                 assertThat(blockToCheck.getCells()[1][0]).isTrue();
                 assertThat(blockToCheck.getCells()[10][0]).isTrue();
             }
-            case Direction.BOTTOM_LEFT-> assertThat(blockToCheck.getCells()[0][11]).isTrue();
-            case Direction.BOTTOM -> {
+            case Direction.HIGH_X_LOW_Y -> assertThat(blockToCheck.getCells()[0][11]).isTrue();
+            case Direction.HIGH_X_MID_Y -> {
                 assertThat(blockToCheck.getCells()[0][10]).isTrue();
                 assertThat(blockToCheck.getCells()[0][1]).isTrue();
             }
-            case Direction.BOTTOM_RIGHT -> assertThat(blockToCheck.getCells()[0][0]).isTrue();
+            case Direction.HIGH_X_HIGH_Y -> assertThat(blockToCheck.getCells()[0][0]).isTrue();
         }
     }
 

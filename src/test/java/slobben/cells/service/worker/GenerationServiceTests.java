@@ -1,4 +1,4 @@
-package slobben.cells;
+package slobben.cells.service.worker;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

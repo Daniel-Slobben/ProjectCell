@@ -17,14 +17,14 @@ import java.util.Map;
 @Slf4j
 public class RunnerService {
 
-    private final BorderService borderService;
     private final ChaosService chaosService;
-    private final PruningService pruningService;
     private final NewBlockService newBlockService;
+    private final GenerationService generationService;
+    private final BorderService borderService;
+    private final PruningService pruningService;
     private final StitchingService stitchingService;
     private final PackingService packingService;
     private final ClientService clientService;
-    private final GenerationService generationService;
 
     private final Map<String, Block> blocks;
 

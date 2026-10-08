@@ -1,4 +1,4 @@
-package slobben.cells.service.workers;
+package slobben.cells.service.worker;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +10,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.service.ExecutorService;
+import slobben.cells.service.workers.ClientService;
 
 import java.util.Map;
 

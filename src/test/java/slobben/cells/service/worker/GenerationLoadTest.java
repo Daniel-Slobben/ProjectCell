@@ -1,4 +1,4 @@
-package slobben.cells.service.workers;
+package slobben.cells.service.worker;
 
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
@@ -9,13 +9,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
+import slobben.cells.service.workers.GenerationService;
 
 import java.util.Random;
 import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
 @RequiredArgsConstructor
-class GenerationServiceTest {
+class GenerationLoadTest {
 
     private static final Random random = new Random();
     @InjectMocks

@@ -1,21 +1,18 @@
 package slobben.cells.service.workers;
 
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.BorderInfo;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.ExecutorService;
 import slobben.cells.util.BlockUtils;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static slobben.cells.util.BlockUtils.getKey;
@@ -23,143 +20,136 @@ import static slobben.cells.util.BlockUtils.getKey;
 @RequiredArgsConstructor
 @Service
 public class BorderService implements Worker {
-    private final EnvironmentConfig environmentConfig;
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
-    private int blockSizeWithBorder;
-    private final Map<String, BlockUpdate> blockUpdates;
-    private final Map<String, BorderInfo> bordersMap;
+    private final Map<String, Block> newBlocks;
     @Value("${cells.size.blockSize}")
     private int blockSize;
-
-    Map<String, BorderInfo> newBorderMaps = new ConcurrentHashMap<>();
-
-    @PostConstruct
-    private void postConstruct() {
-        blockSizeWithBorder = environmentConfig.getBlockSizeWithBorder();
-    }
 
     @Override
     public String getName() {
         return "Adding bordercells";
     }
 
-    public void execute() {
-        bordersMap.clear();
-        newBorderMaps.clear();
-
-        blocks.values().forEach(block -> bordersMap.put(getKey(block.getX(), block.getY()), new BorderInfo(blockSize, block.getResponsibleChaosHit())));
-
-        Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
-        executorService.executeTasksParallel(tasks, getName());
-
-        newBorderMaps.entrySet().stream()
-                .filter(entry -> entry.getValue().isHasAliveCells())
-                .forEach(entry -> {
-                    Coordinates coordinates = BlockUtils.resolveKey(entry.getKey());
-                    BlockUpdate blockUpdate = new BlockUpdate(coordinates.x(), coordinates.y(), new boolean[blockSize][blockSize], entry.getValue().getResponsibleChaosHit());
-                    blockUpdates.put(blockUpdate.getKey(), blockUpdate);
-                });
-    }
-
-    public void addBorderCells(Block block) {
-        for (int i = -1; i <= 1; i++) {
-            for (int j = -1; j <= 1; j++) {
-                if (i == 0 && j == 0) continue;
-
-                int neighborX = block.getX() + i;
-                int neighborY = block.getY() + j;
-                String neighborKey = getKey(neighborX, neighborY);
-
-                BorderInfo neighborMap;
-                synchronized (this) {
-                    neighborMap = bordersMap.get(neighborKey);
-                    if (neighborMap == null) {
-                        neighborMap = new BorderInfo(blockSize, block.getResponsibleChaosHit());
-                        bordersMap.put(neighborKey, neighborMap);
-                        newBorderMaps.put(BlockUtils.getKey(neighborX, neighborY), neighborMap);
-                    }
-                }
-
-                boolean hasLiveCells = setBorderCellsForDirection(neighborMap, i, j, block.getCells());
-                if (hasLiveCells) {
-                    neighborMap.setHasAliveCells(true);
-                }
-
-            }
-        }
-    }
-
-    private boolean setBorderCellsForDirection(BorderInfo neighbourMap, int i, int j, boolean[][] cells) {
-        Direction direction = Direction.from(i, j);
-        assert direction != null;
-
-        switch (direction) {
-            case TOP_LEFT -> {
-                boolean cell = cells[1][1];
-                neighbourMap.setBottomRightCorner(cell);
-                return cell;
-            }
-            case TOP -> {
-                boolean[] cellsToCopy = cells[1];
-                var result = neighbourMap.setBottomBorder(cellsToCopy);
-                return hasTrueValue(result);
-            }
-            case TOP_RIGHT -> {
-                boolean cell = cells[1][blockSize];
-                neighbourMap.setBottomLeftCorner(cell);
-                return cell;
-            }
-            case LEFT -> {
-                var result = getColumnCells(cells, 1);
-                neighbourMap.setRightBorder(result.matrix());
-                return result.hasTrueValue();
-            }
-            case RIGHT -> {
-                var result = getColumnCells(cells, blockSize);
-                neighbourMap.setLeftBorder(result.matrix());
-                return result.hasTrueValue();
-            }
-            case BOTTOM_LEFT -> {
-                boolean cell = cells[blockSize][1];
-                neighbourMap.setTopRightCorner(cell);
-                return cell;
-            }
-            case BOTTOM -> {
-                var cellsToCopy = new boolean[blockSizeWithBorder];
-                System.arraycopy(cells[blockSize], 1, cellsToCopy, 1, blockSizeWithBorder - 1);
-                var result = neighbourMap.setTopBorder(cellsToCopy);
-                return hasTrueValue(result);
-            }
-            case BOTTOM_RIGHT -> {
-                boolean cell = cells[blockSize][blockSize];
-                neighbourMap.setTopLeftCorner(cell);
-                return cell;
-            }
-        }
-        return false;
-    }
-
-    private boolean hasTrueValue(boolean[] cells) {
+    private static boolean hasTrueValue(boolean[] cells) {
         for (var cell : cells) {
             if (cell) return true;
         }
         return false;
     }
 
-    private ColumnResult getColumnCells(boolean[][] cells, int srcCol) {
+    private static boolean[] getColumnCells(boolean[][] cells, int srcCol) {
         boolean[] cellsToCopy = new boolean[cells.length - 2];
-        boolean hasTrue = false;
         for (int i = 1; i < cells.length - 1; i++) {
             cellsToCopy[i - 1] = cells[i][srcCol];
-            if (cells[i][srcCol]) {
-                hasTrue = true;
-            }
         }
-        return new ColumnResult(cellsToCopy, hasTrue);
+        return cellsToCopy;
     }
 
-    private record ColumnResult(boolean[] matrix, boolean hasTrueValue) {
+    public void execute() {
+        blocks.values().parallelStream().forEach(this::clearBlockBorders);
+
+        Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
+        executorService.executeTasksParallel(tasks, getName());
+    }
+
+    private void clearBlockBorders(Block block) {
+        block.setLowXBorder(new boolean[blockSize]);
+        block.setHighXBorder(new boolean[blockSize]);
+        block.setLowYBorder(new boolean[blockSize]);
+        block.setHighYBorder(new boolean[blockSize]);
+
+        block.setLowXlowYcorner(false);
+        block.setHighXlowYcorner(false);
+        block.setLowXhighYcorner(false);
+        block.setHighXhighYcorner(false);
+    }
+
+    private void addBorderCells(Block block) {
+        Arrays.stream(Direction.values()).forEach(direction -> {
+            int neighborX = block.getX() + direction.getDx();
+            int neighborY = block.getY() + direction.getDy();
+
+                String neighborKey = getKey(neighborX, neighborY);
+            setBorderCellsForDirection(neighborKey, direction, block);
+        });
+    }
+
+    private void setBorderCellsForDirection(String key, Direction direction, Block block) {
+        switch (direction) {
+            case LOW_X_LOW_Y -> {
+                boolean cell = block.getCells()[1][1];
+                if (cell) {
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
+                            .setHighXhighYcorner(true);
+                }
+            }
+            case LOW_X_MID_Y -> {
+                boolean[] cellsToCopy = new boolean[blockSize];
+                System.arraycopy(block.getCells()[1], 1, cellsToCopy, 0, blockSize);
+
+                if (hasTrueValue(cellsToCopy)) {
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
+                            .setHighXBorder(cellsToCopy);
+                }
+            }
+            case LOW_X_HIGH_Y -> {
+                boolean cell = block.getCells()[1][blockSize];
+                if (cell) {
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
+                            .setHighXlowYcorner(true);
+                }
+            }
+            case MID_X_LOW_Y -> {
+                boolean[] cellsToCopy = getColumnCells(block.getCells(), 1);
+
+                if (hasTrueValue(cellsToCopy)) {
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
+                            .setHighYBorder(cellsToCopy);
+                }
+            }
+            case MID_X_HIGH_Y -> {
+                boolean[] cellsToCopy = getColumnCells(block.getCells(), blockSize);
+
+                if (hasTrueValue(cellsToCopy)) {
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
+                            .setLowYBorder(cellsToCopy);
+                }
+            }
+            case HIGH_X_LOW_Y -> {
+                boolean cell = block.getCells()[blockSize][1];
+                if (cell) {
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
+                            .setLowXhighYcorner(true);
+                }
+            }
+            case HIGH_X_MID_Y -> {
+                boolean[] cellsToCopy = new boolean[blockSize];
+                System.arraycopy(block.getCells()[blockSize], 1, cellsToCopy, 0, blockSize);
+
+                if (hasTrueValue(cellsToCopy)) {
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
+                            .setLowXBorder(cellsToCopy);
+                }
+            }
+            case HIGH_X_HIGH_Y -> {
+                boolean cell = block.getCells()[blockSize][blockSize];
+                if (cell) {
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
+                            .setLowXlowYcorner(true);
+                }
+            }
+        }
+    }
+
+    private Block getBlockOrCreateNew(String key, UUID responsibleHit) {
+        Block block = blocks.get(key);
+        if (block == null) {
+            Coordinates coordinates = BlockUtils.resolveKey(key);
+            block = new Block(coordinates.x(), coordinates.y(), responsibleHit, blockSize);
+            newBlocks.put(key, block);
+        }
+        return block;
     }
 
 }

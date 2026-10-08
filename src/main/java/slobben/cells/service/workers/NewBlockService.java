@@ -2,19 +2,15 @@ package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.entities.Block;
 
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class NewBlockService implements Worker {
 
-    private final EnvironmentConfig environmentConfig;
-    private final Map<String, BlockUpdate> blockUpdates;
+    private final Map<String, Block> newBlocks;
     private final Map<String, Block> blocks;
 
     @Override
@@ -28,28 +24,8 @@ public class NewBlockService implements Worker {
     }
 
     private void checkForExternalBlockUpdates() {
-        for (BlockUpdate blockUpdate : blockUpdates.values()) {
-            Optional<Block> optionalBlock = blocks.values().stream().filter(block -> block.getX() == blockUpdate.x() && block.getY() == blockUpdate.y()).findFirst();
-            if (optionalBlock.isPresent()) {
-                updateBlock(optionalBlock.get(), blockUpdate);
-            } else {
-                createBlock(blockUpdate);
-            }
-        }
-        blockUpdates.clear();
-    }
-
-    private void updateBlock(Block block, BlockUpdate update) {
-        int blockSize = environmentConfig.getBlockSize();
-        for (int x = 1; x < blockSize + 1; x++) {
-            System.arraycopy(update.state()[x - 1], 0, block.getCells()[x], 1, blockSize);
-        }
-    }
-
-    private void createBlock(BlockUpdate blockUpdate) {
-        Block newBlock = new Block(blockUpdate.x(), blockUpdate.y(), blockUpdate.responsibleChaosHit(), environmentConfig.getBlockSize());
-        updateBlock(newBlock, blockUpdate);
-        blocks.put(newBlock.getKey(), newBlock);
+        newBlocks.values().forEach(newBlock -> blocks.put(newBlock.getKey(), newBlock));
+        newBlocks.clear();
     }
 
 }

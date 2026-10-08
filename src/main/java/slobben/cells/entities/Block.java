@@ -27,11 +27,26 @@ public class Block {
     private List<boolean[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
 
+    private boolean[] lowXBorder;
+    private boolean[] highXBorder;
+    private boolean[] lowYBorder;
+    private boolean[] highYBorder;
+
+    private boolean lowXlowYcorner = false;
+    private boolean highXlowYcorner = false;
+    private boolean lowXhighYcorner = false;
+    private boolean highXhighYcorner = false;
+
     public Block(int x, int y, UUID responsibleChaosHit, int blockSize) {
         this.x = x;
         this.y = y;
         this.responsibleChaosHit = responsibleChaosHit;
         this.cells = new boolean[blockSize + 2][blockSize + 2];
+
+        this.lowXBorder = new boolean[blockSize];
+        this.highXBorder = new boolean[blockSize];
+        this.lowYBorder = new boolean[blockSize];
+        this.highYBorder = new boolean[blockSize];
     }
 
     @Override

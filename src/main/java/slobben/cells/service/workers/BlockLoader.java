@@ -2,9 +2,7 @@ package slobben.cells.service.workers;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import slobben.cells.dto.internal.BlockUpdate;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.BorderInfo;
 import slobben.cells.service.workers.chaos.ChaosHit;
 
 import java.util.ArrayList;
@@ -17,12 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 class BlockLoader {
 
     @Bean
-    Map<String, BlockUpdate> blockUpdates() {
-        return new ConcurrentHashMap<>();
-    }
-
-    @Bean
-    Map<String, BorderInfo> bordersMap() {
+    Map<String, Block> newBlocks() {
         return new ConcurrentHashMap<>();
     }
 

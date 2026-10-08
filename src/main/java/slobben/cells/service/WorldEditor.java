@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.internal.BlockUpdate;
+import slobben.cells.entities.Block;
 import slobben.cells.util.BlockCoordinatesResult;
 import slobben.cells.util.BlockUtils;
 
@@ -19,7 +19,7 @@ import static slobben.cells.util.Utils.getBlockCoordinates;
 @Slf4j
 public class WorldEditor {
 
-    private final Map<String, BlockUpdate> blockUpdates;
+    private final Map<String, Block> newBlocks;
     private final EnvironmentConfig environmentConfig;
     private int blockSize = 0;
 
@@ -31,11 +31,11 @@ public class WorldEditor {
     public void setCell(int x, int y, UUID id) {
         BlockCoordinatesResult result = getBlockCoordinates(x, y, blockSize);
 
-        BlockUpdate block = blockUpdates.get(BlockUtils.getKey(result.blockX(), result.blockY()));
+        Block block = newBlocks.get(BlockUtils.getKey(result.blockX(), result.blockY()));
         if (block == null) {
-            block = new BlockUpdate(result.blockX(), result.blockY(), new boolean[blockSize][blockSize], id);
-            blockUpdates.put(block.getKey(), block);
+            block = new Block(result.blockX(), result.blockY(), id, blockSize);
+            newBlocks.put(block.getKey(), block);
         }
-        block.state()[result.relativeCellX()][result.relativeCellY()] = true;
+        block.getCells()[result.relativeCellX() + 1][result.relativeCellY() + 1] = true;
     }
 }

@@ -7,7 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 import slobben.cells.config.EnvironmentConfig;
-import slobben.cells.dto.internal.BlockUpdate;
+import slobben.cells.entities.Block;
 import slobben.cells.util.BlockUtils;
 
 import java.util.Map;
@@ -23,13 +23,13 @@ class WorldEditorTest {
     @Autowired
     private WorldEditor worldEditor;
     @Autowired
-    private Map<String, BlockUpdate> blockUpdates;
+    private Map<String, Block> newBlocks;
     @Autowired
     private EnvironmentConfig environmentConfig;
 
     @BeforeEach
     void clearBlocks() {
-        this.blockUpdates.clear();
+        this.newBlocks.clear();
     }
 
     @Test
@@ -44,10 +44,10 @@ class WorldEditorTest {
         worldEditor.setCell(1, 1, id);
 
         // verify
-        BlockUpdate block = blockUpdates.get(BlockUtils.getKey(0, 0));
+        Block block = newBlocks.get(BlockUtils.getKey(0, 0));
         assertThat(block).isNotNull();
 
-        boolean[][] cells = block.state();
+        boolean[][] cells = block.getCells();
 
         // remember to adjust for bordercells in Block.cells
         assertThat(cells[0][0]).isTrue();
@@ -71,10 +71,10 @@ class WorldEditorTest {
         worldEditor.setCell(blockSize, blockSize, id);
 
         // verify
-        assertThat(blockUpdates).hasSize(4);
-        assertThat(blockUpdates.get(BlockUtils.getKey(0, 0)).state()[blockSize - 1][blockSize - 1]).isTrue();
-        assertThat(blockUpdates.get(BlockUtils.getKey(0, 1)).state()[blockSize - 1][0]).isTrue();
-        assertThat(blockUpdates.get(BlockUtils.getKey(1, 0)).state()[0][blockSize - 1]).isTrue();
-        assertThat(blockUpdates.get(BlockUtils.getKey(1, 1)).state()[0][0]).isTrue();
+        assertThat(newBlocks).hasSize(4);
+        assertThat(newBlocks.get(BlockUtils.getKey(0, 0)).getCells()[blockSize - 1][blockSize - 1]).isTrue();
+        assertThat(newBlocks.get(BlockUtils.getKey(0, 1)).getCells()[blockSize - 1][0]).isTrue();
+        assertThat(newBlocks.get(BlockUtils.getKey(1, 0)).getCells()[0][blockSize - 1]).isTrue();
+        assertThat(newBlocks.get(BlockUtils.getKey(1, 1)).getCells()[0][0]).isTrue();
     }
 }
