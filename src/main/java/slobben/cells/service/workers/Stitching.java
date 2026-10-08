@@ -26,11 +26,6 @@ public class Stitching implements Worker {
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
-    @Override
-    public String getName() {
-        return "Adding bordercells";
-    }
-
     private static boolean hasTrueValue(boolean[] cells) {
         for (var cell : cells) {
             if (cell) return true;
@@ -46,6 +41,11 @@ public class Stitching implements Worker {
         return cellsToCopy;
     }
 
+    @Override
+    public String getName() {
+        return "Adding bordercells";
+    }
+
     public void execute() {
         blocks.values().parallelStream().forEach(this::clearBlockBorders);
 
@@ -54,15 +54,16 @@ public class Stitching implements Worker {
     }
 
     private void clearBlockBorders(Block block) {
-        block.setLowXBorder(new boolean[blockSize]);
-        block.setHighXBorder(new boolean[blockSize]);
-        block.setLowYBorder(new boolean[blockSize]);
-        block.setHighYBorder(new boolean[blockSize]);
+        boolean[][] cells = block.getCells();
+        int max = blockSize + 1;
+        for (int i = 0; i < cells[0].length; i++) {
+            cells[0][i] = false;
+            cells[max][i] = false;
 
-        block.setLowXlowYcorner(false);
-        block.setHighXlowYcorner(false);
-        block.setLowXhighYcorner(false);
-        block.setHighXhighYcorner(false);
+            // y keys
+            cells[i][0] = false;
+            cells[i][max] = false;
+        }
     }
 
     private void addBorderCells(Block block) {
@@ -70,7 +71,7 @@ public class Stitching implements Worker {
             int neighborX = block.getX() + direction.getDx();
             int neighborY = block.getY() + direction.getDy();
 
-                String neighborKey = getKey(neighborX, neighborY);
+            String neighborKey = getKey(neighborX, neighborY);
             setBorderCellsForDirection(neighborKey, direction, block);
         });
     }
@@ -80,8 +81,7 @@ public class Stitching implements Worker {
             case LOW_X_LOW_Y -> {
                 boolean cell = block.getCells()[1][1];
                 if (cell) {
-                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .getCells()[blockSize + 1][blockSize + 1] = true;
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit()).getCells()[blockSize + 1][blockSize + 1] = true;
                 }
             }
             case LOW_X_MID_Y -> {
@@ -96,8 +96,7 @@ public class Stitching implements Worker {
             case LOW_X_HIGH_Y -> {
                 boolean cell = block.getCells()[1][blockSize];
                 if (cell) {
-                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .getCells()[blockSize + 1][0] = true;
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit()).getCells()[blockSize + 1][0] = true;
                 }
             }
             case MID_X_LOW_Y -> {
@@ -123,8 +122,7 @@ public class Stitching implements Worker {
             case HIGH_X_LOW_Y -> {
                 boolean cell = block.getCells()[blockSize][1];
                 if (cell) {
-                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .getCells()[0][blockSize + 1] = true;
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit()).getCells()[0][blockSize + 1] = true;
                 }
             }
             case HIGH_X_MID_Y -> {
@@ -139,8 +137,7 @@ public class Stitching implements Worker {
             case HIGH_X_HIGH_Y -> {
                 boolean cell = block.getCells()[blockSize][blockSize];
                 if (cell) {
-                    getBlockOrCreateNew(key, block.getResponsibleChaosHit())
-                            .getCells()[0][0] = true;
+                    getBlockOrCreateNew(key, block.getResponsibleChaosHit()).getCells()[0][0] = true;
 
                 }
             }

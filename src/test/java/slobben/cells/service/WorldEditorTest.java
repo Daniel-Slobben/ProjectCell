@@ -49,12 +49,12 @@ class WorldEditorTest {
 
         boolean[][] cells = block.getCells();
 
-        // remember to adjust for bordercells in Block.cells
-        assertThat(cells[0][0]).isTrue();
-        assertThat(cells[0][1]).isTrue();
-        assertThat(cells[1][0]).isTrue();
+        // remember to adjust for bordercells here
         assertThat(cells[1][1]).isTrue();
-        assertThat(cells[1][2]).isFalse();
+        assertThat(cells[1][2]).isTrue();
+        assertThat(cells[2][1]).isTrue();
+        assertThat(cells[2][2]).isTrue();
+        assertThat(cells[2][3]).isFalse();
     }
 
     @Test
@@ -72,9 +72,9 @@ class WorldEditorTest {
 
         // verify
         assertThat(newBlocks).hasSize(4);
-        assertThat(newBlocks.get(BlockUtils.getKey(0, 0)).getCells()[blockSize - 1][blockSize - 1]).isTrue();
-        assertThat(newBlocks.get(BlockUtils.getKey(0, 1)).getCells()[blockSize - 1][0]).isTrue();
-        assertThat(newBlocks.get(BlockUtils.getKey(1, 0)).getCells()[0][blockSize - 1]).isTrue();
-        assertThat(newBlocks.get(BlockUtils.getKey(1, 1)).getCells()[0][0]).isTrue();
+        assertThat(newBlocks.get(BlockUtils.getKey(0, 0)).getCells()[blockSize][blockSize]).isTrue();
+        assertThat(newBlocks.get(BlockUtils.getKey(0, 1)).getCells()[blockSize][1]).isTrue();
+        assertThat(newBlocks.get(BlockUtils.getKey(1, 0)).getCells()[1][blockSize]).isTrue();
+        assertThat(newBlocks.get(BlockUtils.getKey(1, 1)).getCells()[1][1]).isTrue();
     }
 }
