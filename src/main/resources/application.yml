@@ -15,7 +15,7 @@ cells:
     blockSize: '2000'
 
   runmode: AUTO
-  targetspeed: '300'
+  targetspeed: '1000'
 
   recording:
     max-recording-depth: 4
