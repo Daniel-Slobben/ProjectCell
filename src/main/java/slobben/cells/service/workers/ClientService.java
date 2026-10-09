@@ -15,7 +15,7 @@ import slobben.cells.entities.Client;
 import slobben.cells.enums.Direction;
 import slobben.cells.exceptions.NotAClientException;
 import slobben.cells.service.ExecutorService;
-import slobben.cells.util.BlockCoordinatesResult;
+import slobben.cells.dto.internal.BlockCoordinatesResult;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 
 import static slobben.cells.dto.outgoing.HealthCheckResponse.HEALTH_CHECK_TYPE.HEALTH_ACK;
 import static slobben.cells.dto.outgoing.HealthCheckResponse.HEALTH_CHECK_TYPE.SESSION_DEAD;
-import static slobben.cells.util.Utils.getBlockCoordinates;
 
 @Service
 @RequiredArgsConstructor
@@ -109,13 +108,15 @@ public class ClientService implements Worker {
     }
 
     public List<EncodedBlock> getInitialBlocks(int worldX, int worldY) {
-        BlockCoordinatesResult result = getBlockCoordinates(worldX, worldY, environmentConfig.getBlockSize());
-        String centerBlock = BlockUtils.getKey(result.blockX(), result.blockY());
+        final int blockSize = environmentConfig.getBlockSize();
+        int blockX = Math.floorDiv(worldX, blockSize);
+        int blockY = Math.floorDiv(worldY, blockSize);
+        String centerBlock = BlockUtils.getKey(blockX, blockY);
 
         Set<String> blocksToAdd = HashSet.newHashSet(9);
         blocksToAdd.add(centerBlock);
         for (Direction direction : Direction.values()) {
-            blocksToAdd.add(BlockUtils.getKey(result.blockX() + direction.getDx(), result.blockY() + direction.getDy()));
+            blocksToAdd.add(BlockUtils.getKey(blockX + direction.getDx(), blockY + direction.getDy()));
         }
         return getEncodedBlocks(blocksToAdd, false);
     }

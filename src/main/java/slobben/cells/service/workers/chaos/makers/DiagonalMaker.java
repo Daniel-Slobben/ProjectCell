@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.enums.CornerEnum;
+import slobben.cells.enums.Direction;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.chaos.ChaosHit;
 
@@ -22,11 +23,11 @@ public class DiagonalMaker implements Maker {
     private final WorldEditor worldEditor;
 
     @Override
-    public ChaosHit getChaosHit() {
+    public ChaosHit getChaosHit(int worldX, int worldY) {
         UUID chaosHitId = UUID.randomUUID();
         final int size = random.nextInt(MIN_SIZE, MAX_SIZE);
-        final int startX = -(size / 2);
-        final int startY = -(size / 2);
+        final int startX = (-(size / 2)) + worldX;
+        final int startY = (-(size / 2)) + worldY;
 
         setCells(startX, startY, size, chaosHitId);
 
@@ -35,17 +36,23 @@ public class DiagonalMaker implements Maker {
 
         IntFunction<Coordinates> viewCalculator = getViewCalculator(centerX, centerY, size);
 
-        return new ChaosHit("Diagonal cross " + size + " pixels wide", viewCalculator, size / 2);
+        return new ChaosHit("Diagonal cross " + size + " pixels wide", viewCalculator, size / 3);
     }
 
     private IntFunction<Coordinates> getViewCalculator(final int centerX, final int centerY, final int size) {
         return age -> {
-            int adjustedAge = Math.min(age, size / 3 - 500);
-            return switch (CornerEnum.getRandomCorner()) {
-                case TOP_LEFT -> new Coordinates(centerX - adjustedAge, centerY - adjustedAge);
-                case TOP_RIGHT -> new Coordinates(centerX + adjustedAge, centerY - adjustedAge);
-                case BOTTOM_LEFT -> new Coordinates(centerX - adjustedAge, centerY + adjustedAge);
-                case BOTTOM_RIGHT -> new Coordinates(centerX + adjustedAge, centerY + adjustedAge);
+            int cornerOffset = Math.min(age, size / 4) - 30;
+            int middleOffset = age / 2;
+
+            return switch (Direction.getRandomDirection()) {
+                case LOW_X_LOW_Y -> new Coordinates(centerX - cornerOffset, centerY - cornerOffset);
+                case LOW_X_MID_Y -> new Coordinates(centerX - middleOffset, centerY);
+                case LOW_X_HIGH_Y -> new Coordinates(centerX + cornerOffset, centerY - cornerOffset);
+                case MID_X_LOW_Y -> new Coordinates(centerX, centerY - middleOffset);
+                case MID_X_HIGH_Y -> new Coordinates(centerX, centerY + middleOffset);
+                case HIGH_X_LOW_Y -> new Coordinates(centerX - cornerOffset, centerY + cornerOffset);
+                case HIGH_X_MID_Y -> new Coordinates(centerX + middleOffset, centerY);
+                case HIGH_X_HIGH_Y -> new Coordinates(centerX + cornerOffset, centerY + cornerOffset);
             };
         };
     }

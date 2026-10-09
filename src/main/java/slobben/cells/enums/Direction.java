@@ -2,6 +2,8 @@ package slobben.cells.enums;
 
 import lombok.Getter;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 @Getter
 public enum Direction {
     LOW_X_LOW_Y(-1, -1),
@@ -28,5 +30,9 @@ public enum Direction {
             }
         }
         return null;
+    }
+
+    public static Direction getRandomDirection() {
+        return values()[ThreadLocalRandom.current().nextInt(values().length)];
     }
 }

@@ -25,7 +25,7 @@ public class SquareMaker implements Maker {
     private int size = 0;
 
     @Override
-    public ChaosHit getChaosHit() {
+    public ChaosHit getChaosHit(int worldX, int worldY) {
         UUID chaosHitId = UUID.randomUUID();
         size = random.nextInt(MIN_SIZE, MAX_SIZE);
 
