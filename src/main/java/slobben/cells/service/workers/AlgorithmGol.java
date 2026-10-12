@@ -66,6 +66,10 @@ public class AlgorithmGol implements Worker {
             setInitialSectorHeat(block);
         }
 
+        if (block.getKey().equals("7/22")) {
+            System.out.println();
+        }
+
         byte[][] heatmap = getNewHeatmap(block.getCells(), block.getSectorCounts());
         applyGameOfLifeRulesFromHeatmap(block.getCells(), heatmap, block.getSectorCounts());
 
@@ -112,11 +116,11 @@ public class AlgorithmGol implements Worker {
             for (int sy = 0; sy < totalSectors; sy++) {
                 if (sectorCounts[sx][sy] > 0) {
 
-                    for (int x = 0; x < totalSectors; x++) {
-                        for (int y = 0; y < totalSectors; y++) {
+                    for (int x = 0; x < sectorSize; x++) {
+                        for (int y = 0; y < sectorSize; y++) {
 
-                            int blockX = x + 1 + totalSectors * sx;
-                            int blockY = y + 1 + totalSectors * sy;
+                            int blockX = x + 1 + sectorSize * sx;
+                            int blockY = y + 1 + sectorSize * sy;
 
                             // skip when the current cell is dead
                             if (!matrix[blockX][blockY]) continue;
@@ -146,11 +150,11 @@ public class AlgorithmGol implements Worker {
         for (int sx = 0; sx < totalSectors ; sx++) {
             for (int sy = 0; sy < totalSectors; sy++) {
 
-                for (int x = 0; x < totalSectors; x++) {
-                    for (int y = 0; y < totalSectors; y++) {
+                for (int x = 0; x < sectorSize; x++) {
+                    for (int y = 0; y < sectorSize; y++) {
 
-                        int blockX = x + 1 + totalSectors * sx;
-                        int blockY = y + 1 + totalSectors * sy;
+                        int blockX = x + 1 + sectorSize * sx;
+                        int blockY = y + 1 + sectorSize * sy;
 
                         byte heat = heatmap[blockX][blockY];
                         if (!cells[blockX][blockY]) {

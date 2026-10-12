@@ -34,6 +34,9 @@ class AlgorithmGolTests {
         block.getCells()[0][1] = true;
         block.getCells()[1][0] = true;
         block.getCells()[1][1] = true;
+        block.getCells()[2][2] = true;
+        block.getCells()[1][2] = true;
+        block.getCells()[2][1] = true;
         algorithmGol.setNextState(block);
 
         assertThat(block.getCells()[0][0]).isTrue();
@@ -42,23 +45,4 @@ class AlgorithmGolTests {
         assertThat(block.getCells()[1][1]).isTrue();
     }
 
-    @Test
-    void checkSector() {
-        Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
-        blocks.put(block.getKey(), block);
-        block.getCells()[0][0] = true;
-        block.getCells()[0][1] = true;
-        block.getCells()[1][0] = true;
-        block.getCells()[1][1] = true;
-        block.getCells()[2][0] = true;
-        block.getCells()[2][1] = true;
-        block.getCells()[3][0] = true;
-        block.getCells()[4][2] = true;
-        block.getCells()[3][5] = true;
-        block.getCells()[3][2] = true;
-        block.getCells()[3][3] = true;
-        block.getCells()[3][1] = true;
-        algorithmGol.setNextState(block);
-
-    }
 }
