@@ -3,11 +3,11 @@ package slobben.cells.service.worker;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.service.workers.AlgorithmGol;
 
@@ -19,18 +19,22 @@ import java.util.UUID;
 class AlgorithmGolLoadTest {
 
     private static final Random random = new Random();
-    @InjectMocks
-    private AlgorithmGol algorithmGol;
-    @Mock
-    private EnvironmentConfig environmentConfig;
-
     private static final long CELL_UPDATES = 2_000_000_000;
     private static final int MAX_BLOCK_AGE = 200;
+    @InjectMocks
+    private AlgorithmGol algorithmGol;
 
-    //    @ParameterizedTest
-//    @ValueSource(ints = {20, 50, 100, 200, 300, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 2000, 2100, 2200, 2300})
+    @ParameterizedTest
+    @ValueSource(ints = {200, 300, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 2000, 2100, 2200, 2300})
     void profileRandom(int blockSize) {
         ReflectionTestUtils.setField(algorithmGol, "blockSize", blockSize);
+        int totalSectors = blockSize / 100;
+        int sectorFactor = blockSize / totalSectors;
+
+        ReflectionTestUtils.setField(algorithmGol, "sectorSize", 100);
+        ReflectionTestUtils.setField(algorithmGol, "totalSectors", totalSectors);
+        ReflectionTestUtils.setField(algorithmGol, "sectorFactor", sectorFactor);
+
         Block block = null;
         for (int i = 0; i < CELL_UPDATES / ((long) blockSize * blockSize); i++) {
             if (i % MAX_BLOCK_AGE == 0) {

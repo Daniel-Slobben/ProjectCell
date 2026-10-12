@@ -3,11 +3,11 @@ package slobben.cells.service.worker;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.workers.AddNewBlocks;
@@ -33,14 +33,15 @@ class StitchingTest {
     private AddNewBlocks addNewBlocks;
     @Autowired
     private Map<String, Block> blocks;
-    @Autowired
-    private EnvironmentConfig environmentConfig;
+
+    @Value("${cells.size.blockSize}")
+    private int blockSize = 10;
 
     @ParameterizedTest
     @EnumSource(value = Direction.class)
     void testStitching(Direction direction) {
         // prepare
-        Block block = new Block(0, 0, UUID.randomUUID(), environmentConfig.getBlockSize());
+        Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
 
         blocks.put(block.getKey(), block);
         assert blocks.size() == 1;

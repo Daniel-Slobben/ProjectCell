@@ -17,6 +17,7 @@ public class Block {
     private final int y;
     private int generation = 0;
     private boolean[][] cells;
+    private short[][] sectorCounts;
     private BlockState blockState = BlockState.NEW;
 
     private UUID responsibleChaosHit;

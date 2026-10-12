@@ -1,9 +1,9 @@
 package slobben.cells.service.workers;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.ExecutorService;
@@ -16,23 +16,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AlgorithmGol implements Worker {
 
-    private final EnvironmentConfig environmentConfig;
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
 
     @Value("${cells.size.blockSize}")
     private int blockSize = 500;
-
-    @Override
-    public String getName() {
-        return "Generation";
-    }
-
-    @Override
-    public void execute() {
-        Set<Runnable> tasks = blocks.values().stream().map(block -> ((Runnable) () -> setNextState(block))).collect(Collectors.toSet());
-        executorService.executeTasksParallel(tasks, getName());
-    }
+    @Value("${cells.size.sectorSize}")
+    private int sectorSize = 100;
+    private int totalSectors = 0;
+    private int sectorFactor = 0;
 
     private static void neighborLoopWithIndexCheck(int x, int y, int blockSizeWithBorder, byte[][] heatmap) {
         for (int i = -1; i <= 1; i++) {
@@ -45,37 +37,56 @@ public class AlgorithmGol implements Worker {
         }
     }
 
+    @PostConstruct
+    void init() {
+        if (blockSize % sectorSize != 0) {
+            throw new IllegalStateException();
+        }
+        totalSectors = blockSize / sectorSize;
+        sectorFactor = blockSize / totalSectors;
+    }
+
+    @Override
+    public String getName() {
+        return "Generation";
+    }
+
+    @Override
+    public void execute() {
+        Set<Runnable> tasks = blocks.values().stream().map(block -> ((Runnable) () -> setNextState(block))).collect(Collectors.toSet());
+        executorService.executeTasksParallel(tasks, getName());
+    }
+
     public void setNextState(Block block) {
         if (block.getBlockState() == BlockState.HIBERNATION) {
             block.setNextHibernationState();
             return;
         }
+        if (block.getSectorCounts() == null) {
+            setInitialSectorHeat(block);
+        }
 
-        byte[][] heatmap = getNewHeatmap(block.getCells());
-        applyGameOfLifeRulesFromHeatmap(block.getCells(), heatmap);
+        byte[][] heatmap = getNewHeatmap(block.getCells(), block.getSectorCounts());
+        applyGameOfLifeRulesFromHeatmap(block.getCells(), heatmap, block.getSectorCounts());
 
         block.blockUpdated();
     }
 
-    private void applyGameOfLifeRulesFromHeatmap(boolean[][] cells, byte[][] heatmap) {
-        for (int x = 1; x < blockSize + 1; x++) {
-            for (int y = 1; y < blockSize + 1; y++) {
-                byte heat = heatmap[x][y];
-                if (!cells[x][y]) {
-                    if (heat == 3) {
-                        cells[x][y] = true;
-                    }
-                }
-                else {
-                    if (!(heat == 3 || heat == 2)) {
-                        cells[x][y] = false;
-                    }
-                }
+    private void setInitialSectorHeat(Block block) {
+        block.setSectorCounts(new short[totalSectors][totalSectors]);
+        boolean[][] matrix = block.getCells();
+        short[][] sector = block.getSectorCounts();
+        for (int x = 1; x <= blockSize; x++) {
+            for (int y = 1; y <= blockSize; y++) {
+                if (!matrix[x][y]) continue;
+                int sectorX = Math.floorDiv(x - 1, sectorFactor);
+                int sectorY = Math.floorDiv(y - 1, sectorFactor);
+                sector[sectorX][sectorY]++;
             }
         }
     }
 
-    private byte[][] getNewHeatmap(boolean[][] matrix) {
+    private byte[][] getNewHeatmap(boolean[][] matrix, short[][] sectorCounts) {
         int blockSizeWithBorder = blockSize + 2;
         byte[][] heatmap = new byte[blockSizeWithBorder][blockSizeWithBorder];
 
@@ -97,26 +108,65 @@ public class AlgorithmGol implements Worker {
             }
         }
 
-        // inner loop go zooming
-        for (int x = 1; x < blockSizeWithBorder - 1; x++) {
-            for (int y = 1; y < blockSizeWithBorder - 1; y++) {
+        for (int sx = 0; sx < totalSectors; sx++) {
+            for (int sy = 0; sy < totalSectors; sy++) {
+                if (sectorCounts[sx][sy] > 0) {
 
-                // skip when the current cell is dead
-                if (!matrix[x][y]) continue;
+                    for (int x = 0; x < totalSectors; x++) {
+                        for (int y = 0; y < totalSectors; y++) {
 
-                // loop over all the neighbors to increment neighbor count
-                heatmap[x - 1][y - 1]++;
-                heatmap[x - 1][y]++;
-                heatmap[x - 1][y + 1]++;
+                            int blockX = x + 1 + totalSectors * sx;
+                            int blockY = y + 1 + totalSectors * sy;
 
-                heatmap[x][y - 1]++;
-                heatmap[x][y + 1]++;
+                            // skip when the current cell is dead
+                            if (!matrix[blockX][blockY]) continue;
 
-                heatmap[x + 1][y - 1]++;
-                heatmap[x + 1][y]++;
-                heatmap[x + 1][y + 1]++;
+                            // loop over all the neighbors to increment neighbor count
+                            heatmap[blockX - 1][blockY - 1]++;
+                            heatmap[blockX - 1][blockY]++;
+                            heatmap[blockX - 1][blockY + 1]++;
+
+                            heatmap[blockX][blockY - 1]++;
+                            heatmap[blockX][blockY + 1]++;
+
+                            heatmap[blockX + 1][blockY - 1]++;
+                            heatmap[blockX + 1][blockY]++;
+                            heatmap[blockX + 1][blockY + 1]++;
+                        }
+                    }
+
+                }
+
             }
         }
         return heatmap;
+    }
+
+    private void applyGameOfLifeRulesFromHeatmap(boolean[][] cells, byte[][] heatmap, short[][] sectorCounts) {
+        for (int sx = 0; sx < totalSectors ; sx++) {
+            for (int sy = 0; sy < totalSectors; sy++) {
+
+                for (int x = 0; x < totalSectors; x++) {
+                    for (int y = 0; y < totalSectors; y++) {
+
+                        int blockX = x + 1 + totalSectors * sx;
+                        int blockY = y + 1 + totalSectors * sy;
+
+                        byte heat = heatmap[blockX][blockY];
+                        if (!cells[blockX][blockY]) {
+                            if (heat == 3) {
+                                cells[blockX][blockY] = true;
+                                sectorCounts[sx][sy]++;
+                            }
+                        } else {
+                            if (!(heat == 3 || heat == 2)) {
+                                cells[blockX][blockY] = false;
+                                sectorCounts[sx][sy]--;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

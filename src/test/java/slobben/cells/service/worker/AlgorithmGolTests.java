@@ -2,10 +2,10 @@ package slobben.cells.service.worker;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.service.workers.AlgorithmGol;
 
@@ -22,13 +22,13 @@ class AlgorithmGolTests {
     @Autowired
     private AlgorithmGol algorithmGol;
     @Autowired
-    private EnvironmentConfig environmentConfig;
-    @Autowired
     private Map<String, Block> blocks;
+    @Value("${cells.size.blockSize}")
+    private int blockSize = 500;
 
     @Test
     void checkTick() {
-        Block block = new Block(0, 0, UUID.randomUUID(), environmentConfig.getBlockSize());
+        Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
         blocks.put(block.getKey(), block);
         block.getCells()[0][0] = true;
         block.getCells()[0][1] = true;
@@ -40,5 +40,25 @@ class AlgorithmGolTests {
         assertThat(block.getCells()[0][1]).isTrue();
         assertThat(block.getCells()[1][0]).isTrue();
         assertThat(block.getCells()[1][1]).isTrue();
+    }
+
+    @Test
+    void checkSector() {
+        Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
+        blocks.put(block.getKey(), block);
+        block.getCells()[0][0] = true;
+        block.getCells()[0][1] = true;
+        block.getCells()[1][0] = true;
+        block.getCells()[1][1] = true;
+        block.getCells()[2][0] = true;
+        block.getCells()[2][1] = true;
+        block.getCells()[3][0] = true;
+        block.getCells()[4][2] = true;
+        block.getCells()[3][5] = true;
+        block.getCells()[3][2] = true;
+        block.getCells()[3][3] = true;
+        block.getCells()[3][1] = true;
+        algorithmGol.setNextState(block);
+
     }
 }

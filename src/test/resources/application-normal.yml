@@ -4,6 +4,7 @@ cells:
     x: '0'
     y: '0'
     blockSize: '10'
+    sectorSize: '2'
 
   chaos:
     enabled: true

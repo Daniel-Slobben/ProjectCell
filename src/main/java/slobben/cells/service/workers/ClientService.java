@@ -3,9 +3,9 @@ package slobben.cells.service.workers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.incoming.DeleteBlocksRequest;
 import slobben.cells.dto.outgoing.EncodedBlock;
@@ -15,7 +15,6 @@ import slobben.cells.entities.Client;
 import slobben.cells.enums.Direction;
 import slobben.cells.exceptions.NotAClientException;
 import slobben.cells.service.ExecutorService;
-import slobben.cells.dto.internal.BlockCoordinatesResult;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
@@ -33,7 +32,8 @@ public class ClientService implements Worker {
     private static final String TOPIC = "/topic/%s";
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
-    private final EnvironmentConfig environmentConfig;
+    @Value("${cells.size.blockSize}")
+    private int blockSize;
     private final Map<String, Block> blocks;
     private final List<Client> clients = new CopyOnWriteArrayList<>();
 
@@ -108,7 +108,6 @@ public class ClientService implements Worker {
     }
 
     public List<EncodedBlock> getInitialBlocks(int worldX, int worldY) {
-        final int blockSize = environmentConfig.getBlockSize();
         int blockX = Math.floorDiv(worldX, blockSize);
         int blockY = Math.floorDiv(worldY, blockSize);
         String centerBlock = BlockUtils.getKey(blockX, blockY);

@@ -7,7 +7,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.service.ExecutorService;
 import slobben.cells.service.workers.ClientService;
@@ -25,8 +24,6 @@ class ClientServiceTest {
     private SimpMessagingTemplate simpMessagingTemplate;
     @Mock
     private ExecutorService executorService;
-    @Mock
-    private EnvironmentConfig environmentConfig;
     @Mock
     private Map<String, Block> blocks;
 }

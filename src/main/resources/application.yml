@@ -13,6 +13,7 @@ cells:
     x: '0'
     y: '0'
     blockSize: '2000'
+    sectorSize: '100'
 
   runmode: AUTO
   targetspeed: '500'

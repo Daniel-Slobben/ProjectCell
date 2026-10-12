@@ -3,10 +3,10 @@ package slobben.cells.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.entities.Block;
 import slobben.cells.util.BlockUtils;
 
@@ -24,8 +24,8 @@ class WorldEditorTest {
     private WorldEditor worldEditor;
     @Autowired
     private Map<String, Block> newBlocks;
-    @Autowired
-    private EnvironmentConfig environmentConfig;
+    @Value("${cells.size.blockSize}")
+    private int blockSize = 500;
 
     @BeforeEach
     void clearBlocks() {
@@ -62,8 +62,6 @@ class WorldEditorTest {
         // prepare
         UUID id = UUID.randomUUID();
 
-        // execute
-        int blockSize = environmentConfig.getBlockSize();
         // execute
         worldEditor.setCell(blockSize - 1, blockSize - 1, id);
         worldEditor.setCell(blockSize - 1, blockSize, id);

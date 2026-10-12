@@ -1,8 +1,9 @@
 package slobben.cells.controller;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import slobben.cells.config.EnvironmentConfig;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.incoming.ReconnectRequest;
 import slobben.cells.dto.outgoing.ChaosHitDto;
@@ -24,14 +24,17 @@ import slobben.cells.service.workers.chaos.ChaosService;
 import java.util.UUID;
 
 @Controller
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RequestMapping(value = {"/gen-api"})
 public class CellController {
 
     private static final Logger log = LoggerFactory.getLogger(CellController.class);
-    private final EnvironmentConfig environmentConfig;
     private final ChaosService chaosService;
     private final ClientService clientService;
+
+    @Value("${cells.size.blockSize}")
+    private int blockSize;
+
 
     @GetMapping("settings")
     public ResponseEntity<Settings> getSettings() {
@@ -40,7 +43,7 @@ public class CellController {
         log.debug("Received settings request. Assigning clientId {}", clientId);
         ChaosHitDto chaosHit = chaosService.getLatestHit().getDto();
 
-        return ResponseEntity.ok(new Settings(environmentConfig.getBlockSize(), clientId, chaosHit, clientService.getInitialBlocks(chaosHit.worldX(), chaosHit.worldY())));
+        return ResponseEntity.ok(new Settings(blockSize, clientId, chaosHit, clientService.getInitialBlocks(chaosHit.worldX(), chaosHit.worldY())));
     }
 
     @PostMapping("reconnect")
