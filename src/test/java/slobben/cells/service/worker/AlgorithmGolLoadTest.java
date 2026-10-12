@@ -1,6 +1,7 @@
 package slobben.cells.service.worker;
 
 import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,6 +27,7 @@ class AlgorithmGolLoadTest {
     private AlgorithmGolWithSectors algorithmGol;
 
     @ParameterizedTest
+    @Disabled
     @ValueSource(ints = {200, 300, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 2000, 2100, 2200, 2300})
     void profileRandom(int blockSize) {
         final int sectorSize = 50;
@@ -47,19 +49,28 @@ class AlgorithmGolLoadTest {
         }
     }
 
-    @Test
-    void profileLine() {
-        int blockSize = 500;
+    @ParameterizedTest
+    @Disabled
+    @ValueSource(ints = {5, 10, 20, 50, 100, 200})
+    void profileSector(int sectorSize) {
+        final int blockSize = 2000;
         ReflectionTestUtils.setField(algorithmGol, "blockSize", blockSize);
+        int totalSectors = blockSize / sectorSize;
+        int sectorFactor = blockSize / totalSectors;
 
-        Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
-        setLine(block, blockSize);
+        ReflectionTestUtils.setField(algorithmGol, "sectorSize", sectorSize);
+        ReflectionTestUtils.setField(algorithmGol, "totalSectors", totalSectors);
+        ReflectionTestUtils.setField(algorithmGol, "sectorFactor", sectorFactor);
 
-        for (int i = 0; i < 10000; i++) {
+        Block block = null;
+        for (int i = 0; i < CELL_UPDATES / ((long) blockSize * blockSize); i++) {
+            if (i % MAX_BLOCK_AGE == 0) {
+                block = new Block(0, 0, UUID.randomUUID(), blockSize);
+                setBlockToRandom(block, 6, blockSize);
+            }
             algorithmGol.setNextState(block);
         }
     }
-
 
     private Block setBlockToRandom(Block block, int cellPopulation, int blockSize) {
         for (int x = 0; x < blockSize; x++) {
