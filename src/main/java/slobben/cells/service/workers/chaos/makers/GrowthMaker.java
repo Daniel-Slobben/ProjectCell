@@ -25,7 +25,7 @@ public class GrowthMaker implements Maker {
 
     private final Random random = new Random();
     private final String[] growthPatterns = {"spacefiller1.rle", "spacefiller2.rle",};
-    private final String[] otherPatterns = {"tlogtgrowth.rle", "greyship"};
+    private final String[] otherPatterns = {"greyship"};
     private final RleReader rleReader;
 
     @Override

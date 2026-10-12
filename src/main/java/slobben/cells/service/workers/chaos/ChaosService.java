@@ -46,7 +46,6 @@ public class ChaosService implements Worker {
 
     private void createChaos() {
         ChaosType type = getWeightedRandomType();
-        type = ChaosType.GROWTH_PATTERN;
         Maker maker = beanFactory.getBean(type.maker);
         ChaosHit chaosHit = maker.getChaosHit(0, 0);
 
