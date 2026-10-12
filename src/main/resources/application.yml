@@ -10,7 +10,7 @@ cells:
   pruning-per-generation: '100'
 
   chaos:
-    type: DIAGONAL_LINES
+    type: ANY
 
   size:
     x: '0'

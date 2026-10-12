@@ -26,12 +26,26 @@ public class AlgorithmGolWithSectors implements Worker {
     private int totalSectors = 0;
     private int sectorFactor = 0;
 
+    private static void applyRule(boolean[][] cells, byte[][] heatmap, short[][] sectorCounts, int x, int y, int sx, int sy) {
+        byte heat = heatmap[x][y];
+        if (!cells[x][y]) {
+            if (heat == 3) {
+                cells[x][y] = true;
+                sectorCounts[sx][sy]++;
+            }
+        } else {
+            if (!(heat == 3 || heat == 2)) {
+                cells[x][y] = false;
+                sectorCounts[sx][sy]--;
+            }
+        }
+    }
+
     private static void neighborLoopWithIndexCheck(int x, int y, int blockSizeWithBorder, byte[][] heatmap) {
         for (int i = -1; i <= 1; i++) {
             if (x + i < 0 || x + i >= blockSizeWithBorder) continue;
             for (int j = -1; j <= 1; j++) {
                 if (y + j < 0 || y + j >= blockSizeWithBorder) continue;
-
                 heatmap[x + i][y + j]++;
             }
         }
@@ -48,7 +62,7 @@ public class AlgorithmGolWithSectors implements Worker {
 
     @Override
     public String getName() {
-        return "Generation";
+        return "GOL Algorithm";
     }
 
     @Override
@@ -64,10 +78,6 @@ public class AlgorithmGolWithSectors implements Worker {
         }
         if (block.getSectorCounts() == null) {
             setInitialSectorHeat(block);
-        }
-
-        if (block.getKey().equals("7/22")) {
-            System.out.println();
         }
 
         byte[][] heatmap = getNewHeatmap(block.getCells(), block.getSectorCounts());
@@ -112,6 +122,7 @@ public class AlgorithmGolWithSectors implements Worker {
             }
         }
 
+        // With border cells out of the way we can zoom on the block cells
         for (int sx = 0; sx < totalSectors; sx++) {
             for (int sy = 0; sy < totalSectors; sy++) {
                 if (sectorCounts[sx][sy] > 0) {
@@ -139,9 +150,7 @@ public class AlgorithmGolWithSectors implements Worker {
                             heatmap[x + 1][y + 1]++;
                         }
                     }
-
                 }
-
             }
         }
         return heatmap;
@@ -175,18 +184,4 @@ public class AlgorithmGolWithSectors implements Worker {
         }
     }
 
-    private static void applyRule(boolean[][] cells, byte[][] heatmap, short[][] sectorCounts, int x, int y, int sx, int sy) {
-        byte heat = heatmap[x][y];
-        if (!cells[x][y]) {
-            if (heat == 3) {
-                cells[x][y] = true;
-                sectorCounts[sx][sy]++;
-            }
-        } else {
-            if (!(heat == 3 || heat == 2)) {
-                cells[x][y] = false;
-                sectorCounts[sx][sy]--;
-            }
-        }
-    }
 }

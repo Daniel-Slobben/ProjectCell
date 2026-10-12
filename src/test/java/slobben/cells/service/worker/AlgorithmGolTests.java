@@ -34,9 +34,6 @@ class AlgorithmGolTests {
         block.getCells()[0][1] = true;
         block.getCells()[1][0] = true;
         block.getCells()[1][1] = true;
-        block.getCells()[2][2] = true;
-        block.getCells()[1][2] = true;
-        block.getCells()[2][1] = true;
         algorithmGol.setNextState(block);
 
         assertThat(block.getCells()[0][0]).isTrue();

@@ -26,8 +26,8 @@ public class ChaosService implements Worker {
     private final Random random = new Random();
 
     private ChaosType lastType;
-    @Value("${cells.chaos.type}")
-    private String type = null;
+    @Value("${cells.chaos.type:NULL}")
+    private String preferredType = null;
 
     @PostConstruct
     void init() {
@@ -49,11 +49,12 @@ public class ChaosService implements Worker {
 
     private void createChaos() {
         ChaosType type;
-        if (this.type == null) {
+        try {
+            type = ChaosType.valueOf(this.preferredType);
+        } catch (IllegalArgumentException _) {
             type = getWeightedRandomType();
-        } else {
-            type = ChaosType.valueOf("DIAGONAL_LINES");
         }
+
         Maker maker = beanFactory.getBean(type.maker);
         ChaosHit chaosHit = maker.getChaosHit(0, 0);
 
