@@ -9,6 +9,9 @@ spring:
 cells:
   pruning-per-generation: '100'
 
+  chaos:
+    type: DIAGONAL_LINES
+
   size:
     x: '0'
     y: '0'

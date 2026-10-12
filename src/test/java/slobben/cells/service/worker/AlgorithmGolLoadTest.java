@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.entities.Block;
 import slobben.cells.service.workers.AlgorithmGol;
+import slobben.cells.service.workers.AlgorithmGolWithSectors;
 
 import java.util.Random;
 import java.util.UUID;
@@ -22,16 +23,17 @@ class AlgorithmGolLoadTest {
     private static final long CELL_UPDATES = 2_000_000_000;
     private static final int MAX_BLOCK_AGE = 200;
     @InjectMocks
-    private AlgorithmGol algorithmGol;
+    private AlgorithmGolWithSectors algorithmGol;
 
     @ParameterizedTest
     @ValueSource(ints = {200, 300, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 2000, 2100, 2200, 2300})
     void profileRandom(int blockSize) {
+        final int sectorSize = 50;
         ReflectionTestUtils.setField(algorithmGol, "blockSize", blockSize);
-        int totalSectors = blockSize / 100;
+        int totalSectors = blockSize / sectorSize;
         int sectorFactor = blockSize / totalSectors;
 
-        ReflectionTestUtils.setField(algorithmGol, "sectorSize", 100);
+        ReflectionTestUtils.setField(algorithmGol, "sectorSize", sectorSize);
         ReflectionTestUtils.setField(algorithmGol, "totalSectors", totalSectors);
         ReflectionTestUtils.setField(algorithmGol, "sectorFactor", sectorFactor);
 

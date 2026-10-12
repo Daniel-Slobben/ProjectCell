@@ -19,7 +19,7 @@ public class RunnerService {
 
     private final ChaosService chaosService;
     private final AddNewBlocks addNewBlocks;
-    private final AlgorithmGol algorithmGol;
+    private final AlgorithmGolWithSectors algorithmGol;
     private final Stitching stitching;
     private final Pruning pruning;
     private final Packer packingService;

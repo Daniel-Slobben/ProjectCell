@@ -1,6 +1,5 @@
 package slobben.cells.service.workers;
 
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -21,30 +20,6 @@ public class AlgorithmGol implements Worker {
 
     @Value("${cells.size.blockSize}")
     private int blockSize = 500;
-    @Value("${cells.size.sectorSize}")
-    private int sectorSize = 100;
-    private int totalSectors = 0;
-    private int sectorFactor = 0;
-
-    private static void neighborLoopWithIndexCheck(int x, int y, int blockSizeWithBorder, byte[][] heatmap) {
-        for (int i = -1; i <= 1; i++) {
-            if (x + i < 0 || x + i >= blockSizeWithBorder) continue;
-            for (int j = -1; j <= 1; j++) {
-                if (y + j < 0 || y + j >= blockSizeWithBorder) continue;
-
-                heatmap[x + i][y + j]++;
-            }
-        }
-    }
-
-    @PostConstruct
-    void init() {
-        if (blockSize % sectorSize != 0) {
-            throw new IllegalStateException();
-        }
-        totalSectors = blockSize / sectorSize;
-        sectorFactor = blockSize / totalSectors;
-    }
 
     @Override
     public String getName() {
@@ -57,40 +32,48 @@ public class AlgorithmGol implements Worker {
         executorService.executeTasksParallel(tasks, getName());
     }
 
+    private static void neighborLoopWithIndexCheck(int x, int y, int blockSizeWithBorder, byte[][] heatmap) {
+        for (int i = -1; i <= 1; i++) {
+            if (x + i < 0 || x + i >= blockSizeWithBorder) continue;
+            for (int j = -1; j <= 1; j++) {
+                if (y + j < 0 || y + j >= blockSizeWithBorder) continue;
+
+                heatmap[x + i][y + j]++;
+            }
+        }
+    }
+
     public void setNextState(Block block) {
         if (block.getBlockState() == BlockState.HIBERNATION) {
             block.setNextHibernationState();
             return;
         }
-        if (block.getSectorCounts() == null) {
-            setInitialSectorHeat(block);
-        }
 
-        if (block.getKey().equals("7/22")) {
-            System.out.println();
-        }
-
-        byte[][] heatmap = getNewHeatmap(block.getCells(), block.getSectorCounts());
-        applyGameOfLifeRulesFromHeatmap(block.getCells(), heatmap, block.getSectorCounts());
+        byte[][] heatmap = getNewHeatmap(block.getCells());
+        applyGameOfLifeRulesFromHeatmap(block.getCells(), heatmap);
 
         block.blockUpdated();
     }
 
-    private void setInitialSectorHeat(Block block) {
-        block.setSectorCounts(new short[totalSectors][totalSectors]);
-        boolean[][] matrix = block.getCells();
-        short[][] sector = block.getSectorCounts();
-        for (int x = 1; x <= blockSize; x++) {
-            for (int y = 1; y <= blockSize; y++) {
-                if (!matrix[x][y]) continue;
-                int sectorX = Math.floorDiv(x - 1, sectorFactor);
-                int sectorY = Math.floorDiv(y - 1, sectorFactor);
-                sector[sectorX][sectorY]++;
+    private void applyGameOfLifeRulesFromHeatmap(boolean[][] cells, byte[][] heatmap) {
+        for (int x = 1; x < blockSize + 1; x++) {
+            for (int y = 1; y < blockSize + 1; y++) {
+                byte heat = heatmap[x][y];
+                if (!cells[x][y]) {
+                    if (heat == 3) {
+                        cells[x][y] = true;
+                    }
+                }
+                else {
+                    if (!(heat == 3 || heat == 2)) {
+                        cells[x][y] = false;
+                    }
+                }
             }
         }
     }
 
-    private byte[][] getNewHeatmap(boolean[][] matrix, short[][] sectorCounts) {
+    private byte[][] getNewHeatmap(boolean[][] matrix) {
         int blockSizeWithBorder = blockSize + 2;
         byte[][] heatmap = new byte[blockSizeWithBorder][blockSizeWithBorder];
 
@@ -112,65 +95,26 @@ public class AlgorithmGol implements Worker {
             }
         }
 
-        for (int sx = 0; sx < totalSectors; sx++) {
-            for (int sy = 0; sy < totalSectors; sy++) {
-                if (sectorCounts[sx][sy] > 0) {
+        // inner loop go zooming
+        for (int x = 1; x < blockSizeWithBorder - 1; x++) {
+            for (int y = 1; y < blockSizeWithBorder - 1; y++) {
 
-                    for (int x = 0; x < sectorSize; x++) {
-                        for (int y = 0; y < sectorSize; y++) {
+                // skip when the current cell is dead
+                if (!matrix[x][y]) continue;
 
-                            int blockX = x + 1 + sectorSize * sx;
-                            int blockY = y + 1 + sectorSize * sy;
+                // loop over all the neighbors to increment neighbor count
+                heatmap[x - 1][y - 1]++;
+                heatmap[x - 1][y]++;
+                heatmap[x - 1][y + 1]++;
 
-                            // skip when the current cell is dead
-                            if (!matrix[blockX][blockY]) continue;
+                heatmap[x][y - 1]++;
+                heatmap[x][y + 1]++;
 
-                            // loop over all the neighbors to increment neighbor count
-                            heatmap[blockX - 1][blockY - 1]++;
-                            heatmap[blockX - 1][blockY]++;
-                            heatmap[blockX - 1][blockY + 1]++;
-
-                            heatmap[blockX][blockY - 1]++;
-                            heatmap[blockX][blockY + 1]++;
-
-                            heatmap[blockX + 1][blockY - 1]++;
-                            heatmap[blockX + 1][blockY]++;
-                            heatmap[blockX + 1][blockY + 1]++;
-                        }
-                    }
-
-                }
-
+                heatmap[x + 1][y - 1]++;
+                heatmap[x + 1][y]++;
+                heatmap[x + 1][y + 1]++;
             }
         }
         return heatmap;
-    }
-
-    private void applyGameOfLifeRulesFromHeatmap(boolean[][] cells, byte[][] heatmap, short[][] sectorCounts) {
-        for (int sx = 0; sx < totalSectors ; sx++) {
-            for (int sy = 0; sy < totalSectors; sy++) {
-
-                for (int x = 0; x < sectorSize; x++) {
-                    for (int y = 0; y < sectorSize; y++) {
-
-                        int blockX = x + 1 + sectorSize * sx;
-                        int blockY = y + 1 + sectorSize * sy;
-
-                        byte heat = heatmap[blockX][blockY];
-                        if (!cells[blockX][blockY]) {
-                            if (heat == 3) {
-                                cells[blockX][blockY] = true;
-                                sectorCounts[sx][sy]++;
-                            }
-                        } else {
-                            if (!(heat == 3 || heat == 2)) {
-                                cells[blockX][blockY] = false;
-                                sectorCounts[sx][sy]--;
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }

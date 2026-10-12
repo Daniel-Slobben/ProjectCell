@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.Block;
 import slobben.cells.service.workers.Worker;
@@ -25,6 +26,8 @@ public class ChaosService implements Worker {
     private final Random random = new Random();
 
     private ChaosType lastType;
+    @Value("${cells.chaos.type}")
+    private String type = null;
 
     @PostConstruct
     void init() {
@@ -45,7 +48,12 @@ public class ChaosService implements Worker {
     }
 
     private void createChaos() {
-        ChaosType type = getWeightedRandomType();
+        ChaosType type;
+        if (this.type == null) {
+            type = getWeightedRandomType();
+        } else {
+            type = ChaosType.valueOf("DIAGONAL_LINES");
+        }
         Maker maker = beanFactory.getBean(type.maker);
         ChaosHit chaosHit = maker.getChaosHit(0, 0);
 
