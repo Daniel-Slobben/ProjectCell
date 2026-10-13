@@ -7,7 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 import slobben.cells.entities.Block;
-import slobben.cells.service.workers.AlgorithmGol;
+import slobben.cells.service.workers.AlgorithmGolWithSectors;
 
 import java.util.Map;
 import java.util.UUID;
@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AlgorithmGolTests {
 
     @Autowired
-    private AlgorithmGol algorithmGol;
+    private AlgorithmGolWithSectors algorithmGol;
     @Autowired
     private Map<String, Block> blocks;
     @Value("${cells.size.blockSize}")
@@ -41,5 +41,28 @@ class AlgorithmGolTests {
         assertThat(block.getCells()[1][0]).isTrue();
         assertThat(block.getCells()[1][1]).isTrue();
     }
+
+    @Test
+    void checkTickOnlyBorders() {
+        Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
+        blocks.put(block.getKey(), block);
+
+        block.getCells()[0][0] = true;
+        block.getCells()[0][1] = true;
+        block.getCells()[0][2] = true;
+        block.getCells()[0][3] = true;
+
+        block.getCells()[blockSize + 1][0] = true;
+        block.getCells()[blockSize + 1][1] = true;
+        block.getCells()[blockSize + 1][2] = true;
+        block.getCells()[blockSize + 1][3] = true;
+        algorithmGol.setNextState(block);
+
+        assertThat(block.getCells()[1][1]).isTrue();
+        assertThat(block.getCells()[1][2]).isTrue();
+        assertThat(block.getCells()[blockSize][1]).isTrue();
+        assertThat(block.getCells()[blockSize][2]).isTrue();
+    }
+
 
 }

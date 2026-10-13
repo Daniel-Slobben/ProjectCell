@@ -26,31 +26,6 @@ public class AlgorithmGolWithSectors implements Worker {
     private int totalSectors = 0;
     private int sectorFactor = 0;
 
-    private static void applyRule(boolean[][] cells, byte[][] heatmap, short[][] sectorCounts, int x, int y, int sx, int sy) {
-        byte heat = heatmap[x][y];
-        if (!cells[x][y]) {
-            if (heat == 3) {
-                cells[x][y] = true;
-                sectorCounts[sx][sy]++;
-            }
-        } else {
-            if (!(heat == 3 || heat == 2)) {
-                cells[x][y] = false;
-                sectorCounts[sx][sy]--;
-            }
-        }
-    }
-
-    private static void neighborLoopWithIndexCheck(int x, int y, int blockSizeWithBorder, byte[][] heatmap) {
-        for (int i = -1; i <= 1; i++) {
-            if (x + i < 0 || x + i >= blockSizeWithBorder) continue;
-            for (int j = -1; j <= 1; j++) {
-                if (y + j < 0 || y + j >= blockSizeWithBorder) continue;
-                heatmap[x + i][y + j]++;
-            }
-        }
-    }
-
     @PostConstruct
     void init() {
         if (blockSize % sectorSize != 0) {
@@ -163,15 +138,17 @@ public class AlgorithmGolWithSectors implements Worker {
                 final int startY = sy * sectorSize + 1;
                 final int endX = startX + sectorSize;
                 final int endY = startY + sectorSize;
-
+                if (sectorCounts[sx][sy] < 0) {
+                    throw new IllegalStateException();
+                }
                 if (sectorCounts[sx][sy] == 0) {
                     for (int x = startX; x < endX; x++) {
                         applyRule(cells, heatmap, sectorCounts, x, startY, sx, sy);
-                        applyRule(cells, heatmap, sectorCounts, x, endY, sx, sy);
+                        applyRule(cells, heatmap, sectorCounts, x, endY - 1, sx, sy);
                     }
                     for (int y = startY + 1; y < endY - 1; y++) {
                         applyRule(cells, heatmap, sectorCounts, startX, y, sx, sy);
-                        applyRule(cells, heatmap, sectorCounts, endX, y, sx, sy);
+                        applyRule(cells, heatmap, sectorCounts, endX - 1, y, sx, sy);
                     }
                 } else {
                     for (int x = startX; x < endX; x++) {
@@ -183,5 +160,31 @@ public class AlgorithmGolWithSectors implements Worker {
             }
         }
     }
+
+    private static void applyRule(boolean[][] cells, byte[][] heatmap, short[][] sectorCounts, int x, int y, int sx, int sy) {
+        byte heat = heatmap[x][y];
+        if (!cells[x][y]) {
+            if (heat == 3) {
+                cells[x][y] = true;
+                sectorCounts[sx][sy]++;
+            }
+        } else {
+            if (!(heat == 3 || heat == 2)) {
+                cells[x][y] = false;
+                sectorCounts[sx][sy]--;
+            }
+        }
+    }
+
+    private static void neighborLoopWithIndexCheck(int x, int y, int blockSizeWithBorder, byte[][] heatmap) {
+        for (int i = -1; i <= 1; i++) {
+            if (x + i < 0 || x + i >= blockSizeWithBorder) continue;
+            for (int j = -1; j <= 1; j++) {
+                if (y + j < 0 || y + j >= blockSizeWithBorder) continue;
+                heatmap[x + i][y + j]++;
+            }
+        }
+    }
+
 
 }

@@ -1,9 +1,13 @@
 package slobben.cells.util;
 
 import slobben.cells.dto.internal.Coordinates;
+import slobben.cells.entities.Block;
+
+import java.util.Random;
 
 public final class BlockUtils {
     private static final String SPLIT_CHAR = "/";
+    private static final Random random = new Random();
 
     public static String getKey(int x, int y) {
         return (x + SPLIT_CHAR + y);
@@ -29,4 +33,17 @@ public final class BlockUtils {
 
         return new Coordinates(relativeX, relativeY);
     }
+
+
+    public static Block setBlockToRandom(Block block, int cellPopulation, int blockSize) {
+        for (int x = 0; x < blockSize; x++) {
+            for (int y = 0; y < blockSize; y++) {
+                if (random.nextInt(0, cellPopulation) == 0) {
+                    block.getCells()[x][y] = true;
+                }
+            }
+        }
+        return block;
+    }
+
 }

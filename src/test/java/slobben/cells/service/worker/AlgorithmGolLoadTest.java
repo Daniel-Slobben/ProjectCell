@@ -2,7 +2,6 @@ package slobben.cells.service.worker;
 
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -10,25 +9,24 @@ import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.entities.Block;
-import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.service.workers.AlgorithmGolWithSectors;
 
-import java.util.Random;
 import java.util.UUID;
+
+import static slobben.cells.util.BlockUtils.setBlockToRandom;
 
 @ExtendWith(MockitoExtension.class)
 @RequiredArgsConstructor
 class AlgorithmGolLoadTest {
 
-    private static final Random random = new Random();
     private static final long CELL_UPDATES = 2_000_000_000;
     private static final int MAX_BLOCK_AGE = 200;
     @InjectMocks
     private AlgorithmGolWithSectors algorithmGol;
 
     @ParameterizedTest
-    @Disabled
-    @ValueSource(ints = {200, 300, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 2000, 2100, 2200, 2300})
+    @Disabled("Too expensive for normal test run")
+    @ValueSource(ints = {200, 300, 900, 1000, 1100, 2000})
     void profileRandom(int blockSize) {
         final int sectorSize = 50;
         ReflectionTestUtils.setField(algorithmGol, "blockSize", blockSize);
@@ -50,7 +48,7 @@ class AlgorithmGolLoadTest {
     }
 
     @ParameterizedTest
-    @Disabled
+    @Disabled("Too expensive for normal test run")
     @ValueSource(ints = {5, 10, 20, 50, 100, 200})
     void profileSector(int sectorSize) {
         final int blockSize = 2000;
@@ -71,24 +69,4 @@ class AlgorithmGolLoadTest {
             algorithmGol.setNextState(block);
         }
     }
-
-    private Block setBlockToRandom(Block block, int cellPopulation, int blockSize) {
-        for (int x = 0; x < blockSize; x++) {
-            for (int y = 0; y < blockSize; y++) {
-                if (random.nextInt(0, cellPopulation) == 0) {
-                    block.getCells()[x][y] = true;
-                }
-            }
-        }
-        return block;
-    }
-
-    private Block setLine(Block block, int blockSize) {
-        for (int i = 0; i < blockSize + 2; i++) {
-            block.getCells()[i][blockSize / 2] = true;
-            block.getCells()[i][blockSize / 2 - 1] = true;
-        }
-        return block;
-    }
-
 }
