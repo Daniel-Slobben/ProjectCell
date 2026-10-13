@@ -1,5 +1,6 @@
 package slobben.cells.entities;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import slobben.cells.dto.outgoing.EncodedBlock;
@@ -9,6 +10,7 @@ import slobben.cells.util.BlockUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Getter
 @Setter
@@ -25,8 +27,11 @@ public class Block {
 
     private UUID responsibleChaosHit;
 
-    private EncodedBlock encodedBlock;
-    private EncodedBlock encodedBlockBorders;
+    // encodings are only sent for blocks a client watches, so the Packer compresses them on first use
+    @Getter(AccessLevel.NONE)
+    private Supplier<EncodedBlock> encodedBlock;
+    @Getter(AccessLevel.NONE)
+    private Supplier<EncodedBlock> encodedBlockBorders;
 
     private List<boolean[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
@@ -51,6 +56,14 @@ public class Block {
     public void blockUpdated() {
         generation++;
         blockState = BlockState.ACTIVE;
+    }
+
+    public EncodedBlock getEncodedBlock() {
+        return encodedBlock == null ? null : encodedBlock.get();
+    }
+
+    public EncodedBlock getEncodedBlockBorders() {
+        return encodedBlockBorders == null ? null : encodedBlockBorders.get();
     }
 
     public String getKey() {
