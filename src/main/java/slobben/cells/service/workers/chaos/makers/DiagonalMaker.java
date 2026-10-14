@@ -16,8 +16,8 @@ import java.util.function.IntFunction;
 public class DiagonalMaker implements Maker {
 
     private static final Random random = new Random();
-    private static final int MIN_SIZE = 50000;
-    private static final int MAX_SIZE = 70000;
+    private static final int MIN_SIZE = 40000;
+    private static final int MAX_SIZE = 60000;
 
     private final WorldEditor worldEditor;
 
