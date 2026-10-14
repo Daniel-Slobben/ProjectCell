@@ -14,27 +14,38 @@ import slobben.cells.service.ExecutorService;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
-import java.util.Base64;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class Packer implements Worker {
     private static final LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
+
     private static final VarHandle LONG_LE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
-    // Multiplying a long whose 8 bytes are each 0 or 1 by this moves byte k to bit 56 + k, without carries.
-    private static final long GATHER_BITS = 0x0102040810204080L;
     private final Map<String, Block> blocks;
     private final ExecutorService executorService;
 
-    public static EncodedBlock packBlock(Block block) {
-        byte[] packed = getPacked(block.getCells());
-        byte[] compressed = compressor.compress(packed);
-        return new EncodedBlock(block.getX(), block.getY(), block.getGeneration(), Base64.getEncoder().encodeToString(compressed), EncodedBlockType.FULL.name());
+    public static void packAll(Block block) {
+        boolean[][] cells = block.getCells();
+        int size = cells.length - 2;
+
+        if (BlockState.NEW.equals(block.getBlockState())) {
+            // not through the GoL yet, so no bit rows: packed from the cells, right away because they can change
+            // before a client asks. A NEW block is sent in full, also as its borders
+            byte[] packed = getPacked(cells, size);
+            LazyEncodedBlock full = new LazyEncodedBlock(block, () -> packed, EncodedBlockType.FULL);
+            block.setEncodedBlock(full);
+            block.setEncodedBlockBorders(full);
+            return;
+        }
+
+        long[][] rows = snapshotRows(block.getPackedCells(), size);
+        block.setEncodedBlock(new LazyEncodedBlock(block, () -> getPacked(rows, size), EncodedBlockType.FULL));
+        block.setEncodedBlockBorders(new LazyEncodedBlock(block, () -> getPackedBorders(rows, size), EncodedBlockType.BORDER));
     }
 
     @Override
@@ -42,119 +53,156 @@ public class Packer implements Worker {
         return "Caching Encoded Blocks";
     }
 
-    private static EncodedBlock packBorders(Block block) {
-        if (BlockState.NEW.equals(block.getBlockState())) {
-            return packBlock(block);
+    /**
+     * Copies the rows that have live inner cells, empty rows stay null. The GoL changes its rows in place next tick,
+     * so the copy is what keeps the encodings at this tick. Mostly empty blocks copy next to nothing.
+     */
+    private static long[][] snapshotRows(long[][] packedCells, int size) {
+        long[][] rows = new long[size + 2][];
+        int lastWord = ((size + 1) >>> 6) + 1;
+        // per word: the bits of columns 1 .. size, so the border columns 0 and size + 1 don't count
+        long[] innerMask = new long[lastWord + 1];
+        for (int y = 1; y <= size; y++) {
+            innerMask[(y >>> 6) + 1] |= 1L << y;
         }
-        byte[] packed = getPackedBorders(block.getCells());
-        byte[] compressed = compressor.compress(packed);
-        return new EncodedBlock(block.getX(), block.getY(), block.getGeneration(), Base64.getEncoder().encodeToString(compressed), EncodedBlockType.BORDER.name());
+        for (int x = 1; x <= size; x++) {
+            long[] row = packedCells[x];
+            long any = 0;
+            for (int i = 1; i <= lastWord; i++) {
+                any |= row[i] & innerMask[i];
+            }
+            if (any != 0) rows[x] = row.clone();
+        }
+        return rows;
+    }
+
+    private static final class LazyEncodedBlock implements Supplier<EncodedBlock> {
+        private final int x;
+        private final int y;
+        private final int generation;
+        private final EncodedBlockType type;
+        private Supplier<byte[]> packed;
+        private EncodedBlock encoded;
+
+        LazyEncodedBlock(Block block, Supplier<byte[]> packed, EncodedBlockType type) {
+            this.x = block.getX();
+            this.y = block.getY();
+            this.generation = block.getGeneration();
+            this.type = type;
+            this.packed = packed;
+        }
+
+        @Override
+        public synchronized EncodedBlock get() {
+            if (encoded == null) {
+                encoded = new EncodedBlock(x, y, generation, type, compressor.compress(packed.get()));
+                packed = null;
+            }
+            return encoded;
+        }
     }
 
     private static void setBit(byte[] packed, int i) {
         packed[i / 8] |= (byte) (1 << (i % 8));
     }
 
-    private static byte[] getPackedBorders(boolean[][] cells) {
-        final int min = 1;
-        final int max = cells.length - 2;
-        final int size = max - min + 1;
-        final int totalBits = size * 4 - 4;
-
+    private static byte[] getPackedBorders(long[][] rows, int size) {
+        byte[] packed = new byte[(size * 4 - 4 + 7) / 8];
         int index = 0;
-
-        byte[] packed = new byte[(totalBits + 7) / 8];
-
-        for (int i = min; i <= max; i++) {
-            if (cells[i][max]) setBit(packed, index);
+        for (int i = 1; i <= size; i++) {
+            if (bit(rows[i], size)) setBit(packed, index);
             index++;
         }
-        for (int i = min; i <= max; i++) {
-            if (cells[i][min]) setBit(packed, index);
+        for (int i = 1; i <= size; i++) {
+            if (bit(rows[i], 1)) setBit(packed, index);
             index++;
         }
-        for (int i = min + 1; i < max; i++) {
-            if (cells[min][i]) setBit(packed, index);
+        for (int i = 2; i < size; i++) {
+            if (bit(rows[1], i)) setBit(packed, index);
             index++;
         }
-        for (int i = min + 1; i < max; i++) {
-            if (cells[max][i]) setBit(packed, index);
+        for (int i = 2; i < size; i++) {
+            if (bit(rows[size], i)) setBit(packed, index);
             index++;
-        }
-        if (index != totalBits) {
-            throw new IllegalStateException("index=" + index + " totalBits=" + totalBits + " size=" + size + " cells=" + cells.length);
         }
         return packed;
     }
 
-    private static byte[] getPacked(boolean[][] cells) {
-        final int size = cells.length - 2;
-        final int totalBits = size * size;
-        final int wholeWordCells = size & ~63;
-        final int tailCells = size & 63;
-        byte[] packed = new byte[(totalBits + 7) / 8];
-        byte[] row = new byte[size + 64];
+    private static boolean bit(long[] row, int column) {
+        return row != null && (row[(column >>> 6) + 1] >>> column & 1) != 0;
+    }
 
-        // Rows are not word aligned in the output, so bits are streamed out 64 at a time via pending.
-        long pending = 0;
-        int pendingBits = 0;
-        int pos = 0;
+    private static byte[] getPacked(boolean[][] cells, int size) {
+        byte[] packed = new byte[(size * size + 7) / 8];
         for (int x = 1; x <= size; x++) {
-            boolean[] cellRow = cells[x];
-            for (int y = 0; y < size; y++) {
-                row[y] = (byte) (cellRow[y + 1] ? 1 : 0);
+            for (int y = 1; y <= size; y++) {
+                if (cells[x][y]) setBit(packed, (x - 1) * size + (y - 1));
             }
-            for (int y = 0; y < wholeWordCells; y += 64) {
-                long bits = pack64(row, y);
-                LONG_LE.set(packed, pos, pending | bits << pendingBits);
-                pos += 8;
-                // bits >>> (64 - pendingBits), but 0 instead of bits when pendingBits == 0
-                pending = (bits >>> 1) >>> (63 - pendingBits);
-            }
-            if (tailCells > 0) {
-                long bits = pack64(row, wholeWordCells);
-                pending |= bits << pendingBits;
-                pendingBits += tailCells;
-                if (pendingBits >= 64) {
-                    LONG_LE.set(packed, pos, pending);
-                    pos += 8;
-                    pendingBits -= 64;
-                    pending = bits >>> (tailCells - pendingBits);
-                }
-            }
-        }
-        for (; pos < packed.length; pos++, pending >>>= 8) {
-            packed[pos] = (byte) pending;
         }
         return packed;
     }
 
-    // Bit i of the result is row[y + i].
-    private static long pack64(byte[] row, int y) {
-        return pack8(row, y)
-                | pack8(row, y + 8) << 8
-                | pack8(row, y + 16) << 16
-                | pack8(row, y + 24) << 24
-                | pack8(row, y + 32) << 32
-                | pack8(row, y + 40) << 40
-                | pack8(row, y + 48) << 48
-                | pack8(row, y + 56) << 56;
+    private static byte[] getPacked(long[][] packedCells, int size) {
+        final int wholeWords = size >>> 6;
+        final long tailMask = (1L << (size & 63)) - 1;
+        final long[] emptyRow = new long[wholeWords + 3];
+        BitStream out = new BitStream(size);
+
+        for (int x = 1; x <= size; x++) {
+            long[] row = packedCells[x] == null ? emptyRow : packedCells[x];
+            for (int i = 1; i <= wholeWords; i++) {
+                out.write64(row[i] >>> 1 | row[i + 1] << 63);
+            }
+            // masks off the right border column
+            out.writeTail((row[wholeWords + 1] >>> 1 | row[wholeWords + 2] << 63) & tailMask);
+        }
+        return out.finish();
     }
 
-    private static long pack8(byte[] row, int y) {
-        return ((long) LONG_LE.get(row, y) * GATHER_BITS) >>> 56;
+    private static final class BitStream {
+        private final byte[] packed;
+        private final int tailCells;
+        private long pending = 0;
+        private int pendingBits = 0;
+        private int pos = 0;
+
+        BitStream(int size) {
+            this.packed = new byte[(size * size + 7) / 8];
+            this.tailCells = size & 63;
+        }
+
+        void write64(long bits) {
+            LONG_LE.set(packed, pos, pending | bits << pendingBits);
+            pos += 8;
+            // bits >>> (64 - pendingBits), but 0 instead of bits when pendingBits == 0
+            pending = (bits >>> 1) >>> (63 - pendingBits);
+        }
+
+        // bits holds the last tailCells cells of a row, the higher bits are 0
+        void writeTail(long bits) {
+            if (tailCells == 0) return;
+            pending |= bits << pendingBits;
+            pendingBits += tailCells;
+            if (pendingBits >= 64) {
+                LONG_LE.set(packed, pos, pending);
+                pos += 8;
+                pendingBits -= 64;
+                pending = bits >>> (tailCells - pendingBits);
+            }
+        }
+
+        byte[] finish() {
+            for (; pos < packed.length; pos++, pending >>>= 8) {
+                packed[pos] = (byte) pending;
+            }
+            return packed;
+        }
     }
 
     @Override
     public void execute() {
-        Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> {
-            block.setEncodedBlock(packBlock(block));
-            block.setEncodedBlockBorders(packBorders(block));
-        }).collect(Collectors.toSet());
+        Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> packAll(block)).collect(Collectors.toSet());
 
         executorService.executeTasksParallel(tasks, getName());
     }
 }
-
-
-

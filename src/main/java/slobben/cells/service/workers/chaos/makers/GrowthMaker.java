@@ -18,10 +18,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Service
 public class GrowthMaker implements Maker {
-    private static final int MIN_SIZE = 20000;
-    private static final int MAX_SIZE = 40000;
-    private static final int MIN_POPULATION = 400;
-    private static final int MAX_POPULATION = 1000;
+    private static final int MIN_SIZE = 15000;
+    private static final int MAX_SIZE = 30000;
+    private static final int MIN_POPULATION = 200;
+    private static final int MAX_POPULATION = 500;
 
     private final Random random = new Random();
     private final String[] growthPatterns = {"spacefiller1.rle", "spacefiller2.rle",};
