@@ -118,49 +118,48 @@ public class AlgorithmGolWithSectors implements Worker {
     }
 
     /**
-     * Next generation of one row, 64 cells per iteration. Writes the new words to {@code out} and flips only the
-     * changed cells in {@code cellRow}.
+     * Next generation of one row, calculates 64 cells per iteration. (1 long)
+     * Writes the new words to {@code out} and flips only the changed cells in {@code cellRow}.
      */
-    private void nextRow(long[] up, long[] mid, long[] down, long[] out, boolean[] cellRow, short[] sectorRow) {
+    private void nextRow(long[] upperRow, long[] middleRow, long[] downRow, long[] out, boolean[] cellRow, short[] sectorRow) {
         for (int i = 1; i <= words; i++) {
             // neighbours to the left / right: shift the word and pull in the edge bit of the adjacent word
-            long u = up[i];
-            long uL = (u << 1) | (up[i - 1] >>> 63);
-            long uR = (u >>> 1) | (up[i + 1] << 63);
-            long m = mid[i];
-            long mL = (m << 1) | (mid[i - 1] >>> 63);
-            long mR = (m >>> 1) | (mid[i + 1] << 63);
-            long d = down[i];
-            long dL = (d << 1) | (down[i - 1] >>> 63);
-            long dR = (d >>> 1) | (down[i + 1] << 63);
+            long upperWord = upperRow[i];
+            long upperWordLeft = (upperWord << 1) | (upperRow[i - 1] >>> 63);
+            long upperWordRight = (upperWord >>> 1) | (upperRow[i + 1] << 63);
+            long middleWord = middleRow[i];
+            long middleWordLeft = (middleWord << 1) | (middleRow[i - 1] >>> 63);
+            long middleWordRight = (middleWord >>> 1) | (middleRow[i + 1] << 63);
+            long downWord = downRow[i];
+            long downWordLeft = (downWord << 1) | (downRow[i - 1] >>> 63);
+            long downWordRight = (downWord >>> 1) | (downRow[i + 1] << 63);
 
-            // per row: 2-bit sum (x1 x0) of the neighbours in that row
-            long ux = uL ^ u;
-            long u0 = ux ^ uR;
-            long u1 = (uL & u) | (ux & uR);
-            long m0 = mL ^ mR;
-            long m1 = mL & mR;
-            long dx = dL ^ d;
-            long d0 = dx ^ dR;
-            long d1 = (dL & d) | (dx & dR);
+            // per row: 2-bit sum of the neighbors in that row (twos bit: 0 or 1 neighbors = 0. 2 or 3 neighbors = 1)
+            long upperEitherLeftOrMiddle = upperWordLeft ^ upperWord;
+            long upperOddNumberAlive = upperEitherLeftOrMiddle ^ upperWordRight;
+            long upperTwosBitNeighbours = (upperWordLeft & upperWord) | (upperEitherLeftOrMiddle & upperWordRight);
+            long middleOddNumberAlive = middleWordLeft ^ middleWordRight;
+            long middleTwosBit = middleWordLeft & middleWordRight;
+            long downEitherLeftOrMiddle = downWordLeft ^ downWord;
+            long downOddNumberAlive = downEitherLeftOrMiddle ^ downWordRight;
+            long downTwosBitNeighbours = (downWordLeft & downWord) | (downEitherLeftOrMiddle & downWordRight);
 
-            // neighbours = ones + 2 * (u1 + m1 + d1 + carry)
-            long ox = u0 ^ m0;
-            long ones = ox ^ d0;
-            long carry = (u0 & m0) | (ox & d0);
+            long upperOrMiddleIsOdd = upperOddNumberAlive ^ middleOddNumberAlive;
+            long combinedOddNumberAlive = upperOrMiddleIsOdd ^ downOddNumberAlive;
+            long combinedOddNumberCarry = (upperOddNumberAlive & middleOddNumberAlive) | (upperOrMiddleIsOdd & downOddNumberAlive);
 
             // 2 or 3 neighbours <=> exactly one of the four "twos" bits is set
-            long p = u1 ^ m1;
-            long q = u1 & m1;
-            long r = d1 ^ carry;
-            long t = d1 & carry;
+            long p = upperTwosBitNeighbours ^ middleTwosBit;
+            long q = upperTwosBitNeighbours & middleTwosBit;
+            long r = downTwosBitNeighbours ^ combinedOddNumberCarry;
+            long t = downTwosBitNeighbours & combinedOddNumberCarry;
             long twoOrThree = (p ^ r) & ~(q | t);
 
             // 3 neighbours: born or survives, 2 neighbours: survives only if alive
-            long next = twoOrThree & (ones | m);
-            long changed = (next ^ m) & innerMask[i];
+            long next = twoOrThree & (combinedOddNumberAlive | middleWord);
+            long changed = (next ^ middleWord) & innerMask[i];
             if (changed == 0) continue;
-            out[i] = m ^ changed;
+            out[i] = middleWord ^ changed;
 
             int base = (i - 1) << 6;
             do {

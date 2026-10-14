@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
-import slobben.cells.dto.incoming.DeleteBlocksRequest;
+import slobben.cells.dto.outgoing.BlockFrame;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.HealthCheckResponse;
 import slobben.cells.entities.Block;
@@ -55,8 +55,10 @@ public class ClientService implements Worker {
             return;
         }
 
-        List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks);
-        simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), copyOfBlocks);
+        // a block that was added after the last Packer run has no encoding yet
+        List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks).stream().filter(Objects::nonNull).toList();
+        // byte[] goes out as application/octet-stream, which STOMP sends as a binary websocket frame
+        simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), BlockFrame.write(copyOfBlocks));
     }
 
     private @NonNull List<EncodedBlock> getEncodedBlocks(Set<String> blockKeys, boolean sendBorderBlocks) {
@@ -129,10 +131,5 @@ public class ClientService implements Worker {
         }
 
         return optionalClient.get();
-    }
-
-    public void deleteBlocks(DeleteBlocksRequest message) {
-        Client client = findClient(message.client());
-        message.blocksToDelete().forEach(client.getActiveBlocks()::remove);
     }
 }

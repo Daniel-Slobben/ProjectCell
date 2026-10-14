@@ -20,7 +20,6 @@ public class Block {
     private int generation = 0;
     private boolean[][] cells;
     private short[][] sectorCounts;
-    // bit-packed copy of cells kept by AlgorithmGolWithSectors, valid as long as cells is still packedFrom
     private long[][] packedCells;
     private boolean[][] packedFrom;
     private BlockState blockState = BlockState.NEW;
