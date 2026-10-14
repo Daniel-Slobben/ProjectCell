@@ -32,16 +32,20 @@ public class Packer implements Worker {
     public static void packAll(Block block) {
         boolean[][] cells = block.getCells();
         int size = cells.length - 2;
+
+        if (BlockState.NEW.equals(block.getBlockState())) {
+            // not through the GoL yet, so no bit rows: packed from the cells, right away because they can change
+            // before a client asks. A NEW block is sent in full, also as its borders
+            byte[] packed = getPacked(cells, size);
+            LazyEncodedBlock full = new LazyEncodedBlock(block, () -> packed, EncodedBlockType.FULL);
+            block.setEncodedBlock(full);
+            block.setEncodedBlockBorders(full);
+            return;
+        }
+
         long[][] rows = snapshotRows(block.getPackedCells(), size);
-
-        Supplier<byte[]> full = () -> getPacked(rows, size);
-        Supplier<byte[]> borders = () -> getPackedBorders(rows, size);
-
-        LazyEncodedBlock lazyFull = new LazyEncodedBlock(block, full, EncodedBlockType.FULL);
-        block.setEncodedBlock(lazyFull);
-        block.setEncodedBlockBorders(BlockState.NEW.equals(block.getBlockState())
-                ? lazyFull
-                : new LazyEncodedBlock(block, borders, EncodedBlockType.BORDER));
+        block.setEncodedBlock(new LazyEncodedBlock(block, () -> getPacked(rows, size), EncodedBlockType.FULL));
+        block.setEncodedBlockBorders(new LazyEncodedBlock(block, () -> getPackedBorders(rows, size), EncodedBlockType.BORDER));
     }
 
     @Override
@@ -126,6 +130,16 @@ public class Packer implements Worker {
 
     private static boolean bit(long[] row, int column) {
         return row != null && (row[(column >>> 6) + 1] >>> column & 1) != 0;
+    }
+
+    private static byte[] getPacked(boolean[][] cells, int size) {
+        byte[] packed = new byte[(size * size + 7) / 8];
+        for (int x = 1; x <= size; x++) {
+            for (int y = 1; y <= size; y++) {
+                if (cells[x][y]) setBit(packed, (x - 1) * size + (y - 1));
+            }
+        }
+        return packed;
     }
 
     private static byte[] getPacked(long[][] packedCells, int size) {

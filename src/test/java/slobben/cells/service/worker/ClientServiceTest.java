@@ -16,10 +16,10 @@ import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
 import slobben.cells.entities.Client;
 import slobben.cells.service.ExecutorService;
-import slobben.cells.service.worker.gol.GolScenarios;
-import slobben.cells.service.worker.gol.ProductionGol;
+import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.Packer;
+import slobben.cells.util.BlockUtils;
 
 import java.util.*;
 
@@ -30,6 +30,7 @@ class ClientServiceTest {
     private final List<Message<?>> sent = new ArrayList<>();
     private final Map<String, Block> blocks = new HashMap<>();
     private final ClientService clientService;
+    private final AlgorithmGol algorithmGol = AlgorithmGolLoadTest.algorithmGol(20, 5);
 
     ClientServiceTest() {
         MessageChannel channel = (message, timeout) -> sent.add(message);
@@ -44,7 +45,7 @@ class ClientServiceTest {
     @Test
     void sendsBlocksAsABinaryFrame() {
         Block active = block(0, 0);
-        new ProductionGol(20, 5).step(active);
+        algorithmGol.setNextState(active);
         Packer.packAll(active);
         Block fresh = block(-1, 0);
         Packer.packAll(fresh);
@@ -69,7 +70,7 @@ class ClientServiceTest {
     @Test
     void sendsFullBlocksWhenAsked() {
         Block active = block(2, 3);
-        new ProductionGol(20, 5).step(active);
+        algorithmGol.setNextState(active);
         Packer.packAll(active);
         blocks.put(active.getKey(), active);
 
@@ -79,6 +80,6 @@ class ClientServiceTest {
     }
 
     private static Block block(int x, int y) {
-        return GolScenarios.copyAt(GolScenarios.denseRandom(20, 3, x * 31L + y), x, y);
+        return BlockUtils.setBlockToRandom(new Block(x, y, UUID.randomUUID(), 20), 3, 20);
     }
 }
