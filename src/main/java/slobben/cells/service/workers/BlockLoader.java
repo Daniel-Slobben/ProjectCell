@@ -3,7 +3,7 @@ package slobben.cells.service.workers;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import slobben.cells.entities.Block;
-import slobben.cells.service.workers.chaos.ChaosHit;
+import slobben.cells.entities.ChaosHit;
 
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -1,11 +1,11 @@
-package slobben.cells.service.workers.chaos.makers;
+package slobben.cells.service.workers.chaosmakers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.internal.Coordinates;
+import slobben.cells.entities.ChaosHit;
 import slobben.cells.service.RleReader;
-import slobben.cells.service.workers.chaos.ChaosHit;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,10 +52,7 @@ public class GrowthMaker implements Maker {
             }
         }
 
-        return new ChaosHit("", ((int i) -> {
-            Coordinates coordinates = growthHits.get(random.nextInt(0, growthHits.size()));
-            return new Coordinates(coordinates.x() + i / 2, coordinates.y() + i / 2);
-        }), 10_000);
+        return new ChaosHit("", id, growthHits.getFirst(), 10_000);
     }
 
     private int getRandomNumberWithNegative() {

@@ -14,15 +14,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Bit-parallel Game of Life. Every block keeps a packed copy of its cells (64 cells per long, see
- * {@link Block#getPackedCells()}) and the neighbour count is done for 64 cells at once with bitwise adders.
+ * Bit-parallel Game of Life. The neighbor count is done for 64 cells at once with bitwise adders.
  * Only cells that actually change are written back to the boolean[][] and the sector counts.
- * <p>
- * The packed copy stays valid between ticks because the inner cells are only changed here (other workers only
- * write the borders, which are re-read every tick, or replace the cells array, which triggers a full re-pack).
- * This is the same assumption the sector counts already rely on.
- * <p>
- * About 6x faster per block than the old heatmap version.
  */
 @Service
 @RequiredArgsConstructor

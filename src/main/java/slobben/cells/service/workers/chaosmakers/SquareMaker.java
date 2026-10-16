@@ -1,12 +1,12 @@
-package slobben.cells.service.workers.chaos.makers;
+package slobben.cells.service.workers.chaosmakers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import slobben.cells.dto.internal.Coordinates;
+import slobben.cells.entities.ChaosHit;
 import slobben.cells.enums.CornerEnum;
 import slobben.cells.service.WorldEditor;
-import slobben.cells.service.workers.chaos.ChaosHit;
 
 import java.util.Random;
 import java.util.UUID;
@@ -18,8 +18,8 @@ import java.util.function.IntFunction;
 public class SquareMaker implements Maker {
 
     private static final Random random = new Random();
-    private static final int MIN_SIZE = 20000;
-    private static final int MAX_SIZE = 30000;
+    private static final int MIN_SIZE = 30000;
+    private static final int MAX_SIZE = 40000;
     private final WorldEditor worldEditor;
 
     private int size = 0;
@@ -29,14 +29,14 @@ public class SquareMaker implements Maker {
         UUID chaosHitId = UUID.randomUUID();
         size = random.nextInt(MIN_SIZE, MAX_SIZE);
 
-        final int startX = size / 2;
-        final int startY = size / 2;
+        final int startX = (size / 2) + worldX;
+        final int startY = (size / 2) + worldY;
 
         setCells(startX, startY, chaosHitId);
 
         IntFunction<Coordinates> viewCalculator = getViewCalculator(startX, startY, size);
 
-        return new ChaosHit("2 pixels thick square " + size + " pixels wide", viewCalculator, size / 2 + 1000);
+        return new ChaosHit("2 pixels thick square " + size + " pixels wide", chaosHitId, new Coordinates(startX, startY), size / 2 + 1000);
     }
 
     private IntFunction<Coordinates> getViewCalculator(final int startX, final int startY, final int size) {

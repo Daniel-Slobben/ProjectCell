@@ -1,22 +1,28 @@
-package slobben.cells.service.workers.chaos;
+package slobben.cells.entities;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.dto.outgoing.ChaosHitDto;
 
 import java.util.UUID;
-import java.util.function.IntFunction;
 
-@RequiredArgsConstructor
 @Getter
 public class ChaosHit {
-    private final UUID id = UUID.randomUUID();
+    private final UUID id;
     private final String name;
-    private final IntFunction<Coordinates> getActiveView;
+    @Setter
+    private Coordinates currentStartingView;
     private final int maxAge;
 
-    private int age;
+    private int age = 0;
+
+    public ChaosHit(String name, UUID id, Coordinates currentStartingView, int maxAge) {
+        this.name = name;
+        this.id = id;
+        this.currentStartingView = currentStartingView;
+        this.maxAge = maxAge;
+    }
 
     public boolean incrementAge() {
         age++;
@@ -24,7 +30,6 @@ public class ChaosHit {
     }
 
     public ChaosHitDto getDto() {
-        Coordinates currentStartingView = getActiveView.apply(age);
         return new ChaosHitDto(id, currentStartingView.x(), currentStartingView.y(), name, age);
     }
 }

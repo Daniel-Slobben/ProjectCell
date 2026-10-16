@@ -1,7 +1,7 @@
 //package slobben.cells.service.workers.chaos.makers;
 //
 //import slobben.cells.dto.internal.Pattern;
-//import slobben.cells.service.workers.chaos.ChaosHit;
+//import slobben.cells.entities.ChaosHit;
 //
 //import java.util.Random;
 //

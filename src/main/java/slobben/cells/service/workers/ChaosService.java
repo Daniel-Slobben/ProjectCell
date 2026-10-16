@@ -1,4 +1,4 @@
-package slobben.cells.service.workers.chaos;
+package slobben.cells.service.workers;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -7,9 +7,11 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
-import slobben.cells.service.workers.Worker;
-import slobben.cells.service.workers.chaos.makers.Maker;
+import slobben.cells.entities.ChaosHit;
+import slobben.cells.enums.ChaosType;
+import slobben.cells.service.workers.chaosmakers.Maker;
 
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,10 @@ public class ChaosService implements Worker {
     private ChaosType lastType;
     @Value("${cells.chaos.type:NULL}")
     private String preferredType = null;
+    @Value("${cells.size.blockSize}")
+    private int blockSize = 500;
+    @Value("${cells.size.sectorSize}")
+    private int sectorSize = 40;
 
     @PostConstruct
     void init() {
@@ -39,12 +45,41 @@ public class ChaosService implements Worker {
     }
 
     public void execute() {
-        ChaosHit currentHit = chaosHits.getFirst();
-        boolean doReset = currentHit.incrementAge();
-        if (doReset) {
-            clearChaosHit(currentHit);
-            createChaos();
+        for (ChaosHit hit : chaosHits) {
+            boolean doReset = hit.incrementAge();
+            if (doReset) {
+                clearChaosHit(hit);
+                createChaos();
+            }
+
+            setNewCurrentViewpoint(hit);
         }
+    }
+
+    private void setNewCurrentViewpoint(ChaosHit hit) {
+        short highestCount = 0;
+        Coordinates highestCountCoordinates = null;
+
+        for (Block block : blocks.values().stream()
+                .filter(block -> block.getResponsibleChaosHit().equals(hit.getId()))
+                .toList()) {
+            short[][] sectorCount = block.getSectorCounts();
+
+            for (int sx = 0; sx < sectorCount.length; sx++) {
+                for (int sy = 0; sy < sectorCount.length; sy++) {
+                    short count = sectorCount[sx][sy];
+
+                    // filters sectors with just pure lines
+                    if (count % sectorSize != 0 && count > highestCount) {
+                        highestCount = count;
+                        int worldX = block.getX() * blockSize + sx * sectorSize;
+                        int worldY = block.getY() * blockSize + sy * sectorSize;
+                        highestCountCoordinates = new Coordinates(worldX, worldY);
+                    }
+                }
+            }
+        }
+        hit.setCurrentStartingView(highestCountCoordinates);
     }
 
     private void createChaos() {
@@ -65,8 +100,6 @@ public class ChaosService implements Worker {
         List<String> keysToRemove = blocks.entrySet().stream().filter(entrySet -> chaosHit.getId().equals(entrySet.getValue().getResponsibleChaosHit())).map(Map.Entry::getKey).toList();
         keysToRemove.forEach(blocks::remove);
 
-        // cheat clear all. but works for now with only 1 active chaoshit
-        blocks.clear();
         log.info("Cleaned ChaosHit {} with age {}, total blocks: {}", chaosHit.getId(), chaosHit.getAge(), keysToRemove.size());
     }
 

@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.Block;
 import slobben.cells.service.workers.*;
-import slobben.cells.service.workers.chaos.ChaosService;
 
 import java.util.Map;
 

@@ -1,11 +1,11 @@
-package slobben.cells.service.workers.chaos.makers;
+package slobben.cells.service.workers.chaosmakers;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import slobben.cells.dto.internal.Coordinates;
+import slobben.cells.entities.ChaosHit;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.WorldEditor;
-import slobben.cells.service.workers.chaos.ChaosHit;
 
 import java.util.Random;
 import java.util.UUID;
@@ -17,7 +17,7 @@ public class DiagonalMaker implements Maker {
 
     private static final Random random = new Random();
     private static final int MIN_SIZE = 40000;
-    private static final int MAX_SIZE = 60000;
+    private static final int MAX_SIZE = 70000;
 
     private final WorldEditor worldEditor;
 
@@ -35,7 +35,7 @@ public class DiagonalMaker implements Maker {
 
         IntFunction<Coordinates> viewCalculator = getViewCalculator(centerX, centerY, size);
 
-        return new ChaosHit("Diagonal cross " + size + " pixels wide", viewCalculator, size / 3);
+        return new ChaosHit("Diagonal cross " + size + " pixels wide", chaosHitId, new Coordinates(0, 0), size / 3);
     }
 
     private IntFunction<Coordinates> getViewCalculator(final int centerX, final int centerY, final int size) {

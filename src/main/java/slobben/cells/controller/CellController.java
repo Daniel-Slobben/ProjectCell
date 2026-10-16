@@ -18,8 +18,8 @@ import slobben.cells.dto.outgoing.ChaosHitDto;
 import slobben.cells.dto.outgoing.ReconnectResponse;
 import slobben.cells.dto.outgoing.Settings;
 import slobben.cells.dto.outgoing.StateInfo;
+import slobben.cells.service.workers.ChaosService;
 import slobben.cells.service.workers.ClientService;
-import slobben.cells.service.workers.chaos.ChaosService;
 
 import java.util.UUID;
 
