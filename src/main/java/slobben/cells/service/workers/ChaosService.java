@@ -13,6 +13,7 @@ import slobben.cells.entities.ChaosHit;
 import slobben.cells.enums.ChaosType;
 import slobben.cells.service.workers.chaosmakers.Maker;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -45,15 +46,22 @@ public class ChaosService implements Worker {
     }
 
     public void execute() {
-        for (ChaosHit hit : chaosHits) {
+
+        List<ChaosHit> removedHits = new ArrayList<>();
+        chaosHits.forEach((hit) -> {
             boolean doReset = hit.incrementAge();
             if (doReset) {
+                removedHits.add(hit);
                 clearChaosHit(hit);
-                createChaos();
+            } else {
+                setNewCurrentViewpoint(hit);
             }
+        });
 
-            setNewCurrentViewpoint(hit);
-        }
+        chaosHits.removeAll(removedHits);
+        removedHits.forEach(hit -> {
+            createChaos();
+        });
     }
 
     private void setNewCurrentViewpoint(ChaosHit hit) {
@@ -104,10 +112,10 @@ public class ChaosService implements Worker {
     }
 
     private ChaosType getWeightedRandomType() {
-        ChaosType type = switch (random.nextInt(0, 6)) {
+        ChaosType type = switch (random.nextInt(0, 5)) {
             case 0, 1 -> ChaosType.SQUARE;
             case 2, 3 -> ChaosType.DIAGONAL_LINES;
-            case 4, 5 -> ChaosType.GROWTH_PATTERN;
+            case 4 -> ChaosType.GROWTH_PATTERN;
             default -> throw new IllegalStateException("Unexpected value: " + random.nextInt(0, 10));
         };
 
