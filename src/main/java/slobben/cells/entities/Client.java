@@ -12,7 +12,7 @@ public class Client {
     private final UUID clientId = UUID.randomUUID();
     private final Set<String> activeBlocks = new HashSet<>();
     @Setter
-    private boolean inError = false;
+    private boolean inError = true;
     @Setter
     private int blockLevel = 0;
     private long healthCheck = System.currentTimeMillis();

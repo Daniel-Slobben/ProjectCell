@@ -55,9 +55,7 @@ public class ClientService implements Worker {
             return;
         }
 
-        // a block that was added after the last Packer run has no encoding yet
         List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks).stream().filter(Objects::nonNull).toList();
-        // byte[] goes out as application/octet-stream, which STOMP sends as a binary websocket frame
         simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), BlockFrame.write(copyOfBlocks));
     }
 
