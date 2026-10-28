@@ -18,8 +18,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Service
 public class GrowthMaker implements Maker {
-    private static final int MIN_SIZE = 15000;
-    private static final int MAX_SIZE = 30000;
     private static final int MIN_POPULATION = 200;
     private static final int MAX_POPULATION = 500;
 
@@ -29,16 +27,16 @@ public class GrowthMaker implements Maker {
     private final RleReader rleReader;
 
     @Override
-    public ChaosHit getChaosHit(int worldX, int worldY) {
+    public ChaosHit getChaosHit(int worldX, int worldY, int size) {
         UUID id = UUID.randomUUID();
         int population = random.nextInt(MIN_POPULATION, MAX_POPULATION + 1);
 
         List<Coordinates> growthHits = new ArrayList<>();
         for (int p = 0; p < population; p++) {
-            int x = getRandomNumberWithNegative();
-            int y = getRandomNumberWithNegative();
+            Coordinates relativeCoordinates = getRandomCoordinatesWithinBound(size);
+
             try {
-                Coordinates coordinates = new Coordinates(x + worldX, y + worldY);
+                Coordinates coordinates = new Coordinates(relativeCoordinates.x() + worldX, relativeCoordinates.y() + worldY);
                 String patternToAdd;
                 if (random.nextBoolean()) {
                     growthHits.add(coordinates);
@@ -52,15 +50,14 @@ public class GrowthMaker implements Maker {
             }
         }
 
-        return new ChaosHit("", id, growthHits.getFirst(), 10_000);
+        return new ChaosHit("", id, new Coordinates(worldX, worldY), 10_000, size);
     }
 
-    private int getRandomNumberWithNegative() {
-        int x = random.nextInt(MIN_SIZE, MAX_SIZE);
-        if (random.nextBoolean()) {
-            x = Math.negateExact(x);
-        }
-        return x;
+    private Coordinates getRandomCoordinatesWithinBound(int bound) {
+        final int halfBound = bound / 2;
+        int x = random.nextInt(-halfBound, halfBound);
+        int y = random.nextInt(-halfBound, halfBound);
+        return new Coordinates(x, y);
     }
 
 }

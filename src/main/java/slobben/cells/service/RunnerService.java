@@ -24,7 +24,10 @@ public class RunnerService {
     private final Packer packingService;
     private final ClientService clientService;
 
+    private final ServerInfoService serverInfoService;
+
     private final Map<String, Block> blocks;
+    private final ViewportService viewportService;
 
     @Value("${cells.targetspeed}")
     private int targetSpeed;
@@ -37,6 +40,7 @@ public class RunnerService {
 
     public void runCycle() {
         algorithmGol.tic();
+        viewportService.tic();
 
         chaosService.tic();
         addNewBlocks.tic();
@@ -55,13 +59,16 @@ public class RunnerService {
         running = runMode.equals("AUTO");
         while (running) {
             ticks++;
-            log.info("Starting run {} with {} amount of blocks in memory", ticks, blocks.size());
+            int blocksInMemory = blocks.size();
+            serverInfoService.updateBlockCounts(blocksInMemory);
+            log.info("Starting run {} with {} amount of blocks in memory", ticks, blocksInMemory);
             long timer = System.currentTimeMillis();
 
             runCycle();
 
             long timeTaken = System.currentTimeMillis() - timer;
             long timeDelta = timeTaken - targetSpeed;
+            serverInfoService.updateTimeDeltaRecordings(timeDelta);
             if (timeDelta < 0) {
                 Thread.sleep(Math.abs(timeDelta));
                 log.info("Ending run. Time Taken: {}ms, Waited for {}ms\n", timeTaken, Math.abs(timeDelta));

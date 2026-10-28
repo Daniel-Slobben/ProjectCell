@@ -5,53 +5,30 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.ChaosHit;
-import slobben.cells.enums.CornerEnum;
 import slobben.cells.service.WorldEditor;
 
-import java.util.Random;
 import java.util.UUID;
-import java.util.function.IntFunction;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class SquareMaker implements Maker {
 
-    private static final Random random = new Random();
-    private static final int MIN_SIZE = 30000;
-    private static final int MAX_SIZE = 40000;
     private final WorldEditor worldEditor;
 
-    private int size = 0;
-
     @Override
-    public ChaosHit getChaosHit(int worldX, int worldY) {
+    public ChaosHit getChaosHit(int worldX, int worldY, int size) {
         UUID chaosHitId = UUID.randomUUID();
-        size = random.nextInt(MIN_SIZE, MAX_SIZE);
 
-        final int startX = (size / 2) + worldX;
-        final int startY = (size / 2) + worldY;
+        final int startX = worldX - size / 2;
+        final int startY = worldY - size / 2;
 
-        setCells(startX, startY, chaosHitId);
+        setCells(startX, startY, chaosHitId, size);
 
-        IntFunction<Coordinates> viewCalculator = getViewCalculator(startX, startY, size);
-
-        return new ChaosHit("2 pixels thick square " + size + " pixels wide", chaosHitId, new Coordinates(startX, startY), size / 2 + 1000);
+        return new ChaosHit("2 pixels thick square " + size + " pixels wide", chaosHitId, new Coordinates(worldX, worldY), size / 2 + 1000, size);
     }
 
-    private IntFunction<Coordinates> getViewCalculator(final int startX, final int startY, final int size) {
-        return age -> {
-            age = Math.min(age, size / 2);
-            return switch (CornerEnum.getRandomCorner()) {
-                case TOP_LEFT -> new Coordinates(startX + age, startY + age);
-                case TOP_RIGHT -> new Coordinates(startX + size - age, startY + age);
-                case BOTTOM_LEFT -> new Coordinates(startX + age, startY + size - age);
-                case BOTTOM_RIGHT -> new Coordinates(startX + size - age, startY + size - age);
-            };
-        };
-    }
-
-    private void setCells(int startX, int startY, UUID hitId) {
+    private void setCells(int startX, int startY, UUID hitId, int size) {
         for (int i = 0; i < size; i++) {
             worldEditor.setCell(startX, startY + i, hitId);
             worldEditor.setCell(startX + 1, startY + i, hitId);

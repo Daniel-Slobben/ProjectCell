@@ -14,14 +14,15 @@ public class ChaosHit {
     @Setter
     private Coordinates currentStartingView;
     private final int maxAge;
-
+    private final int size;
     private int age = 0;
 
-    public ChaosHit(String name, UUID id, Coordinates currentStartingView, int maxAge) {
+    public ChaosHit(String name, UUID id, Coordinates currentStartingView, int maxAge, int size) {
         this.name = name;
         this.id = id;
         this.currentStartingView = currentStartingView;
         this.maxAge = maxAge;
+        this.size = size;
     }
 
     public boolean incrementAge() {

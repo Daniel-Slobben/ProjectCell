@@ -23,15 +23,6 @@ public enum Direction {
         this.dy = dy;
     }
 
-    public static Direction from(int i, int j) {
-        for (Direction dir : values()) {
-            if (dir.dx == i && dir.dy == j) {
-                return dir;
-            }
-        }
-        return null;
-    }
-
     public static Direction getRandomDirection() {
         return values()[ThreadLocalRandom.current().nextInt(values().length)];
     }

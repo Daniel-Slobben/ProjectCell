@@ -4,56 +4,28 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.ChaosHit;
-import slobben.cells.enums.Direction;
 import slobben.cells.service.WorldEditor;
 
 import java.util.Random;
 import java.util.UUID;
-import java.util.function.IntFunction;
 
 @Component
 @RequiredArgsConstructor
 public class DiagonalMaker implements Maker {
 
     private static final Random random = new Random();
-    private static final int MIN_SIZE = 40000;
-    private static final int MAX_SIZE = 70000;
 
     private final WorldEditor worldEditor;
 
     @Override
-    public ChaosHit getChaosHit(int worldX, int worldY) {
+    public ChaosHit getChaosHit(int worldX, int worldY, int size) {
         UUID chaosHitId = UUID.randomUUID();
-        final int size = random.nextInt(MIN_SIZE, MAX_SIZE);
         final int startX = (-(size / 2)) + worldX;
         final int startY = (-(size / 2)) + worldY;
 
         setCells(startX, startY, size, chaosHitId);
 
-        final int centerX = startX + (size - 1) / 2;
-        final int centerY = startY + (size - 1) / 2;
-
-        IntFunction<Coordinates> viewCalculator = getViewCalculator(centerX, centerY, size);
-
-        return new ChaosHit("Diagonal cross " + size + " pixels wide", chaosHitId, new Coordinates(0, 0), size / 3);
-    }
-
-    private IntFunction<Coordinates> getViewCalculator(final int centerX, final int centerY, final int size) {
-        return age -> {
-            int cornerOffset = Math.min(age, size / 4) - 30;
-            int middleOffset = age / 2 + age / 4;
-
-            return switch (Direction.getRandomDirection()) {
-                case LOW_X_LOW_Y -> new Coordinates(centerX - cornerOffset, centerY - cornerOffset);
-                case LOW_X_MID_Y -> new Coordinates(centerX - middleOffset, centerY);
-                case LOW_X_HIGH_Y -> new Coordinates(centerX + cornerOffset, centerY - cornerOffset);
-                case MID_X_LOW_Y -> new Coordinates(centerX, centerY - middleOffset);
-                case MID_X_HIGH_Y -> new Coordinates(centerX, centerY + middleOffset);
-                case HIGH_X_LOW_Y -> new Coordinates(centerX - cornerOffset, centerY + cornerOffset);
-                case HIGH_X_MID_Y -> new Coordinates(centerX + middleOffset, centerY);
-                case HIGH_X_HIGH_Y -> new Coordinates(centerX + cornerOffset, centerY + cornerOffset);
-            };
-        };
+        return new ChaosHit("Diagonal cross " + size + " pixels wide", chaosHitId, new Coordinates(worldX, worldY), size / 3, size);
     }
 
     private void setCells(int startX, int startY, int squareSize, UUID hitId) {

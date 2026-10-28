@@ -26,19 +26,23 @@ public class ChaosService implements Worker {
     private final BeanFactory beanFactory;
     private final List<ChaosHit> chaosHits;
 
+    private static final int MIN_SIZE = 2000;
+    private static final int MAX_SIZE = 40000;
+
     private final Random random = new Random();
 
     private ChaosType lastType;
     @Value("${cells.chaos.type:NULL}")
     private String preferredType = null;
-    @Value("${cells.size.blockSize}")
-    private int blockSize = 500;
-    @Value("${cells.size.sectorSize}")
-    private int sectorSize = 40;
+
+    private static final long PIXEL_COUNT_TARGET = 2_000_000_000;
+    private static final int TICKS_BETWEEN_NEW_HITS = 100;
+    private long currentPixelCount = 0;
+    private int tickCounter = 0;
 
     @PostConstruct
     void init() {
-        createChaos();
+        createChaosHit();
     }
 
     public String getName() {
@@ -46,68 +50,79 @@ public class ChaosService implements Worker {
     }
 
     public void execute() {
-
+        tickCounter++;
         List<ChaosHit> removedHits = new ArrayList<>();
-        chaosHits.forEach((hit) -> {
-            boolean doReset = hit.incrementAge();
-            if (doReset) {
+        chaosHits.forEach(hit -> {
+            if (hit.incrementAge()) {
                 removedHits.add(hit);
                 clearChaosHit(hit);
-            } else {
-                setNewCurrentViewpoint(hit);
             }
         });
-
         chaosHits.removeAll(removedHits);
-        removedHits.forEach(hit -> {
-            createChaos();
-        });
-    }
 
-    private void setNewCurrentViewpoint(ChaosHit hit) {
-        short highestCount = 0;
-        Coordinates highestCountCoordinates = null;
-
-        for (Block block : blocks.values().stream()
-                .filter(block -> block.getResponsibleChaosHit().equals(hit.getId()))
-                .toList()) {
-            short[][] sectorCount = block.getSectorCounts();
-
-            for (int sx = 0; sx < sectorCount.length; sx++) {
-                for (int sy = 0; sy < sectorCount.length; sy++) {
-                    short count = sectorCount[sx][sy];
-
-                    // filters sectors with just pure lines
-                    if (count % sectorSize != 0 && count > highestCount) {
-                        highestCount = count;
-                        int worldX = block.getX() * blockSize + sx * sectorSize;
-                        int worldY = block.getY() * blockSize + sy * sectorSize;
-                        highestCountCoordinates = new Coordinates(worldX, worldY);
-                    }
-                }
-            }
+        if (tickCounter > TICKS_BETWEEN_NEW_HITS
+                && currentPixelCount < PIXEL_COUNT_TARGET) {
+            tickCounter = 0;
+            createChaosHit();
         }
-        hit.setCurrentStartingView(highestCountCoordinates);
     }
 
-    private void createChaos() {
+    private void createChaosHit() {
+        Maker maker = getRandomMaker();
+        int size = random.nextInt(MIN_SIZE, MAX_SIZE);
+        Coordinates coordinates = findFreeSpot(size);
+
+        ChaosHit chaosHit = maker.getChaosHit(coordinates.x(), coordinates.y(), size);
+        chaosHits.addFirst(chaosHit);
+        currentPixelCount += (long) size * size;
+    }
+
+    private @NonNull Maker getRandomMaker() {
         ChaosType type;
         try {
             type = ChaosType.valueOf(this.preferredType);
         } catch (IllegalArgumentException _) {
             type = getWeightedRandomType();
         }
+        return beanFactory.getBean(type.maker);
+    }
 
-        Maker maker = beanFactory.getBean(type.maker);
-        ChaosHit chaosHit = maker.getChaosHit(0, 0);
 
-        chaosHits.addFirst(chaosHit);
+    public Coordinates findFreeSpot(final int size) {
+        int searchRadius = size;
+        int step = size / 2;
+        int attemptsPerRadius = 10;
+
+        while (true) {
+            for (int i = 0; i < attemptsPerRadius; i++) {
+                int x = random.nextInt(-searchRadius, searchRadius + 1);
+                int y = random.nextInt(-searchRadius, searchRadius + 1);
+                if (isFree(x, y, size)) {
+                    return new Coordinates(x, y);
+                }
+            }
+            searchRadius += step;
+            attemptsPerRadius += 2;
+        }
+    }
+
+    private boolean isFree(int x, int y, int size) {
+        for (ChaosHit hit : chaosHits) {
+            Coordinates c = hit.getCurrentStartingView();
+            int minDistTimesTwo = hit.getSize() + size;
+            if (2 * Math.abs(x - c.x()) < minDistTimesTwo
+                    && 2 * Math.abs(y - c.y()) < minDistTimesTwo) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void clearChaosHit(ChaosHit chaosHit) {
         List<String> keysToRemove = blocks.entrySet().stream().filter(entrySet -> chaosHit.getId().equals(entrySet.getValue().getResponsibleChaosHit())).map(Map.Entry::getKey).toList();
         keysToRemove.forEach(blocks::remove);
 
+        currentPixelCount -= (long) chaosHit.getSize() * chaosHit.getSize();
         log.info("Cleaned ChaosHit {} with age {}, total blocks: {}", chaosHit.getId(), chaosHit.getAge(), keysToRemove.size());
     }
 
@@ -125,9 +140,5 @@ public class ChaosService implements Worker {
         }
         this.lastType = type;
         return type;
-    }
-
-    public @NonNull ChaosHit getLatestHit() {
-        return chaosHits.getFirst();
     }
 }

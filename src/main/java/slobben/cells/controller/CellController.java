@@ -14,12 +14,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.incoming.ReconnectRequest;
-import slobben.cells.dto.outgoing.ChaosHitDto;
+import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.dto.outgoing.ReconnectResponse;
 import slobben.cells.dto.outgoing.Settings;
 import slobben.cells.dto.outgoing.StateInfo;
-import slobben.cells.service.workers.ChaosService;
 import slobben.cells.service.workers.ClientService;
+import slobben.cells.service.workers.ViewportService;
 
 import java.util.UUID;
 
@@ -29,7 +29,7 @@ import java.util.UUID;
 public class CellController {
 
     private static final Logger log = LoggerFactory.getLogger(CellController.class);
-    private final ChaosService chaosService;
+    private final ViewportService viewportService;
     private final ClientService clientService;
 
     @Value("${cells.size.blockSize}")
@@ -41,9 +41,9 @@ public class CellController {
         UUID clientId = clientService.createNewClient();
 
         log.debug("Received settings request. Assigning clientId {}", clientId);
-        ChaosHitDto chaosHit = chaosService.getLatestHit().getDto();
+        Coordinates viewport = viewportService.getInterestingViewport();
 
-        return ResponseEntity.ok(new Settings(blockSize, clientId, chaosHit, clientService.getInitialBlocks(chaosHit.worldX(), chaosHit.worldY())));
+        return ResponseEntity.ok(new Settings(blockSize, clientId, viewport, clientService.getInitialBlocks(viewport.x(), viewport.y())));
     }
 
     @PostMapping("reconnect")
@@ -54,9 +54,9 @@ public class CellController {
         if (clientService.hasVisibleBlocks(reconnectRequest.visibleBlocks())) {
             return ResponseEntity.ok(new ReconnectResponse(clientId, null));
         }
-        ChaosHitDto chaosHit = chaosService.getLatestHit().getDto();
+        Coordinates viewport = viewportService.getInterestingViewport();
 
-        return ResponseEntity.ok(new ReconnectResponse(clientId, chaosHit));
+        return ResponseEntity.ok(new ReconnectResponse(clientId, viewport));
     }
 
     @MessageMapping("/client-update")
