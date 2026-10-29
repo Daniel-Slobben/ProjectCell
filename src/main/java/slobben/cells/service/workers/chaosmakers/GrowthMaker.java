@@ -18,8 +18,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Service
 public class GrowthMaker implements Maker {
-    private static final int MIN_POPULATION = 200;
-    private static final int MAX_POPULATION = 500;
+    private static final int MIN_POPULATION = 10;
+    private static final int MAX_POPULATION = 40;
 
     private final Random random = new Random();
     private final String[] growthPatterns = {"spacefiller1.rle", "spacefiller2.rle",};
@@ -28,6 +28,7 @@ public class GrowthMaker implements Maker {
 
     @Override
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {
+        size = size - size / 3;
         UUID id = UUID.randomUUID();
         int population = random.nextInt(MIN_POPULATION, MAX_POPULATION + 1);
 

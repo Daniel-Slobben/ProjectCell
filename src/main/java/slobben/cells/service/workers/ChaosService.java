@@ -127,10 +127,10 @@ public class ChaosService implements Worker {
     }
 
     private ChaosType getWeightedRandomType() {
-        ChaosType type = switch (random.nextInt(0, 5)) {
-            case 0, 1 -> ChaosType.SQUARE;
-            case 2, 3 -> ChaosType.DIAGONAL_LINES;
-            case 4 -> ChaosType.GROWTH_PATTERN;
+        ChaosType type = switch (random.nextInt(0, 11)) {
+            case 0, 1, 7, 8, 9 -> ChaosType.SQUARE;
+            case 2, 3, 4, 5, 6 -> ChaosType.DIAGONAL_LINES;
+            case 10 -> ChaosType.GROWTH_PATTERN;
             default -> throw new IllegalStateException("Unexpected value: " + random.nextInt(0, 10));
         };
 
