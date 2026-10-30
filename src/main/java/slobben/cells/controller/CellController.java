@@ -59,6 +59,11 @@ public class CellController {
         return ResponseEntity.ok(new ReconnectResponse(clientId, viewport));
     }
 
+    @GetMapping("viewport")
+    public ResponseEntity<Coordinates> getNewViewport() {
+        return ResponseEntity.ok(viewportService.getInterestingViewport());
+    }
+
     @MessageMapping("/client-update")
     public void updateClient(@Payload ClientUpdateRequest message) {
         log.debug("Received update request for clientId: {}", message.client());

@@ -13,7 +13,6 @@ import slobben.cells.entities.ChaosHit;
 import slobben.cells.enums.ChaosType;
 import slobben.cells.service.workers.chaosmakers.Maker;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -27,13 +26,15 @@ public class ChaosService implements Worker {
     private final List<ChaosHit> chaosHits;
 
     private static final int MIN_SIZE = 2000;
-    private static final int MAX_SIZE = 40000;
+    private static final int MAX_SIZE = 30000;
 
     private final Random random = new Random();
 
     private ChaosType lastType;
     @Value("${cells.chaos.type:NULL}")
     private String preferredType = null;
+    @Value("${cells.size.blockSize}")
+    private int blockSize;
 
     private static final long PIXEL_COUNT_TARGET = 2_000_000_000;
     private static final int TICKS_BETWEEN_NEW_HITS = 100;
@@ -51,14 +52,15 @@ public class ChaosService implements Worker {
 
     public void execute() {
         tickCounter++;
-        List<ChaosHit> removedHits = new ArrayList<>();
-        chaosHits.forEach(hit -> {
-            if (hit.incrementAge()) {
-                removedHits.add(hit);
-                clearChaosHit(hit);
+        for (ChaosHit hit : chaosHits) {
+            hit.incrementAge();
+            if (chaosHits.stream().noneMatch(ChaosHit::isActive)) {
+                blocks.clear();
+                chaosHits.clear();
+                currentPixelCount = 0;
+                tickCounter = TICKS_BETWEEN_NEW_HITS + 1;
             }
-        });
-        chaosHits.removeAll(removedHits);
+        }
 
         if (tickCounter > TICKS_BETWEEN_NEW_HITS
                 && currentPixelCount < PIXEL_COUNT_TARGET) {
@@ -69,7 +71,11 @@ public class ChaosService implements Worker {
 
     private void createChaosHit() {
         Maker maker = getRandomMaker();
-        int size = random.nextInt(MIN_SIZE, MAX_SIZE);
+
+        double uniform = random.nextDouble();
+        double skewed = Math.pow(uniform, 2.0);
+        int size = MIN_SIZE + (int) (skewed * (MAX_SIZE - MIN_SIZE));
+
         Coordinates coordinates = findFreeSpot(size);
 
         ChaosHit chaosHit = maker.getChaosHit(coordinates.x(), coordinates.y(), size);
@@ -109,21 +115,13 @@ public class ChaosService implements Worker {
     private boolean isFree(int x, int y, int size) {
         for (ChaosHit hit : chaosHits) {
             Coordinates c = hit.getCurrentStartingView();
-            int minDistTimesTwo = hit.getSize() + size;
+            int minDistTimesTwo = hit.getSize() + size + blockSize * 2;
             if (2 * Math.abs(x - c.x()) < minDistTimesTwo
                     && 2 * Math.abs(y - c.y()) < minDistTimesTwo) {
                 return false;
             }
         }
         return true;
-    }
-
-    private void clearChaosHit(ChaosHit chaosHit) {
-        List<String> keysToRemove = blocks.entrySet().stream().filter(entrySet -> chaosHit.getId().equals(entrySet.getValue().getResponsibleChaosHit())).map(Map.Entry::getKey).toList();
-        keysToRemove.forEach(blocks::remove);
-
-        currentPixelCount -= (long) chaosHit.getSize() * chaosHit.getSize();
-        log.info("Cleaned ChaosHit {} with age {}, total blocks: {}", chaosHit.getId(), chaosHit.getAge(), keysToRemove.size());
     }
 
     private ChaosType getWeightedRandomType() {

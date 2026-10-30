@@ -25,6 +25,10 @@ public class ChaosHit {
         this.size = size;
     }
 
+    public boolean isActive() {
+        return age <= maxAge;
+    }
+
     public boolean incrementAge() {
         age++;
         return age > maxAge;
