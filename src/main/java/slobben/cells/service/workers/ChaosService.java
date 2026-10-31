@@ -54,12 +54,13 @@ public class ChaosService implements Worker {
         tickCounter++;
         for (ChaosHit hit : chaosHits) {
             hit.incrementAge();
-            if (chaosHits.stream().noneMatch(ChaosHit::isActive)) {
-                blocks.clear();
-                chaosHits.clear();
-                currentPixelCount = 0;
-                tickCounter = TICKS_BETWEEN_NEW_HITS + 1;
-            }
+        }
+
+        if (chaosHits.stream().noneMatch(ChaosHit::isActive)) {
+            blocks.clear();
+            chaosHits.clear();
+            currentPixelCount = 0;
+            tickCounter = TICKS_BETWEEN_NEW_HITS + 1;
         }
 
         if (tickCounter > TICKS_BETWEEN_NEW_HITS
