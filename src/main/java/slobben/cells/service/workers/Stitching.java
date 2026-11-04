@@ -1,13 +1,16 @@
 package slobben.cells.service.workers;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
+import slobben.cells.enums.BlockState;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.ExecutorService;
 import slobben.cells.util.BlockUtils;
+import slobben.cells.util.PackedRows;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -20,26 +23,17 @@ import static slobben.cells.util.BlockUtils.getKey;
 
 @RequiredArgsConstructor
 @Service
-public class Stitching implements Worker {
+public class Stitching extends Worker {
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
     private final Map<String, Block> newBlocks;
     @Value("${cells.size.blockSize}")
     private int blockSize;
+    private long[] innerMask;
 
-    private static boolean hasTrueValue(boolean[] cells) {
-        for (var cell : cells) {
-            if (cell) return true;
-        }
-        return false;
-    }
-
-    private static boolean[] getColumnCells(boolean[][] cells, int srcCol) {
-        boolean[] cellsToCopy = new boolean[cells.length - 2];
-        for (int i = 1; i < cells.length - 1; i++) {
-            cellsToCopy[i - 1] = cells[i][srcCol];
-        }
-        return cellsToCopy;
+    @PostConstruct
+    void init() {
+        innerMask = PackedRows.innerMask(blockSize);
     }
 
     @Override
@@ -48,22 +42,27 @@ public class Stitching implements Worker {
     }
 
     public void execute() {
-        blocks.values().parallelStream().forEach(this::clearBlockBorders);
+        blocks.values().parallelStream().forEach(this::prepareBorders);
 
         Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> addBorderCells(block)).collect(Collectors.toSet());
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    private void clearBlockBorders(Block block) {
-        boolean[][] cells = block.getCells();
-        int max = blockSize + 1;
-        for (int i = 0; i < cells[0].length; i++) {
-            cells[0][i] = false;
-            cells[max][i] = false;
+    // the borders are copied from the packed rows, so NEW blocks are packed from their cells first
+    private void prepareBorders(Block block) {
+        if (block.getBlockState() == BlockState.NEW) {
+            block.setPackedCells(PackedRows.pack(block.getCells()));
+        }
+        clearBlockBorders(block.getPackedCells());
+    }
 
-            // y keys
-            cells[i][0] = false;
-            cells[i][max] = false;
+    private void clearBlockBorders(long[][] packed) {
+        int max = blockSize + 1;
+        Arrays.fill(packed[0], 0L);
+        Arrays.fill(packed[max], 0L);
+        for (int x = 1; x < max; x++) {
+            PackedRows.clear(packed[x], 0);
+            PackedRows.clear(packed[x], max);
         }
     }
 
@@ -78,71 +77,55 @@ public class Stitching implements Worker {
     }
 
     private void setBorderCellsForDirection(String key, Direction direction, Block block) {
+        long[][] packed = block.getPackedCells();
+        UUID hit = block.getResponsibleChaosHit();
+        int max = blockSize + 1;
         switch (direction) {
-            case LOW_X_LOW_Y -> {
-                boolean cell = block.getCells()[1][1];
-                if (cell) {
-                    operateOnBlock(key, block.getResponsibleChaosHit(), (Block b) -> b.getCells()[blockSize + 1][blockSize + 1] = true);
-                }
-            }
-            case LOW_X_MID_Y -> {
-                boolean[] cellsToCopy = new boolean[blockSize];
-                System.arraycopy(block.getCells()[1], 1, cellsToCopy, 0, blockSize);
-
-                if (hasTrueValue(cellsToCopy)) {
-                    operateOnBlock(key, block.getResponsibleChaosHit(), (Block b) -> System.arraycopy(cellsToCopy, 0, b.getCells()[blockSize + 1], 1, blockSize));
-                }
-            }
-            case LOW_X_HIGH_Y -> {
-                boolean cell = block.getCells()[1][blockSize];
-                if (cell) {
-                    operateOnBlock(key, block.getResponsibleChaosHit(), (Block b) -> b.getCells()[blockSize + 1][0] = true);
-                }
-            }
-            case MID_X_LOW_Y -> {
-                boolean[] cellsToCopy = getColumnCells(block.getCells(), 1);
-
-                if (hasTrueValue(cellsToCopy)) {
-
-                    operateOnBlock(key, block.getResponsibleChaosHit(), (Block b) -> {
-                        for (int i = 0; i < blockSize; i++) {
-                            b.getCells()[i + 1][blockSize + 1] = cellsToCopy[i];
-                        }
-                    });
-                }
-            }
-            case MID_X_HIGH_Y -> {
-                boolean[] cellsToCopy = getColumnCells(block.getCells(), blockSize);
-
-                if (hasTrueValue(cellsToCopy)) {
-                    operateOnBlock(key, block.getResponsibleChaosHit(), (Block b) -> {
-                        for (int i = 0; i < blockSize; i++) {
-                            b.getCells()[i + 1][0] = cellsToCopy[i];
-                        }
-                    });
-                }
-            }
-            case HIGH_X_LOW_Y -> {
-                boolean cell = block.getCells()[blockSize][1];
-                if (cell) {
-                    operateOnBlock(key, block.getResponsibleChaosHit(), (Block b) -> b.getCells()[0][blockSize + 1] = true);
-                }
-            }
-            case HIGH_X_MID_Y -> {
-                boolean[] cellsToCopy = new boolean[blockSize];
-                System.arraycopy(block.getCells()[blockSize], 1, cellsToCopy, 0, blockSize);
-
-                if (hasTrueValue(cellsToCopy)) {
-                    operateOnBlock(key, block.getResponsibleChaosHit(), (Block b) -> System.arraycopy(cellsToCopy, 0, b.getCells()[0], 1, blockSize));
-                }
-            }
-            case HIGH_X_HIGH_Y -> {
-                boolean cell = block.getCells()[blockSize][blockSize];
-                if (cell) {
-                    operateOnBlock(key, block.getResponsibleChaosHit(), (Block b) -> b.getCells()[0][0] = true);
-                }
-            }
+            case LOW_X_LOW_Y -> copyCell(key, hit, packed[1], 1, max, max);
+            case LOW_X_MID_Y -> copyRow(key, hit, packed[1], max);
+            case LOW_X_HIGH_Y -> copyCell(key, hit, packed[1], blockSize, max, 0);
+            case MID_X_LOW_Y -> copyColumn(key, hit, packed, 1, max);
+            case MID_X_HIGH_Y -> copyColumn(key, hit, packed, blockSize, 0);
+            case HIGH_X_LOW_Y -> copyCell(key, hit, packed[blockSize], 1, 0, max);
+            case HIGH_X_MID_Y -> copyRow(key, hit, packed[blockSize], 0);
+            case HIGH_X_HIGH_Y -> copyCell(key, hit, packed[blockSize], blockSize, 0, 0);
         }
+    }
+
+    private void copyCell(String key, UUID hit, long[] srcRow, int srcCol, int dstRow, int dstCol) {
+        if (PackedRows.get(srcRow, srcCol)) {
+            operateOnBlock(key, hit, (Block b) -> PackedRows.set(b.getPackedCells()[dstRow], dstCol));
+        }
+    }
+
+    private void copyRow(String key, UUID hit, long[] srcRow, int dstRow) {
+        long any = 0;
+        for (int i = 0; i < srcRow.length; i++) {
+            any |= srcRow[i] & innerMask[i];
+        }
+        if (any == 0) return;
+
+        operateOnBlock(key, hit, (Block b) -> {
+            long[] dst = b.getPackedCells()[dstRow];
+            for (int i = 0; i < dst.length; i++) {
+                dst[i] |= srcRow[i] & innerMask[i];
+            }
+        });
+    }
+
+    private void copyColumn(String key, UUID hit, long[][] packed, int srcCol, int dstCol) {
+        boolean any = false;
+        for (int x = 1; x <= blockSize && !any; x++) {
+            any = PackedRows.get(packed[x], srcCol);
+        }
+        if (!any) return;
+
+        operateOnBlock(key, hit, (Block b) -> {
+            long[][] dst = b.getPackedCells();
+            for (int x = 1; x <= blockSize; x++) {
+                if (PackedRows.get(packed[x], srcCol)) PackedRows.set(dst[x], dstCol);
+            }
+        });
     }
 
     private synchronized void operateOnBlock(String key, UUID responsibleHit, Consumer<Block> task) {

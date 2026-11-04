@@ -11,7 +11,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class Pruning implements Worker {
+public class Pruning extends Worker {
     private final Map<String, Block> blocks;
 
     private int counter = 0;
@@ -41,12 +41,11 @@ public class Pruning implements Worker {
         blocks.values().removeIf(block -> !hasTrueValue(block));
     }
 
+    // the borders count as well, they still make cells in this block come alive
     private boolean hasTrueValue(Block block) {
-        for (int x = 0; x < block.getCells().length; x++) {
-            for (int y = 0; y < block.getCells().length; y++) {
-                if (block.getCells()[x][y]) {
-                    return true;
-                }
+        for (long[] row : block.getPackedCells()) {
+            for (long word : row) {
+                if (word != 0) return true;
             }
         }
         return false;

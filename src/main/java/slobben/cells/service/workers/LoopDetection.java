@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
+import slobben.cells.util.PackedRows;
 
 import java.util.*;
 
@@ -12,7 +13,7 @@ import static slobben.cells.enums.BlockState.ACTIVE;
 
 @Service
 @RequiredArgsConstructor
-public class LoopDetection implements Worker {
+public class LoopDetection extends Worker {
     private final Map<String, Block> blocks;
     private final Set<Block> checkedBlock = new HashSet<>();
     @Value("${cells.recording.max-blocks:10}")
@@ -37,7 +38,8 @@ public class LoopDetection implements Worker {
         }
 
         // add recording to block
-        currentlyRecording.forEach(block -> block.getRecordings().add(block.getCells()));
+        // a copy, the GoL changes the packed cells in place
+        currentlyRecording.forEach(block -> block.getRecordings().add(PackedRows.copy(block.getPackedCells())));
 
         // check for duplicate states
         Iterator<Block> currentlyRecordingIterator = currentlyRecording.iterator();
@@ -46,8 +48,8 @@ public class LoopDetection implements Worker {
 
             if (block.getRecordings().size() == 1) continue;
 
-            boolean[][] firstState = block.getRecordings().getFirst();
-            boolean[][] lastState = block.getRecordings().getLast();
+            long[][] firstState = block.getRecordings().getFirst();
+            long[][] lastState = block.getRecordings().getLast();
 
             if (Arrays.deepEquals(firstState, lastState)) {
                 block.setBlockState(BlockState.HIBERNATION);

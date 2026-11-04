@@ -20,10 +20,12 @@ import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.Packer;
 import slobben.cells.util.BlockUtils;
+import slobben.cells.util.PackedRows;
 
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static slobben.cells.service.worker.AlgorithmGolTests.nextState;
 
 class ClientServiceTest {
 
@@ -45,7 +47,7 @@ class ClientServiceTest {
     @Test
     void sendsBlocksAsABinaryFrame() {
         Block active = block(0, 0);
-        algorithmGol.setNextState(active);
+        nextState(algorithmGol, active);
         Packer.packAll(active);
         Block fresh = block(-1, 0);
         Packer.packAll(fresh);
@@ -70,7 +72,7 @@ class ClientServiceTest {
     @Test
     void sendsFullBlocksWhenAsked() {
         Block active = block(2, 3);
-        algorithmGol.setNextState(active);
+        nextState(algorithmGol, active);
         Packer.packAll(active);
         blocks.put(active.getKey(), active);
 
@@ -79,7 +81,10 @@ class ClientServiceTest {
         assertThat(BlockFrameReader.read((byte[]) sent.getFirst().getPayload())).containsExactly(active.getEncodedBlock());
     }
 
+    // packed like Stitching does for NEW blocks
     private static Block block(int x, int y) {
-        return BlockUtils.setBlockToRandom(new Block(x, y, UUID.randomUUID(), 20), 3, 20);
+        Block block = BlockUtils.setBlockToRandom(new Block(x, y, UUID.randomUUID(), 20), 3, 20);
+        block.setPackedCells(PackedRows.pack(block.getCells()));
+        return block;
     }
 }

@@ -13,6 +13,7 @@ import slobben.cells.enums.Direction;
 import slobben.cells.service.workers.AddNewBlocks;
 import slobben.cells.service.workers.Stitching;
 import slobben.cells.util.BlockUtils;
+import slobben.cells.util.PackedRows;
 
 import java.util.Map;
 import java.util.UUID;
@@ -63,28 +64,32 @@ class StitchingTest {
         Block blockToCheck = blocks.get(BlockUtils.getKey(direction.getDx(), direction.getDy()));
 
         switch(direction) {
-            case Direction.LOW_X_LOW_Y -> assertThat(blockToCheck.getCells()[11][11]).isTrue();
+            case Direction.LOW_X_LOW_Y -> assertThat(isAlive(blockToCheck, 11, 11)).isTrue();
             case Direction.LOW_X_MID_Y -> {
-                assertThat(blockToCheck.getCells()[11][10]).isTrue();
-                assertThat(blockToCheck.getCells()[11][1]).isTrue();
-                assertThat(blockToCheck.getCells()[11][2]).isTrue();
+                assertThat(isAlive(blockToCheck, 11, 10)).isTrue();
+                assertThat(isAlive(blockToCheck, 11, 1)).isTrue();
+                assertThat(isAlive(blockToCheck, 11, 2)).isTrue();
             }
-            case Direction.LOW_X_HIGH_Y -> assertThat(blockToCheck.getCells()[11][0]).isTrue();
+            case Direction.LOW_X_HIGH_Y -> assertThat(isAlive(blockToCheck, 11, 0)).isTrue();
             case Direction.MID_X_LOW_Y -> {
-                assertThat(blockToCheck.getCells()[1][11]).isTrue();
-                assertThat(blockToCheck.getCells()[10][11]).isTrue();
+                assertThat(isAlive(blockToCheck, 1, 11)).isTrue();
+                assertThat(isAlive(blockToCheck, 10, 11)).isTrue();
             }
             case Direction.MID_X_HIGH_Y -> {
-                assertThat(blockToCheck.getCells()[1][0]).isTrue();
-                assertThat(blockToCheck.getCells()[10][0]).isTrue();
+                assertThat(isAlive(blockToCheck, 1, 0)).isTrue();
+                assertThat(isAlive(blockToCheck, 10, 0)).isTrue();
             }
-            case Direction.HIGH_X_LOW_Y -> assertThat(blockToCheck.getCells()[0][11]).isTrue();
+            case Direction.HIGH_X_LOW_Y -> assertThat(isAlive(blockToCheck, 0, 11)).isTrue();
             case Direction.HIGH_X_MID_Y -> {
-                assertThat(blockToCheck.getCells()[0][10]).isTrue();
-                assertThat(blockToCheck.getCells()[0][1]).isTrue();
+                assertThat(isAlive(blockToCheck, 0, 10)).isTrue();
+                assertThat(isAlive(blockToCheck, 0, 1)).isTrue();
             }
-            case Direction.HIGH_X_HIGH_Y -> assertThat(blockToCheck.getCells()[0][0]).isTrue();
+            case Direction.HIGH_X_HIGH_Y -> assertThat(isAlive(blockToCheck, 0, 0)).isTrue();
         }
     }
 
+    // Stitching writes the borders into the packed rows
+    private static boolean isAlive(Block block, int x, int y) {
+        return PackedRows.get(block.getPackedCells()[x], y);
+    }
 }

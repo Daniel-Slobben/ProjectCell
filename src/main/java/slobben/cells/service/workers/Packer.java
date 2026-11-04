@@ -10,6 +10,7 @@ import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.ExecutorService;
+import slobben.cells.util.PackedRows;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class Packer implements Worker {
+public class Packer extends Worker {
     private static final LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
 
     private static final VarHandle LONG_LE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
@@ -30,22 +31,16 @@ public class Packer implements Worker {
     private final ExecutorService executorService;
 
     public static void packAll(Block block) {
-        boolean[][] cells = block.getCells();
-        int size = cells.length - 2;
+        long[][] packedCells = block.getPackedCells();
+        int size = packedCells.length - 2;
 
-        if (BlockState.NEW.equals(block.getBlockState())) {
-            // not through the GoL yet, so no bit rows: packed from the cells, right away because they can change
-            // before a client asks. A NEW block is sent in full, also as its borders
-            byte[] packed = getPacked(cells, size);
-            LazyEncodedBlock full = new LazyEncodedBlock(block, () -> packed, EncodedBlockType.FULL);
-            block.setEncodedBlock(full);
-            block.setEncodedBlockBorders(full);
-            return;
-        }
-
-        long[][] rows = snapshotRows(block.getPackedCells(), size);
-        block.setEncodedBlock(new LazyEncodedBlock(block, () -> getPacked(rows, size), EncodedBlockType.FULL));
-        block.setEncodedBlockBorders(new LazyEncodedBlock(block, () -> getPackedBorders(rows, size), EncodedBlockType.BORDER));
+        long[][] rows = snapshotRows(packedCells, size);
+        LazyEncodedBlock full = new LazyEncodedBlock(block, () -> getPacked(rows, size), EncodedBlockType.FULL);
+        block.setEncodedBlock(full);
+        // a NEW block is sent in full, also as its borders
+        block.setEncodedBlockBorders(BlockState.NEW.equals(block.getBlockState())
+                ? full
+                : new LazyEncodedBlock(block, () -> getPackedBorders(rows, size), EncodedBlockType.BORDER));
     }
 
     @Override
@@ -59,12 +54,8 @@ public class Packer implements Worker {
      */
     private static long[][] snapshotRows(long[][] packedCells, int size) {
         long[][] rows = new long[size + 2][];
-        int lastWord = ((size + 1) >>> 6) + 1;
-        // per word: the bits of columns 1 .. size, so the border columns 0 and size + 1 don't count
-        long[] innerMask = new long[lastWord + 1];
-        for (int y = 1; y <= size; y++) {
-            innerMask[(y >>> 6) + 1] |= 1L << y;
-        }
+        int lastWord = PackedRows.words(size);
+        long[] innerMask = PackedRows.innerMask(size);
         for (int x = 1; x <= size; x++) {
             long[] row = packedCells[x];
             long any = 0;
@@ -129,17 +120,7 @@ public class Packer implements Worker {
     }
 
     private static boolean bit(long[] row, int column) {
-        return row != null && (row[(column >>> 6) + 1] >>> column & 1) != 0;
-    }
-
-    private static byte[] getPacked(boolean[][] cells, int size) {
-        byte[] packed = new byte[(size * size + 7) / 8];
-        for (int x = 1; x <= size; x++) {
-            for (int y = 1; y <= size; y++) {
-                if (cells[x][y]) setBit(packed, (x - 1) * size + (y - 1));
-            }
-        }
-        return packed;
+        return row != null && PackedRows.get(row, column);
     }
 
     private static byte[] getPacked(long[][] packedCells, int size) {
