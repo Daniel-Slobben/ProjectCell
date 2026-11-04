@@ -26,6 +26,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
         registration.setMessageSizeLimit(200000);
-        registration.setSendBufferSizeLimit(3 * 512 * 1024); // default : 512 * 1024
+        // A zoomed out client asks for up to ~100 full blocks at once, one message each. They wait here while the
+        // first ones go out; past this limit the session is closed.
+        registration.setSendBufferSizeLimit(8 * 1024 * 1024); // default : 512 * 1024
     }
 }
