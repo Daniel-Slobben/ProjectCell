@@ -3,14 +3,15 @@ package slobben.cells.entities;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public class Client {
     private final UUID clientId = UUID.randomUUID();
-    private final Set<String> activeBlocks = new HashSet<>();
+    // changed by client-updates while the tick loops over it
+    private final Set<String> activeBlocks = ConcurrentHashMap.newKeySet();
     @Setter
     private boolean inError = true;
     @Setter
