@@ -10,7 +10,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-public class ViewportService implements Worker {
+public class ViewportService extends Worker {
 
     @Value("${cells.size.blockSize}")
     private int blockSize = 500;

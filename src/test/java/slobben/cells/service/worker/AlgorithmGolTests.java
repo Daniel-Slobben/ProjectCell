@@ -9,6 +9,7 @@ import org.springframework.test.context.ActiveProfiles;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.workers.AlgorithmGol;
+import slobben.cells.util.PackedRows;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,7 +34,7 @@ class AlgorithmGolTests {
         draw(block, 30, 63, "##\n##");
 
         // execute
-        algorithmGol.setNextState(block);
+        nextState(algorithmGol, block);
 
         // verify
         assertThat(window(block, 1, 1, 2, 2)).isEqualTo("##\n##\n");
@@ -50,7 +51,7 @@ class AlgorithmGolTests {
         draw(block, 20, 63, "###");
 
         // execute
-        algorithmGol.setNextState(block);
+        nextState(algorithmGol, block);
 
         // verify
         assertThat(window(block, 19, 63, 3, 3)).isEqualTo("""
@@ -73,7 +74,7 @@ class AlgorithmGolTests {
 
         // execute
         for (int generation = 0; generation < 4; generation++) {
-            algorithmGol.setNextState(block);
+            nextState(algorithmGol, block);
         }
 
         // verify
@@ -96,7 +97,7 @@ class AlgorithmGolTests {
         draw(block, 10, 71, "#\n#\n#\n#");
 
         // execute
-        algorithmGol.setNextState(block);
+        nextState(algorithmGol, block);
 
         // verify
         // the border cells themselves are left alone, Stitching owns them
@@ -136,30 +137,36 @@ class AlgorithmGolTests {
         expectedSector[2][3] = 1;
 
         // execute
-        algorithmGol.setNextState(block);
+        nextState(algorithmGol, block);
 
         // verify
         assertThat(block.getSectorCounts()).isDeepEqualTo(expectedSector);
     }
 
     @Test
-    void newCellsArrayIsUsed() {
+    void cellsAreDroppedAfterNew() {
         // prepare
         Block block = block();
         draw(block, 20, 20, "###");
 
-        Block replacement = block();
-        draw(replacement, 40, 40, "##\n##");
-
         // execute
-        algorithmGol.setNextState(block);
-        block.setCells(replacement.getCells());
-        block.setSectorCounts(null);
-        algorithmGol.setNextState(block);
+        nextState(algorithmGol, block);
 
         // verify
-        assertThat(window(block, 40, 40, 2, 2)).isEqualTo("##\n##\n");
-        assertThat(aliveCount(block)).isEqualTo(4);
+        assertThat(block.getCells()).isNull();
+        assertThat(window(block, 19, 20, 3, 3)).isEqualTo("""
+                .#.
+                .#.
+                .#.
+                """);
+    }
+
+    // Stitching packs NEW blocks and writes the borders before the GoL runs, here the drawn borders come along
+    static void nextState(AlgorithmGol algorithmGol, Block block) {
+        if (block.getBlockState() == BlockState.NEW) {
+            block.setPackedCells(PackedRows.pack(block.getCells()));
+        }
+        algorithmGol.setNextState(block);
     }
 
     private Block block() {
@@ -179,7 +186,7 @@ class AlgorithmGolTests {
         StringBuilder window = new StringBuilder();
         for (int i = x; i < x + height; i++) {
             for (int j = y; j < y + width; j++) {
-                window.append(block.getCells()[i][j] ? '#' : '.');
+                window.append(PackedRows.get(block.getPackedCells()[i], j) ? '#' : '.');
             }
             window.append('\n');
         }
@@ -188,9 +195,9 @@ class AlgorithmGolTests {
 
     private static int aliveCount(Block block) {
         int alive = 0;
-        for (boolean[] row : block.getCells()) {
-            for (boolean cell : row) {
-                if (cell) alive++;
+        for (long[] row : block.getPackedCells()) {
+            for (long word : row) {
+                alive += Long.bitCount(word);
             }
         }
         return alive;

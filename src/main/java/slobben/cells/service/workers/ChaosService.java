@@ -20,7 +20,7 @@ import java.util.Random;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ChaosService implements Worker {
+public class ChaosService extends Worker {
     private final Map<String, Block> blocks;
     private final BeanFactory beanFactory;
     private final List<ChaosHit> chaosHits;

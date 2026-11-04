@@ -39,7 +39,7 @@ class AlgorithmGolLoadTest {
                 block = new Block(0, 0, UUID.randomUUID(), blockSize);
                 setBlockToRandom(block, 6, blockSize);
             }
-            algorithmGol.setNextState(block);
+            AlgorithmGolTests.nextState(algorithmGol, block);
         }
     }
 

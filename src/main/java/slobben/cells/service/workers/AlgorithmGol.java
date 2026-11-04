@@ -7,19 +7,19 @@ import org.springframework.stereotype.Service;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.ExecutorService;
+import slobben.cells.util.PackedRows;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Bit-parallel Game of Life. The neighbor count is done for 64 cells at once with bitwise adders.
- * Only cells that actually change are written back to the boolean[][] and the sector counts.
+ * Only cells that actually change update the sector counts.
  */
 @Service
 @RequiredArgsConstructor
-public class AlgorithmGol implements Worker {
+public class AlgorithmGol extends Worker {
 
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
@@ -30,8 +30,6 @@ public class AlgorithmGol implements Worker {
     private int sectorSize = 100;
     private int totalSectors = 0;
 
-    // packed row layout: word i + 1 holds columns 64i .. 64i + 63, words 0 and words + 1 are always-zero padding
-    private int width;
     private int words;
     private long[] innerMask;
     private int[] columnSector;
@@ -42,12 +40,10 @@ public class AlgorithmGol implements Worker {
             throw new IllegalStateException();
         }
         totalSectors = blockSize / sectorSize;
-        width = blockSize + 2;
-        words = (width + 63) >>> 6;
-        innerMask = new long[words + 2];
-        columnSector = new int[width];
+        words = PackedRows.words(blockSize);
+        innerMask = PackedRows.innerMask(blockSize);
+        columnSector = new int[blockSize + 2];
         for (int y = 1; y <= blockSize; y++) {
-            innerMask[(y >>> 6) + 1] |= 1L << y;
             columnSector[y] = (y - 1) / sectorSize;
         }
     }
@@ -68,20 +64,11 @@ public class AlgorithmGol implements Worker {
             block.setNextHibernationState();
             return;
         }
-        boolean[][] cells = block.getCells();
         if (block.getSectorCounts() == null) {
             setInitialSectorHeat(block);
         }
         short[][] sectorCounts = block.getSectorCounts();
-
-        if (block.getPackedCells() == null || block.getPackedFrom() != cells) {
-            long[][] packed = new long[width][words + 2];
-            packInner(cells, sectorCounts, packed);
-            block.setPackedCells(packed);
-            block.setPackedFrom(cells);
-        }
         long[][] packed = block.getPackedCells();
-        packBorders(cells, packed);
 
         long[] previousOriginal = packed[0].clone();
         long[] currentOriginal = new long[words + 2];
@@ -89,7 +76,7 @@ public class AlgorithmGol implements Worker {
             long[] row = packed[x];
             // row x is overwritten below, but row x + 1 still needs the original as its upper neighbour
             System.arraycopy(row, 0, currentOriginal, 0, words + 2);
-            nextRow(previousOriginal, currentOriginal, packed[x + 1], row, cells[x], sectorCounts[(x - 1) / sectorSize]);
+            nextRow(previousOriginal, currentOriginal, packed[x + 1], row, sectorCounts[(x - 1) / sectorSize]);
             long[] swap = previousOriginal;
             previousOriginal = currentOriginal;
             currentOriginal = swap;
@@ -99,22 +86,27 @@ public class AlgorithmGol implements Worker {
     }
 
     private void setInitialSectorHeat(Block block) {
-        block.setSectorCounts(new short[totalSectors][totalSectors]);
-        boolean[][] matrix = block.getCells();
-        short[][] sector = block.getSectorCounts();
+        short[][] sector = new short[totalSectors][totalSectors];
+        long[][] packed = block.getPackedCells();
         for (int x = 1; x <= blockSize; x++) {
-            for (int y = 1; y <= blockSize; y++) {
-                if (!matrix[x][y]) continue;
-                sector[(x - 1) / sectorSize][(y - 1) / sectorSize]++;
+            short[] sectorRow = sector[(x - 1) / sectorSize];
+            for (int i = 1; i <= words; i++) {
+                long alive = packed[x][i] & innerMask[i];
+                int base = (i - 1) << 6;
+                while (alive != 0) {
+                    sectorRow[columnSector[base + Long.numberOfTrailingZeros(alive)]]++;
+                    alive &= alive - 1;
+                }
             }
         }
+        block.setSectorCounts(sector);
     }
 
     /**
      * Next generation of one row, calculates 64 cells per iteration. (1 long)
-     * Writes the new words to {@code out} and flips only the changed cells in {@code cellRow}.
+     * Writes the new words to {@code out} and counts only the changed cells in {@code sectorRow}.
      */
-    private void nextRow(long[] upperRow, long[] middleRow, long[] downRow, long[] out, boolean[] cellRow, short[] sectorRow) {
+    private void nextRow(long[] upperRow, long[] middleRow, long[] downRow, long[] out, short[] sectorRow) {
         for (int i = 1; i <= words; i++) {
             // neighbours to the left / right: shift the word and pull in the edge bit of the adjacent word
             long upperWord = upperRow[i];
@@ -152,61 +144,16 @@ public class AlgorithmGol implements Worker {
             long next = twoOrThree & (combinedOddNumberAlive | middleWord);
             long changed = (next ^ middleWord) & innerMask[i];
             if (changed == 0) continue;
-            out[i] = middleWord ^ changed;
+            long nextWord = middleWord ^ changed;
+            out[i] = nextWord;
 
             int base = (i - 1) << 6;
             do {
-                int y = base + Long.numberOfTrailingZeros(changed);
-                boolean alive = !cellRow[y];
-                cellRow[y] = alive;
-                sectorRow[columnSector[y]] += (short) (alive ? 1 : -1);
+                int bit = Long.numberOfTrailingZeros(changed);
+                boolean alive = (nextWord >>> bit & 1) != 0;
+                sectorRow[columnSector[base + bit]] += (short) (alive ? 1 : -1);
                 changed &= changed - 1;
             } while (changed != 0);
-        }
-    }
-
-    private void packInner(boolean[][] cells, short[][] sectorCounts, long[][] packed) {
-        for (int sx = 0; sx < totalSectors; sx++) {
-            for (int sy = 0; sy < totalSectors; sy++) {
-                if (sectorCounts[sx][sy] == 0) continue;
-                int startX = sx * sectorSize + 1;
-                int startY = sy * sectorSize + 1;
-                for (int x = startX; x < startX + sectorSize; x++) {
-                    packRange(cells[x], packed[x], startY, startY + sectorSize);
-                }
-            }
-        }
-    }
-
-    // the borders are rewritten by Stitching every tick, so they are always re-read
-    private void packBorders(boolean[][] cells, long[][] packed) {
-        int last = width - 1;
-        Arrays.fill(packed[0], 0L);
-        Arrays.fill(packed[last], 0L);
-        packRange(cells[0], packed[0], 0, width);
-        packRange(cells[last], packed[last], 0, width);
-        int lastWord = (last >>> 6) + 1;
-        long lastBit = 1L << last;
-        for (int x = 1; x < last; x++) {
-            long[] row = packed[x];
-            row[1] = (row[1] & ~1L) | (cells[x][0] ? 1L : 0L);
-            row[lastWord] = (row[lastWord] & ~lastBit) | (cells[x][last] ? lastBit : 0L);
-        }
-    }
-
-    /**
-     * ORs cells[from..to) into the packed row.
-     */
-    private static void packRange(boolean[] cells, long[] packed, int from, int to) {
-        int y = from;
-        while (y < to) {
-            int end = Math.min(to, ((y >>> 6) + 1) << 6);
-            long word = 0;
-            for (int b = y; b < end; b++) {
-                word |= (cells[b] ? 1L : 0L) << b;
-            }
-            packed[(y >>> 6) + 1] |= word;
-            y = end;
         }
     }
 }

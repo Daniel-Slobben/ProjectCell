@@ -3,7 +3,9 @@ package slobben.cells.service;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ServerInfoService {
@@ -11,6 +13,7 @@ public class ServerInfoService {
     private static final int MAX_ENTRIES = 1000;
     private final List<Long> timeDeltas = new ArrayList<>(MAX_ENTRIES);
     private final List<Integer> blockCounts = new ArrayList<>(MAX_ENTRIES);
+    private final Map<String, List<Long>> workTimes = new LinkedHashMap<>();
 
     public double getAverageTimeOffTarget() {
         return getAverage(timeDeltas);
@@ -28,9 +31,19 @@ public class ServerInfoService {
         addToList(timeDeltas, freeTime);
     }
 
+    public synchronized void recordWorkTime(String worker, long nanos) {
+        addToList(workTimes.computeIfAbsent(worker, _ -> new ArrayList<>(MAX_ENTRIES)), nanos);
+    }
+
+    public synchronized Map<String, Double> getAverageWorkTimes() {
+        Map<String, Double> averages = new LinkedHashMap<>();
+        workTimes.forEach((worker, times) -> averages.put(worker, getAverage(times) / 1_000_000));
+        return averages;
+    }
+
     private double getAverage(List<? extends Number> list) {
         return list.stream()
-                .mapToDouble(Number::intValue)
+                .mapToDouble(Number::doubleValue)
                 .average()
                 .orElse(0.0);
     }

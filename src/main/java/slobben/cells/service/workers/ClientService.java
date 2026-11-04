@@ -27,7 +27,7 @@ import static slobben.cells.dto.outgoing.HealthCheckResponse.HEALTH_CHECK_TYPE.S
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ClientService implements Worker {
+public class ClientService extends Worker {
     private static final int HEALTH_CHECK_LIMIT_MS = 20_000;
     private static final String TOPIC = "/topic/%s";
     private final SimpMessagingTemplate simpMessagingTemplate;

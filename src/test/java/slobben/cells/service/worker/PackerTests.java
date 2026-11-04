@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static slobben.cells.service.worker.AlgorithmGolTests.draw;
+import static slobben.cells.service.worker.AlgorithmGolTests.nextState;
 
 @SpringBootTest(properties = {"cells.size.blockSize=70", "cells.size.sectorSize=10"})
 @ComponentScan("slobben.cells.service")
@@ -95,11 +96,11 @@ class PackerTests {
         // prepare
         Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
         draw(block, 10, 20, "###");
-        algorithmGol.setNextState(block);
+        nextState(algorithmGol, block);
 
         // execute
         Packer.packAll(block);
-        algorithmGol.setNextState(block);
+        nextState(algorithmGol, block);
 
         // verify
         EncodedBlock full = block.getEncodedBlock();
@@ -116,7 +117,7 @@ class PackerTests {
         draw(block, 71, 30, "#");
         draw(block, 69, 0, "#");
         draw(block, 1, 71, "#");
-        algorithmGol.setNextState(block);
+        nextState(algorithmGol, block);
         return block;
     }
 

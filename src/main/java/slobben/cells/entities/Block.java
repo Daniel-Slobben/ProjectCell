@@ -6,6 +6,7 @@ import lombok.Setter;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.BlockUtils;
+import slobben.cells.util.PackedRows;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,10 +19,10 @@ public class Block {
     private final int x;
     private final int y;
     private int generation = 0;
+    // only while NEW, after that the packed cells are the state
     private boolean[][] cells;
     private short[][] sectorCounts;
     private long[][] packedCells;
-    private boolean[][] packedFrom;
     private BlockState blockState = BlockState.NEW;
 
     private UUID responsibleChaosHit;
@@ -32,7 +33,7 @@ public class Block {
     @Getter(AccessLevel.NONE)
     private Supplier<EncodedBlock> encodedBlockBorders;
 
-    private List<boolean[][]> recordings = new ArrayList<>();
+    private List<long[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
 
     public Block(int x, int y, UUID responsibleChaosHit, int blockSize) {
@@ -40,6 +41,7 @@ public class Block {
         this.y = y;
         this.responsibleChaosHit = responsibleChaosHit;
         this.cells = new boolean[blockSize + 2][blockSize + 2];
+        this.packedCells = PackedRows.create(blockSize);
     }
 
     @Override
@@ -55,6 +57,7 @@ public class Block {
     public void blockUpdated() {
         generation++;
         blockState = BlockState.ACTIVE;
+        cells = null;
     }
 
     public EncodedBlock getEncodedBlock() {
@@ -74,7 +77,7 @@ public class Block {
         if (recordingIndex >= recordings.size()) {
             recordingIndex = 0;
         }
-        cells = recordings.get(recordingIndex);
+        packedCells = recordings.get(recordingIndex);
         generation++;
     }
 

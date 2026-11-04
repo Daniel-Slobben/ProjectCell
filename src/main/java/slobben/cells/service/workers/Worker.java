@@ -1,13 +1,28 @@
 package slobben.cells.service.workers;
 
-public interface Worker {
-    void execute();
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import slobben.cells.service.ServerInfoService;
 
-    String getName();
+@Slf4j
+public abstract class Worker {
 
-    default void tic() {
-        long timer = System.currentTimeMillis();
-        this.execute();
-        WorkLogger.logWork(timer, this);
+    private ServerInfoService serverInfoService;
+
+    @Autowired
+    void setServerInfoService(ServerInfoService serverInfoService) {
+        this.serverInfoService = serverInfoService;
+    }
+
+    public abstract void execute();
+
+    public abstract String getName();
+
+    public void tic() {
+        long start = System.nanoTime();
+        execute();
+        long nanos = System.nanoTime() - start;
+        serverInfoService.recordWorkTime(getClass().getSimpleName(), nanos);
+        log.info("Task {} took {}ms.", getName(), nanos / 1_000_000);
     }
 }
