@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
@@ -18,6 +19,7 @@ import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.dto.outgoing.ReconnectResponse;
 import slobben.cells.dto.outgoing.Settings;
 import slobben.cells.dto.outgoing.StateInfo;
+import slobben.cells.exceptions.NotAClientException;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.ViewportService;
 
@@ -75,6 +77,12 @@ public class CellController {
     public void getBlocks(@Payload UUID clientId) {
         log.debug("Received health-check for clientId: {}", clientId);
         clientService.healthCheck(clientId);
+    }
+
+    // The client has already been sent SESSION_DEAD; a stack trace per message from a dropped client only floods the log.
+    @MessageExceptionHandler(NotAClientException.class)
+    public void handleNotAClient(NotAClientException exception) {
+        log.debug(exception.getMessage());
     }
 
     @GetMapping("/state-info")
