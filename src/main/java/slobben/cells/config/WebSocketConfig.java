@@ -19,6 +19,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws").setAllowedOriginPatterns("*");
+        // inbound messages run on virtual threads; without this, a client's updates can be handled out of order
+        registry.setPreserveReceiveOrder(true);
     }
 
     @Override
