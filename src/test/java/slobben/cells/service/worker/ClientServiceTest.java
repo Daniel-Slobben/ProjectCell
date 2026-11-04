@@ -81,6 +81,22 @@ class ClientServiceTest {
         assertThat(BlockFrameReader.read((byte[]) sent.getFirst().getPayload())).containsExactly(active.getEncodedBlock());
     }
 
+    @Test
+    void sendsEachFullBlockInItsOwnMessage() {
+        Block first = block(2, 3);
+        Block second = block(3, 3);
+        for (Block block : List.of(first, second)) {
+            nextState(algorithmGol, block);
+            Packer.packAll(block);
+            blocks.put(block.getKey(), block);
+        }
+
+        clientService.sendClientUpdate(new Client(), Set.of(first.getKey(), second.getKey()), false);
+
+        assertThat(sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())))
+                .containsExactlyInAnyOrder(List.of(first.getEncodedBlock()), List.of(second.getEncodedBlock()));
+    }
+
     // packed like Stitching does for NEW blocks
     private static Block block(int x, int y) {
         Block block = BlockUtils.setBlockToRandom(new Block(x, y, UUID.randomUUID(), 20), 3, 20);
