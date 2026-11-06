@@ -36,9 +36,9 @@ public class ChaosService extends Worker {
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
-    private static final long PIXEL_COUNT_TARGET = 2_000_000_000;
-    private static final int TICKS_BETWEEN_NEW_HITS = 100;
-    private long currentPixelCount = 0;
+    private static final long SIZE_COUNT_TARGET = 10_000_000;
+    private static final int TICKS_BETWEEN_NEW_HITS = 75;
+    private long currentSizeCounter = 0;
     private int tickCounter = 0;
 
     @PostConstruct
@@ -59,12 +59,12 @@ public class ChaosService extends Worker {
         if (chaosHits.stream().noneMatch(ChaosHit::isActive)) {
             blocks.clear();
             chaosHits.clear();
-            currentPixelCount = 0;
+            currentSizeCounter = 0;
             tickCounter = TICKS_BETWEEN_NEW_HITS + 1;
         }
 
         if (tickCounter > TICKS_BETWEEN_NEW_HITS
-                && currentPixelCount < PIXEL_COUNT_TARGET) {
+                && currentSizeCounter < SIZE_COUNT_TARGET) {
             tickCounter = 0;
             createChaosHit();
         }
@@ -81,7 +81,7 @@ public class ChaosService extends Worker {
 
         ChaosHit chaosHit = maker.getChaosHit(coordinates.x(), coordinates.y(), size);
         chaosHits.addFirst(chaosHit);
-        currentPixelCount += (long) size * size;
+        currentSizeCounter += size;
     }
 
     private @NonNull Maker getRandomMaker() {
@@ -126,12 +126,7 @@ public class ChaosService extends Worker {
     }
 
     private ChaosType getWeightedRandomType() {
-        ChaosType type = switch (random.nextInt(0, 11)) {
-            case 0, 1, 7, 8, 9 -> ChaosType.SQUARE;
-            case 2, 3, 4, 5, 6 -> ChaosType.DIAGONAL_LINES;
-            case 10 -> ChaosType.GROWTH_PATTERN;
-            default -> throw new IllegalStateException("Unexpected value: " + random.nextInt(0, 10));
-        };
+        ChaosType type = ChaosType.getRandomType();
 
         // don't generate the same type twice in a row
         if (type == lastType) {
