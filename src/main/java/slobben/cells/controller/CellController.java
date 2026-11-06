@@ -43,7 +43,7 @@ public class CellController {
         log.debug("Received settings request. Assigning clientId {}", clientId);
         Coordinates viewport = viewportService.getInterestingViewport();
 
-        return ResponseEntity.ok(new Settings(blockSize, clientId, viewport, clientService.getInitialBlocks(viewport.x(), viewport.y())));
+        return ResponseEntity.ok(new Settings(blockSize, clientId, viewport));
     }
 
     @PostMapping("reconnect")
