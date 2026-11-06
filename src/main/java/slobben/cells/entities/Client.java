@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Getter
 public class Client {
     private final UUID clientId = UUID.randomUUID();
-    // changed by client-updates while the tick loops over it
     private final Set<String> activeBlocks = ConcurrentHashMap.newKeySet();
     @Setter
     private boolean inError = true;

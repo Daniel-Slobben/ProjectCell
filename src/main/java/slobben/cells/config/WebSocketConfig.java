@@ -14,20 +14,18 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/topic");
+        registry.setPreservePublishOrder(true);
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws").setAllowedOriginPatterns("*");
-        // inbound messages run on virtual threads; without this, a client's updates can be handled out of order
         registry.setPreserveReceiveOrder(true);
     }
 
     @Override
     public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
         registration.setMessageSizeLimit(200000);
-        // A zoomed out client asks for up to ~100 full blocks at once, one message each. They wait here while the
-        // first ones go out; past this limit the session is closed.
-        registration.setSendBufferSizeLimit(8 * 1024 * 1024); // default : 512 * 1024
+        registration.setSendBufferSizeLimit(8 * 1024 * 1024);
     }
 }
