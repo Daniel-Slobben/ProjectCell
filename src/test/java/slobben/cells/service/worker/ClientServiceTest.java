@@ -8,7 +8,6 @@ import org.springframework.messaging.converter.CompositeMessageConverter;
 import org.springframework.messaging.converter.JacksonJsonMessageConverter;
 import org.springframework.messaging.converter.StringMessageConverter;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.MimeTypeUtils;
 import slobben.cells.dto.outgoing.BlockFrameReader;
 import slobben.cells.dto.outgoing.EncodedBlock;
@@ -41,7 +40,6 @@ class ClientServiceTest {
         template.setMessageConverter(new CompositeMessageConverter(List.of(
                 new StringMessageConverter(), new ByteArrayMessageConverter(), new JacksonJsonMessageConverter())));
         clientService = new ClientService(template, new ExecutorService(), blocks);
-        ReflectionTestUtils.setField(clientService, "blockSize", 20);
     }
 
     @Test

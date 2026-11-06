@@ -3,7 +3,6 @@ package slobben.cells.service.workers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
@@ -12,10 +11,8 @@ import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.HealthCheckResponse;
 import slobben.cells.entities.Block;
 import slobben.cells.entities.Client;
-import slobben.cells.enums.Direction;
 import slobben.cells.exceptions.NotAClientException;
 import slobben.cells.service.ExecutorService;
-import slobben.cells.util.BlockUtils;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -32,8 +29,6 @@ public class ClientService extends Worker {
     private static final String TOPIC = "/topic/%s";
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
-    @Value("${cells.size.blockSize}")
-    private int blockSize;
     private final Map<String, Block> blocks;
     private final List<Client> clients = new CopyOnWriteArrayList<>();
 
@@ -115,19 +110,6 @@ public class ClientService extends Worker {
         clientBlocks.addAll(Arrays.asList(clientUpdateRequest.blocksToAdd()));
 
         sendClientUpdate(client, Set.of(clientUpdateRequest.blocksToAdd()), false);
-    }
-
-    public List<EncodedBlock> getInitialBlocks(int worldX, int worldY) {
-        int blockX = Math.floorDiv(worldX, blockSize);
-        int blockY = Math.floorDiv(worldY, blockSize);
-        String centerBlock = BlockUtils.getKey(blockX, blockY);
-
-        Set<String> blocksToAdd = HashSet.newHashSet(9);
-        blocksToAdd.add(centerBlock);
-        for (Direction direction : Direction.values()) {
-            blocksToAdd.add(BlockUtils.getKey(blockX + direction.getDx(), blockY + direction.getDy()));
-        }
-        return getEncodedBlocks(blocksToAdd, false);
     }
 
     private Client findClient(UUID clientId) {
