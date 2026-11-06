@@ -56,7 +56,17 @@ public class ClientService extends Worker {
         }
 
         List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks).stream().filter(Objects::nonNull).toList();
-        simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), BlockFrame.write(copyOfBlocks));
+        if (sendBorderBlocks) {
+            send(client, copyOfBlocks);
+        } else {
+            // Full blocks are ~75 KB each, one message per block: on a slow connection the client sees them come in,
+            // instead of nothing until a message of megabytes has arrived and its watchdog gives up.
+            copyOfBlocks.forEach(block -> send(client, List.of(block)));
+        }
+    }
+
+    private void send(Client client, List<EncodedBlock> encodedBlocks) {
+        simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), BlockFrame.write(encodedBlocks));
     }
 
     private @NonNull List<EncodedBlock> getEncodedBlocks(Set<String> blockKeys, boolean sendBorderBlocks) {
