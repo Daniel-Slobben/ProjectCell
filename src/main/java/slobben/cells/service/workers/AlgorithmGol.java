@@ -12,15 +12,32 @@ import slobben.cells.util.PackedRows;
 import java.util.*;
 
 /**
- * Bit-parallel Game of Life. Horizontal partial sums are computed once per input row and kept in a ring,
- * two output rows are produced per pass, sector counts are maintained with popcounts per sector segment.
- * Per row pair only the word range covering non-zero input words is processed.
- * Blocks that carry a large share of the total work are split into horizontal strips (aligned to sector bands)
- * processed in parallel, using copies of the strip boundary rows.
+ * Bit-parallel Game of Life on the packed rows of a block. Every long holds 64 cells, so one pass of boolean
+ * logic computes 64 cells at once.
+ * <p>
+ * Fast path (even sector sizes below 64, at most 62 words per row):
+ * <ul>
+ *     <li>Rows are stepped in pairs. A pair only touches the word range next to the non-zero words of the four rows
+ *     involved; the occupancy of a row is a bitmask with one bit per word.</li>
+ *     <li>The horizontal neighbour sums of a row (an odd bit and a twos bit per cell) are computed once and kept in
+ *     an interleaved ring, although three output rows need them.</li>
+ *     <li>New cells are written in place: the old values of the rows above are already folded into the ring.</li>
+ *     <li>The new cells of a sector band are added into bit-sliced vertical counters (6 planes, the carry always
+ *     runs through all of them); at the end of the band the sector counts are recounted with popcounts per sector
+ *     segment.</li>
+ *     <li>The row occupancy is cached per block for the next generation; only the border words, which Stitching
+ *     changes, are rechecked.</li>
+ *     <li>Blocks with a large share of all live cells are split into horizontal strips along sector bands that run in
+ *     parallel; each strip uses copies of its boundary rows.</li>
+ * </ul>
+ * Other configurations use a simple row by row step followed by an absolute recount of the sector counts.
  */
 @Service
 @RequiredArgsConstructor
 public class AlgorithmGol extends Worker {
+    private static final int MAX_STRIPS = 4;
+    private static final long MIN_STRIP_LIVE_CELLS = 12000L;
+    private static final int COUNT_PLANES = 6;
 
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
@@ -29,98 +46,56 @@ public class AlgorithmGol extends Worker {
     private int blockSize = 500;
     @Value("${cells.size.sectorSize}")
     private int sectorSize = 100;
-    private int totalSectors = 0;
-
+    private int sectors;
     private int words;
     private long[] innerMask;
-    private int[] columnSector;
-    private int[] segStart;
-    private long[] segMask;
-    private int[] segSector;
-    private boolean seg3;
-    private long[] sm0;
-    private long[] sm1;
-    private long[] sm2;
-    private int[] sk0;
-    private int[] sk1;
-    private int[] sk2;
+    // per word i the segments segmentStart[i] .. segmentStart[i + 1]: the bits of one sector within that word
+    private int[] segmentStart;
+    private long[] segmentMask;
+    private int[] segmentSector;
+    private boolean fastPath;
+
+    private Map<Block, OccupancyCache> occupancyCaches = new IdentityHashMap<>();
+
+    // the occupied words of every row after the last step, trusted when the block was not replaced or changed since
+    private static final class OccupancyCache {
+        final long[] rowWords;
+        long[][] packed;
+        int generation;
+        boolean valid;
+
+        OccupancyCache(int size) {
+            rowWords = new long[size + 2];
+        }
+    }
 
     @PostConstruct
     void init() {
         if (blockSize % sectorSize != 0) {
             throw new IllegalStateException();
         }
-        totalSectors = blockSize / sectorSize;
+        sectors = blockSize / sectorSize;
         words = PackedRows.words(blockSize);
         innerMask = PackedRows.innerMask(blockSize);
-        columnSector = new int[blockSize + 2];
-        for (int y = 1; y <= blockSize; y++) {
-            columnSector[y] = (y - 1) / sectorSize;
-        }
-        segStart = new int[words + 2];
+        segmentStart = new int[words + 2];
         List<Long> masks = new ArrayList<>();
-        List<Integer> sectors = new ArrayList<>();
+        List<Integer> sectorOfMask = new ArrayList<>();
         for (int i = 1; i <= words; i++) {
-            segStart[i] = masks.size();
-            long m = innerMask[i];
-            int base = (i - 1) << 6;
-            int curSector = -1;
-            long curMask = 0L;
-            while (m != 0) {
-                int bit = Long.numberOfTrailingZeros(m);
-                int sec = columnSector[base + bit];
-                if (sec != curSector) {
-                    if (curMask != 0L) {
-                        masks.add(curMask);
-                        sectors.add(curSector);
-                    }
-                    curSector = sec;
-                    curMask = 0L;
+            segmentStart[i] = masks.size();
+            for (long remaining = innerMask[i]; remaining != 0; remaining &= remaining - 1) {
+                int bit = Long.numberOfTrailingZeros(remaining);
+                int sector = (((i - 1) << 6) + bit - 1) / sectorSize;
+                if (masks.size() == segmentStart[i] || sectorOfMask.getLast() != sector) {
+                    masks.add(0L);
+                    sectorOfMask.add(sector);
                 }
-                curMask |= 1L << bit;
-                m &= m - 1;
-            }
-            if (curMask != 0L) {
-                masks.add(curMask);
-                sectors.add(curSector);
+                masks.set(masks.size() - 1, masks.getLast() | 1L << bit);
             }
         }
-        segStart[words + 1] = masks.size();
-        segMask = new long[masks.size()];
-        segSector = new int[sectors.size()];
-        for (int s = 0; s < segMask.length; s++) {
-            segMask[s] = masks.get(s);
-            segSector[s] = sectors.get(s);
-        }
-        int maxSeg = 0;
-        sm0 = new long[words + 2];
-        sm1 = new long[words + 2];
-        sm2 = new long[words + 2];
-        sk0 = new int[words + 2];
-        sk1 = new int[words + 2];
-        sk2 = new int[words + 2];
-        for (int i = 1; i <= words; i++) {
-            int base = segStart[i];
-            int n = segStart[i + 1] - base;
-            maxSeg = Math.max(maxSeg, n);
-            if (n > 0) {
-                sm0[i] = segMask[base];
-                sk0[i] = segSector[base];
-            }
-            if (n > 1) {
-                sm1[i] = segMask[base + 1];
-                sk1[i] = segSector[base + 1];
-            } else {
-                sk1[i] = sk0[i];
-            }
-            if (n > 2) {
-                sm2[i] = segMask[base + 2];
-                sk2[i] = segSector[base + 2];
-            } else {
-                sk2[i] = sk1[i];
-            }
-        }
-        seg3 = maxSeg <= 3;
+        segmentStart[words + 1] = masks.size();
+        segmentMask = masks.stream().mapToLong(Long::longValue).toArray();
+        segmentSector = sectorOfMask.stream().mapToInt(Integer::intValue).toArray();
+        fastPath = sectorSize % 2 == 0 && sectorSize < 64 && words >= 2 && words <= 62;
     }
 
     @Override
@@ -130,9 +105,8 @@ public class AlgorithmGol extends Worker {
 
     @Override
     public void execute() {
-        Set<Runnable> tasks = new HashSet<>();
         List<Block> active = new ArrayList<>();
-        List<Integer> lives = new ArrayList<>();
+        int[] liveCells = new int[blocks.size()];
         long totalLive = 0;
         for (Block block : blocks.values()) {
             if (block.getBlockState() == BlockState.HIBERNATION) {
@@ -140,71 +114,48 @@ public class AlgorithmGol extends Worker {
                 continue;
             }
             if (block.getSectorCounts() == null) {
-                setInitialSectorHeat(block);
+                setInitialSectorCounts(block);
             }
             int live = liveCount(block.getSectorCounts());
+            liveCells[active.size()] = live;
             active.add(block);
-            lives.add(live);
             totalLive += live;
         }
-        if (active.isEmpty()) {
-            return;
-        }
-        final int size = blockSize;
-        long target = Math.max(12000L, totalLive / 8);
+        // aim for about 8 strips over all blocks, so the big blocks keep all threads busy
+        long stripTarget = Math.max(MIN_STRIP_LIVE_CELLS, totalLive / 8);
+        Map<Block, OccupancyCache> nextCaches = new IdentityHashMap<>();
+        Set<Runnable> tasks = new HashSet<>();
         List<Block> splitBlocks = new ArrayList<>();
         for (int n = 0; n < active.size(); n++) {
             final Block block = active.get(n);
-            final short[][] sc = block.getSectorCounts();
+            final short[][] sectorCounts = block.getSectorCounts();
             final long[][] packed = block.getPackedCells();
-            int live = lives.get(n);
-            int strips = (int) Math.min(4L, (live + target - 1) / target);
-            strips = Math.min(strips, totalSectors);
+            final OccupancyCache cache = fastPath ? occupancyCache(block, packed) : null;
+            if (cache != null) {
+                nextCaches.put(block, cache);
+            }
+            int strips = (int) Math.min(Math.min(MAX_STRIPS, (liveCells[n] + stripTarget - 1) / stripTarget), sectors);
             if (strips <= 1) {
                 tasks.add(() -> {
-                    processRows(packed, sc, 1, size, packed[0], packed[size + 1]);
+                    processRows(packed, sectorCounts, 1, blockSize, packed[0], packed[blockSize + 1], cache);
                     block.blockUpdated();
                 });
                 continue;
             }
             for (int j = 0; j < strips; j++) {
-                final int a = 1 + (totalSectors * j / strips) * sectorSize;
-                final int b = (totalSectors * (j + 1) / strips) * sectorSize;
-                final long[] up = (j == 0) ? packed[0] : packed[a - 1].clone();
-                final long[] down = (j == strips - 1) ? packed[size + 1] : packed[b + 1].clone();
-                tasks.add(() -> processRows(packed, sc, a, b, up, down));
+                final int first = 1 + (sectors * j / strips) * sectorSize;
+                final int last = (sectors * (j + 1) / strips) * sectorSize;
+                final long[] above = j == 0 ? packed[0] : packed[first - 1].clone();
+                final long[] below = j == strips - 1 ? packed[blockSize + 1] : packed[last + 1].clone();
+                tasks.add(() -> processRows(packed, sectorCounts, first, last, above, below, cache));
             }
             splitBlocks.add(block);
         }
-        executorService.executeTasksParallel(tasks, getName());
-        for (Block block : splitBlocks) {
-            block.blockUpdated();
+        occupancyCaches = nextCaches;
+        if (!tasks.isEmpty()) {
+            executorService.executeTasksParallel(tasks, getName());
+            splitBlocks.forEach(Block::blockUpdated);
         }
-    }
-
-    private static int liveCount(short[][] sc) {
-        int live = 0;
-        for (short[] r : sc) {
-            for (short v : r) {
-                live += v;
-            }
-        }
-        return live;
-    }
-
-    private static int firstNZ(long[] row, int w) {
-        for (int i = 0; i <= w + 1; i++) {
-            if (row[i] != 0L) return i;
-        }
-        return w + 2;
-    }
-
-    private static int lastNZ(long[] row, int w, int first) {
-        if (first > w + 1) return -1;
-        for (int i = w + 1; i > first; i--) {
-            if (row[i] != 0L) return i;
-        }
-        return first;
     }
 
     public void setNextState(Block block) {
@@ -213,270 +164,241 @@ public class AlgorithmGol extends Worker {
             return;
         }
         if (block.getSectorCounts() == null) {
-            setInitialSectorHeat(block);
+            setInitialSectorCounts(block);
         }
         long[][] packed = block.getPackedCells();
-        processRows(packed, block.getSectorCounts(), 1, blockSize, packed[0], packed[blockSize + 1]);
+        processRows(packed, block.getSectorCounts(), 1, blockSize, packed[0], packed[blockSize + 1], null);
         block.blockUpdated();
     }
 
-    private void processRows(long[][] packed, short[][] sectorCounts, int a, int b, long[] up, long[] down) {
-        final int w = words;
-        final long[] inner = innerMask;
-        final int sSize = sectorSize;
+    // the cached occupancy is only trusted when the block was computed by this worker in the previous generation
+    private OccupancyCache occupancyCache(Block block, long[][] packed) {
+        OccupancyCache cache = occupancyCaches.computeIfAbsent(block, b -> new OccupancyCache(blockSize));
+        cache.valid = cache.packed == packed && cache.generation == block.getGeneration()
+                && block.getBlockState() == BlockState.ACTIVE;
+        cache.packed = packed;
+        cache.generation = block.getGeneration() + 1;
+        return cache;
+    }
 
-        long[] pO = new long[w + 2];
-        long[] pT = new long[w + 2];
-        long[] cO = new long[w + 2];
-        long[] cT = new long[w + 2];
-        long[] rowA = up;
-        long[] rowB = packed[a];
-        rowSums(rowA, pO, pT);
-        rowSums(rowB, cO, cT);
+    private static int liveCount(short[][] sectorCounts) {
+        int live = 0;
+        for (short[] row : sectorCounts) {
+            for (short count : row) live += count;
+        }
+        return live;
+    }
 
-        int fA = firstNZ(rowA, w);
-        int lA = lastNZ(rowA, w, fA);
-        int fB = firstNZ(rowB, w);
-        int lB = lastNZ(rowB, w, fB);
+    private void processRows(long[][] packed, short[][] sectorCounts, int first, int last, long[] above, long[] below,
+                             OccupancyCache cache) {
+        if (fastPath) {
+            stepFast(packed, sectorCounts, first, last, above, below, cache);
+        } else {
+            stepSimple(packed, sectorCounts, first, last, above, below);
+        }
+    }
 
-        int x = a;
-        for (; x + 1 <= b; x += 2) {
-            long[] r0 = packed[x];
-            long[] r1 = packed[x + 1];
-            long[] r2 = (x + 2 <= b) ? packed[x + 2] : down;
-            int fC = firstNZ(r1, w);
-            int lC = lastNZ(r1, w, fC);
-            int fD = firstNZ(r2, w);
-            int lD = lastNZ(r2, w, fD);
-            int lo = Math.min(Math.min(fA, fB), Math.min(fC, fD));
-            int hi = Math.max(Math.max(lA, lB), Math.max(lC, lD));
-            fA = fC;
-            lA = lC;
-            fB = fD;
-            lB = lD;
-            int L = Math.max(1, lo - 1);
-            int H = Math.min(w, hi + 1);
-            if (L > H) {
+    /**
+     * Next state of 64 cells from the horizontal sums (odd and twos bit) of the row above, the own row (which
+     * includes the cells themselves) and the row below: alive with 3 neighbours, or alive with 2 neighbours.
+     */
+    private static long nextState(long aboveOdd, long aboveTwos, long midOdd, long midTwos,
+                                  long belowOdd, long belowTwos, long cells) {
+        long sideOdd = midOdd ^ cells;
+        long sideTwos = midTwos & ~(cells & ~midOdd);
+        long half = aboveOdd ^ sideOdd;
+        long odd = half ^ belowOdd;
+        long carry = (aboveOdd & sideOdd) | (half & belowOdd);
+        long twos = aboveTwos ^ sideTwos;
+        long fours = aboveTwos & sideTwos;
+        long twosBelow = belowTwos ^ carry;
+        long foursBelow = belowTwos & carry;
+        return ((twos ^ twosBelow) & ~(fours | foursBelow)) & (odd | cells);
+    }
+
+    // writes the sum of each cell and its left and right neighbour as odd bit (out[k]) and twos bit (out[k + 1])
+    private static void horizontalSum(long[] out, int k, long previous, long cells, long next) {
+        long left = (cells << 1) | (previous >>> 63);
+        long right = (cells >>> 1) | (next << 63);
+        long half = left ^ cells;
+        out[k] = half ^ right;
+        out[k + 1] = (left & cells) | (half & right);
+    }
+
+    private void horizontalSums(long[] row, long[] out, int offset, int stride) {
+        for (int i = 1; i <= words; i++) {
+            horizontalSum(out, i * stride + offset, row[i - 1], row[i], row[i + 1]);
+        }
+    }
+
+    private static long nonZero(long word) {
+        return (word | -word) >>> 63;
+    }
+
+    private long occupiedWords(long[] row) {
+        long occupied = 0L;
+        for (int i = 1; i <= words; i++) {
+            occupied |= nonZero(row[i]) << i;
+        }
+        return occupied;
+    }
+
+    // Stitching only changes the border columns, which live in the first and the last word
+    private long occupancy(long[] row, long[] rowOccupancy, int x, boolean trusted) {
+        if (!trusted) {
+            return occupiedWords(row);
+        }
+        return (rowOccupancy[x] & ~((1L << 1) | (1L << words))) | nonZero(row[1]) << 1 | nonZero(row[words]) << words;
+    }
+
+    private void stepFast(long[][] packed, short[][] sectorCounts, int first, int last, long[] above, long[] below,
+                          OccupancyCache cache) {
+        long[] sumRing = new long[(words + 2) << 2];
+        long[] planes = new long[(words + 2) << 3];
+        long[] rowOccupancy = cache == null ? new long[blockSize + 2] : cache.rowWords;
+        boolean trusted = cache != null && cache.valid;
+
+        long occAbove = occupiedWords(above);
+        long occUpper = occupancy(packed[first], rowOccupancy, first, trusted);
+        horizontalSums(above, sumRing, 0, 4);
+        horizontalSums(packed[first], sumRing, 2, 4);
+        int bandFrom = Integer.MAX_VALUE;
+        int bandTo = -1;
+        for (int x = first; x < last; x += 2) {
+            boolean inside = x + 2 <= last;
+            long[] next = inside ? packed[x + 2] : below;
+            long occLower = occupancy(packed[x + 1], rowOccupancy, x + 1, trusted);
+            long occNext = inside ? occupancy(next, rowOccupancy, x + 2, trusted) : occupiedWords(below);
+            long occupied = occAbove | occUpper | occLower | occNext;
+            occAbove = occLower;
+            occUpper = occNext;
+            if (occupied != 0L) {
+                int from = Math.max(1, Long.numberOfTrailingZeros(occupied) - 1);
+                int to = Math.min(words, 64 - Long.numberOfLeadingZeros(occupied));
+                stepRowPair(packed[x], packed[x + 1], next, sumRing, planes, from, to, rowOccupancy, x);
+                bandFrom = Math.min(bandFrom, from);
+                bandTo = Math.max(bandTo, to);
+            } else {
+                rowOccupancy[x] = rowOccupancy[x + 1] = 0L;
+            }
+            if ((x + 1) % sectorSize == 0) {
+                recountBand(planes, sectorCounts[x / sectorSize], bandFrom, bandTo);
+                bandFrom = Integer.MAX_VALUE;
+                bandTo = -1;
+            }
+        }
+    }
+
+    // steps rows x (upper) and x + 1 (lower); the ring holds the sums of rows x - 1 and x and gets those of x + 1, x + 2
+    private void stepRowPair(long[] upper, long[] lower, long[] next, long[] sumRing, long[] planes,
+                             int from, int to, long[] rowOccupancy, int x) {
+        long lowerPrevious = lower[from - 1];
+        long upperOccupied = 0L, lowerOccupied = 0L;
+        for (int i = from; i <= to; i++) {
+            int k = i << 2;
+            long aboveOdd = sumRing[k], aboveTwos = sumRing[k + 1];
+            long upperOdd = sumRing[k + 2], upperTwos = sumRing[k + 3];
+            long lowerCells = lower[i];
+            // lower[i - 1] is already overwritten, its old value is carried in lowerPrevious
+            horizontalSum(sumRing, k, lowerPrevious, lowerCells, lower[i + 1]);
+            horizontalSum(sumRing, k + 2, next[i - 1], next[i], next[i + 1]);
+            lowerPrevious = lowerCells;
+            long lowerOdd = sumRing[k], lowerTwos = sumRing[k + 1];
+            long nextOdd = sumRing[k + 2], nextTwos = sumRing[k + 3];
+            if ((aboveOdd | aboveTwos | upperOdd | upperTwos | lowerOdd | lowerTwos | nextOdd | nextTwos) == 0L) {
                 continue;
             }
-            short[] s0 = sectorCounts[(x - 1) / sSize];
-            short[] s1 = sectorCounts[x / sSize];
-            final boolean same = s0 == s1;
-            long a1Prev = r1[L - 1];
-            long a1Cur = r1[L];
-            long a2Prev = r2[L - 1];
-            long a2Cur = r2[L];
-            for (int i = L; i <= H; i++) {
-                long a1Next = r1[i + 1];
-                long a2Next = r2[i + 1];
+            long upperCells = upper[i];
+            long mask = innerMask[i];
+            long upperNew = upper[i] = upperCells ^ ((nextState(aboveOdd, aboveTwos, upperOdd, upperTwos,
+                    lowerOdd, lowerTwos, upperCells) ^ upperCells) & mask);
+            long lowerNew = lower[i] = lowerCells ^ ((nextState(upperOdd, upperTwos, lowerOdd, lowerTwos,
+                    nextOdd, nextTwos, lowerCells) ^ lowerCells) & mask);
+            upperOccupied |= nonZero(upperNew) << i;
+            lowerOccupied |= nonZero(lowerNew) << i;
+            if ((upperNew | lowerNew) != 0L) {
+                addToPlanes(planes, i << 3, upperNew, lowerNew);
+            }
+        }
+        rowOccupancy[x] = upperOccupied;
+        rowOccupancy[x + 1] = lowerOccupied;
+    }
 
-                long l1 = (a1Cur << 1) | (a1Prev >>> 63);
-                long rr1 = (a1Cur >>> 1) | (a1Next << 63);
-                long x1 = l1 ^ a1Cur;
-                long aO = x1 ^ rr1;
-                long aT = (l1 & a1Cur) | (x1 & rr1);
+    // adds two rows of cells to the bit-sliced per-column counters of one word; the carry runs through all planes,
+    // a loop that stops when the carry is zero is mispredicted too often
+    private static void addToPlanes(long[] planes, int base, long first, long second) {
+        long plane = planes[base];
+        long half = plane ^ first;
+        planes[base] = half ^ second;
+        long carry = (plane & first) | (half & second);
+        for (int p = 1; p < COUNT_PLANES; p++) {
+            plane = planes[base + p];
+            planes[base + p] = plane ^ carry;
+            carry &= plane;
+        }
+    }
 
-                long l2 = (a2Cur << 1) | (a2Prev >>> 63);
-                long rr2 = (a2Cur >>> 1) | (a2Next << 63);
-                long x2 = l2 ^ a2Cur;
-                long bO = x2 ^ rr2;
-                long bT = (l2 & a2Cur) | (x2 & rr2);
-
-                long uO = pO[i];
-                long uT = pT[i];
-                long mO3 = cO[i];
-                long mT3 = cT[i];
-                pO[i] = aO;
-                pT[i] = aT;
-                cO[i] = bO;
-                cT[i] = bT;
-
-                long m1 = a1Cur;
-                a1Prev = a1Cur;
-                a1Cur = a1Next;
-                a2Prev = a2Cur;
-                a2Cur = a2Next;
-
-                if ((uO | uT | mO3 | mT3 | aO | aT | bO | bT) == 0L) {
-                    continue;
+    // turns the counters of a finished sector band into its sector counts and clears them for the next band
+    private void recountBand(long[] planes, short[] sectorRow, int from, int to) {
+        Arrays.fill(sectorRow, (short) 0);
+        for (int i = from; i <= to; i++) {
+            int base = i << 3;
+            long any = 0L;
+            for (int p = 0; p < COUNT_PLANES; p++) any |= planes[base + p];
+            if (any == 0L) {
+                continue;
+            }
+            for (int s = segmentStart[i], end = segmentStart[i + 1]; s < end; s++) {
+                int count = 0;
+                for (int p = 0; p < COUNT_PLANES; p++) {
+                    count += Long.bitCount(planes[base + p] & segmentMask[s]) << p;
                 }
-
-                long m0 = r0[i];
-                long mask = inner[i];
-
-                long mO = mO3 ^ m0;
-                long mT = mT3 & ~(m0 & ~mO3);
-                long e = uO ^ mO;
-                long o = e ^ aO;
-                long c = (uO & mO) | (e & aO);
-                long p = uT ^ mT;
-                long q = uT & mT;
-                long r = aT ^ c;
-                long t = aT & c;
-                long next0 = ((p ^ r) & ~(q | t)) & (o | m0);
-                long ch0 = (next0 ^ m0) & mask;
-
-                long nO = aO ^ m1;
-                long nT = aT & ~(m1 & ~aO);
-                long e1 = mO3 ^ nO;
-                long o1 = e1 ^ bO;
-                long c1 = (mO3 & nO) | (e1 & bO);
-                long p1 = mT3 ^ nT;
-                long q1 = mT3 & nT;
-                long rq = bT ^ c1;
-                long t1 = bT & c1;
-                long next1 = ((p1 ^ rq) & ~(q1 | t1)) & (o1 | m1);
-                long ch1 = (next1 ^ m1) & mask;
-
-                if ((ch0 | ch1) != 0L) {
-                    if (ch0 != 0L) {
-                        r0[i] = m0 ^ ch0;
-                    }
-                    if (ch1 != 0L) {
-                        r1[i] = m1 ^ ch1;
-                    }
-                    long b0 = ch0 & next0;
-                    long d0 = ch0 & m0;
-                    long b1 = ch1 & next1;
-                    long d1 = ch1 & m1;
-                    if (same) {
-                        sectorDelta2(s0, i, b0, d0, b1, d1);
-                    } else {
-                        sectorDelta(s0, i, b0, d0);
-                        sectorDelta(s1, i, b1, d1);
-                    }
-                }
+                sectorRow[segmentSector[s]] += (short) count;
             }
-        }
-        if (x == b) {
-            long[] r0 = packed[x];
-            long[] r1 = down;
-            int fC = firstNZ(r1, w);
-            int lC = lastNZ(r1, w, fC);
-            int lo = Math.min(Math.min(fA, fB), fC);
-            int hi = Math.max(Math.max(lA, lB), lC);
-            int L = Math.max(1, lo - 1);
-            int H = Math.min(w, hi + 1);
-            if (L <= H) {
-                short[] s0 = sectorCounts[(x - 1) / sSize];
-                long a1Prev = r1[L - 1];
-                long a1Cur = r1[L];
-                for (int i = L; i <= H; i++) {
-                    long a1Next = r1[i + 1];
-                    long l1 = (a1Cur << 1) | (a1Prev >>> 63);
-                    long rr1 = (a1Cur >>> 1) | (a1Next << 63);
-                    long x1 = l1 ^ a1Cur;
-                    long aO = x1 ^ rr1;
-                    long aT = (l1 & a1Cur) | (x1 & rr1);
-                    a1Prev = a1Cur;
-                    a1Cur = a1Next;
-
-                    long uO = pO[i];
-                    long uT = pT[i];
-                    long mO3 = cO[i];
-                    long mT3 = cT[i];
-                    if ((uO | uT | mO3 | mT3 | aO | aT) == 0L) {
-                        continue;
-                    }
-                    long m0 = r0[i];
-                    long mO = mO3 ^ m0;
-                    long mT = mT3 & ~(m0 & ~mO3);
-                    long e = uO ^ mO;
-                    long o = e ^ aO;
-                    long c = (uO & mO) | (e & aO);
-                    long p = uT ^ mT;
-                    long q = uT & mT;
-                    long r = aT ^ c;
-                    long t = aT & c;
-                    long next0 = ((p ^ r) & ~(q | t)) & (o | m0);
-                    long ch0 = (next0 ^ m0) & inner[i];
-                    if (ch0 != 0L) {
-                        r0[i] = m0 ^ ch0;
-                        sectorDelta(s0, i, ch0 & next0, ch0 & m0);
-                    }
-                }
-            }
+            Arrays.fill(planes, base, base + COUNT_PLANES, 0L);
         }
     }
 
-    private void rowSums(long[] row, long[] odd, long[] twos) {
-        final int w = words;
-        long prev = row[0];
-        long cur = row[1];
-        for (int i = 1; i <= w; i++) {
-            long nxt = row[i + 1];
-            long l = (cur << 1) | (prev >>> 63);
-            long r = (cur >>> 1) | (nxt << 63);
-            long x = l ^ cur;
-            odd[i] = x ^ r;
-            twos[i] = (l & cur) | (x & r);
-            prev = cur;
-            cur = nxt;
-        }
-    }
-
-    private void sectorDelta(short[] sectorRow, int i, long born, long died) {
-        if (seg3) {
-            long m = sm0[i];
-            int k = sk0[i];
-            sectorRow[k] = (short) (sectorRow[k] + Long.bitCount(born & m) - Long.bitCount(died & m));
-            m = sm1[i];
-            k = sk1[i];
-            sectorRow[k] = (short) (sectorRow[k] + Long.bitCount(born & m) - Long.bitCount(died & m));
-            m = sm2[i];
-            if (m != 0L) {
-                k = sk2[i];
-                sectorRow[k] = (short) (sectorRow[k] + Long.bitCount(born & m) - Long.bitCount(died & m));
+    private void stepSimple(long[][] packed, short[][] sectorCounts, int first, int last, long[] above, long[] below) {
+        long[] oldAbove = above.clone();
+        long[] aboveSums = new long[(words + 2) << 1];
+        long[] rowSums = new long[(words + 2) << 1];
+        long[] belowSums = new long[(words + 2) << 1];
+        for (int x = first; x <= last; x++) {
+            long[] row = packed[x];
+            horizontalSums(oldAbove, aboveSums, 0, 2);
+            horizontalSums(row, rowSums, 0, 2);
+            horizontalSums(x < last ? packed[x + 1] : below, belowSums, 0, 2);
+            System.arraycopy(row, 0, oldAbove, 0, row.length);
+            for (int i = 1, k = 2; i <= words; i++, k += 2) {
+                long cells = row[i];
+                long next = nextState(aboveSums[k], aboveSums[k + 1], rowSums[k], rowSums[k + 1],
+                        belowSums[k], belowSums[k + 1], cells);
+                row[i] = cells ^ ((next ^ cells) & innerMask[i]);
             }
-            return;
         }
-        final long[] masks = segMask;
-        final int[] secs = segSector;
-        for (int s = segStart[i], end = segStart[i + 1]; s < end; s++) {
-            long m = masks[s];
-            int d = Long.bitCount(born & m) - Long.bitCount(died & m);
-            int k = secs[s];
-            sectorRow[k] = (short) (sectorRow[k] + d);
-        }
+        countSectors(packed, sectorCounts, first, last);
     }
 
-    private void sectorDelta2(short[] sectorRow, int i, long b0, long d0, long b1, long d1) {
-        if (seg3) {
-            long m = sm0[i];
-            int k = sk0[i];
-            sectorRow[k] = (short) (sectorRow[k] + Long.bitCount(b0 & m) + Long.bitCount(b1 & m)
-                    - Long.bitCount(d0 & m) - Long.bitCount(d1 & m));
-            m = sm1[i];
-            k = sk1[i];
-            sectorRow[k] = (short) (sectorRow[k] + Long.bitCount(b0 & m) + Long.bitCount(b1 & m)
-                    - Long.bitCount(d0 & m) - Long.bitCount(d1 & m));
-            m = sm2[i];
-            if (m != 0L) {
-                k = sk2[i];
-                sectorRow[k] = (short) (sectorRow[k] + Long.bitCount(b0 & m) + Long.bitCount(b1 & m)
-                        - Long.bitCount(d0 & m) - Long.bitCount(d1 & m));
-            }
-            return;
+    // absolute recount of the sector bands that rows first .. last cover
+    private void countSectors(long[][] packed, short[][] sectorCounts, int first, int last) {
+        for (int band = (first - 1) / sectorSize; band <= (last - 1) / sectorSize; band++) {
+            Arrays.fill(sectorCounts[band], (short) 0);
         }
-        sectorDelta(sectorRow, i, b0, d0);
-        sectorDelta(sectorRow, i, b1, d1);
-    }
-
-    private void setInitialSectorHeat(Block block) {
-        short[][] sector = new short[totalSectors][totalSectors];
-        long[][] packed = block.getPackedCells();
-        for (int x = 1; x <= blockSize; x++) {
-            short[] sectorRow = sector[(x - 1) / sectorSize];
+        for (int x = first; x <= last; x++) {
+            short[] sectorRow = sectorCounts[(x - 1) / sectorSize];
             long[] row = packed[x];
             for (int i = 1; i <= words; i++) {
-                long alive = row[i];
-                if (alive == 0L) continue;
-                for (int s = segStart[i], end = segStart[i + 1]; s < end; s++) {
-                    int k = segSector[s];
-                    sectorRow[k] = (short) (sectorRow[k] + Long.bitCount(alive & segMask[s]));
+                if (row[i] == 0L) continue;
+                for (int s = segmentStart[i], end = segmentStart[i + 1]; s < end; s++) {
+                    sectorRow[segmentSector[s]] += (short) Long.bitCount(row[i] & segmentMask[s]);
                 }
             }
         }
-        block.setSectorCounts(sector);
+    }
+
+    // every step counts all sector bands again, so the counts before the first step are not needed
+    private void setInitialSectorCounts(Block block) {
+        block.setSectorCounts(new short[sectors][sectors]);
     }
 }

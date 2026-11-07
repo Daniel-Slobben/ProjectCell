@@ -15,10 +15,11 @@ import slobben.cells.util.PackedRows;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,18 +30,22 @@ public class Packer extends Worker {
     private static final VarHandle LONG_LE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
     private final Map<String, Block> blocks;
     private final ExecutorService executorService;
+    private Map<Block, Snapshot> snapshots = new IdentityHashMap<>();
 
     public static void packAll(Block block) {
-        long[][] packedCells = block.getPackedCells();
-        int size = packedCells.length - 2;
+        pack(block, new Snapshot(block.getPackedCells().length - 2));
+    }
 
-        long[][] rows = snapshotRows(packedCells, size);
-        LazyEncodedBlock full = new LazyEncodedBlock(block, () -> getPacked(rows, size), EncodedBlockType.FULL);
+    private static void pack(Block block, Snapshot snapshot) {
+        synchronized (snapshot) {
+            snapshot.fill(block.getPackedCells(), block.getGeneration());
+        }
+        LazyEncodedBlock full = new LazyEncodedBlock(block, snapshot, EncodedBlockType.FULL);
         block.setEncodedBlock(full);
         // a NEW block is sent in full, also as its borders
         block.setEncodedBlockBorders(BlockState.NEW.equals(block.getBlockState())
                 ? full
-                : new LazyEncodedBlock(block, () -> getPackedBorders(rows, size), EncodedBlockType.BORDER));
+                : new LazyEncodedBlock(block, snapshot, EncodedBlockType.BORDER));
     }
 
     @Override
@@ -49,45 +54,69 @@ public class Packer extends Worker {
     }
 
     /**
-     * Copies the rows that have live inner cells, empty rows stay null. The GoL changes its rows in place next tick,
-     * so the copy is what keeps the encodings at this tick. Mostly empty blocks copy next to nothing.
+     * A copy of the rows of one block that is reused every tick, so packing allocates no new arrays after the first
+     * tick. Rows with live inner cells are copied into a retained buffer, empty rows stay null. The next tick
+     * overwrites the copy: an encoding that was not read yet then encodes the newer generation.
      */
-    private static long[][] snapshotRows(long[][] packedCells, int size) {
-        long[][] rows = new long[size + 2][];
-        int lastWord = PackedRows.words(size);
-        long[] innerMask = PackedRows.innerMask(size);
-        for (int x = 1; x <= size; x++) {
-            long[] row = packedCells[x];
-            long any = 0;
-            for (int i = 1; i <= lastWord; i++) {
-                any |= row[i] & innerMask[i];
-            }
-            if (any != 0) rows[x] = row.clone();
+    private static final class Snapshot {
+        final int size;
+        final long[] innerMask;
+        final long[][] rows;
+        final long[][] buffers;
+        int generation;
+
+        Snapshot(int size) {
+            this.size = size;
+            this.innerMask = PackedRows.innerMask(size);
+            this.rows = new long[size + 2][];
+            this.buffers = new long[size + 2][];
         }
-        return rows;
+
+        void fill(long[][] packedCells, int generation) {
+            this.generation = generation;
+            int lastWord = PackedRows.words(size);
+            for (int x = 1; x <= size; x++) {
+                long[] row = packedCells[x];
+                long any = 0;
+                for (int i = 1; i <= lastWord; i++) {
+                    any |= row[i] & innerMask[i];
+                }
+                if (any == 0) {
+                    rows[x] = null;
+                    continue;
+                }
+                if (buffers[x] == null || buffers[x].length != row.length) {
+                    buffers[x] = new long[row.length];
+                }
+                System.arraycopy(row, 0, buffers[x], 0, row.length);
+                rows[x] = buffers[x];
+            }
+        }
     }
 
     private static final class LazyEncodedBlock implements Supplier<EncodedBlock> {
         private final int x;
         private final int y;
-        private final int generation;
+        private final Snapshot snapshot;
         private final EncodedBlockType type;
-        private Supplier<byte[]> packed;
         private EncodedBlock encoded;
 
-        LazyEncodedBlock(Block block, Supplier<byte[]> packed, EncodedBlockType type) {
+        LazyEncodedBlock(Block block, Snapshot snapshot, EncodedBlockType type) {
             this.x = block.getX();
             this.y = block.getY();
-            this.generation = block.getGeneration();
+            this.snapshot = snapshot;
             this.type = type;
-            this.packed = packed;
         }
 
         @Override
         public synchronized EncodedBlock get() {
             if (encoded == null) {
-                encoded = new EncodedBlock(x, y, generation, type, compressor.compress(packed.get()));
-                packed = null;
+                synchronized (snapshot) {
+                    byte[] packed = type == EncodedBlockType.FULL
+                            ? getPacked(snapshot.rows, snapshot.size)
+                            : getPackedBorders(snapshot.rows, snapshot.size);
+                    encoded = new EncodedBlock(x, y, snapshot.generation, type, compressor.compress(packed));
+                }
             }
             return encoded;
         }
@@ -180,9 +209,25 @@ public class Packer extends Worker {
         }
     }
 
+    /**
+     * Looks up the snapshot of every block on the calling thread, so the tasks never touch the map. Blocks that are
+     * gone are dropped from the map, together with their snapshot.
+     */
     @Override
     public void execute() {
-        Set<Runnable> tasks = blocks.values().stream().map(block -> (Runnable) () -> packAll(block)).collect(Collectors.toSet());
+        Map<Block, Snapshot> current = new IdentityHashMap<>();
+        Set<Runnable> tasks = new HashSet<>();
+        for (Block block : blocks.values()) {
+            int size = block.getPackedCells().length - 2;
+            Snapshot snapshot = snapshots.get(block);
+            if (snapshot == null || snapshot.size != size) {
+                snapshot = new Snapshot(size);
+            }
+            current.put(block, snapshot);
+            Snapshot blockSnapshot = snapshot;
+            tasks.add(() -> pack(block, blockSnapshot));
+        }
+        snapshots = current;
 
         executorService.executeTasksParallel(tasks, getName());
     }

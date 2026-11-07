@@ -36,7 +36,7 @@ public class ChaosService extends Worker {
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
-    private static final long SIZE_COUNT_TARGET = 1_000_000;
+    private static final long SIZE_COUNT_TARGET = (long) Math.sqrt(5_000_000_000L);
     private static final int TICKS_BETWEEN_NEW_HITS = 75;
     private long currentSizeCounter = 0;
     private int tickCounter = 0;
