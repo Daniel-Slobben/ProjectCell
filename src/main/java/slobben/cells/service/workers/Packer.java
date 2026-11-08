@@ -1,7 +1,6 @@
 package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import org.springframework.stereotype.Service;
@@ -15,15 +14,20 @@ import slobben.cells.util.PackedRows;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Supplier;
 
+/**
+ * Gives every block the encodings a client can ask for: the full block and its borders, as bit-packed, LZ4
+ * compressed cells.
+ * <p>
+ * Encoding is expensive and most blocks are not watched by any client, so a tick only takes a {@link Snapshot} of
+ * each block and a client compresses it on first use. The snapshot is a copy, because the GoL changes the packed
+ * cells in place next tick. Taking it is the cost of this worker, so the snapshot reuses its buffers every tick and
+ * skips the bands of rows that the sector counts show to be empty, without reading them.
+ */
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class Packer extends Worker {
     private static final LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
 
@@ -38,12 +42,12 @@ public class Packer extends Worker {
 
     private static void pack(Block block, Snapshot snapshot) {
         synchronized (snapshot) {
-            snapshot.fill(block.getPackedCells(), block.getGeneration());
+            snapshot.fill(block);
         }
         LazyEncodedBlock full = new LazyEncodedBlock(block, snapshot, EncodedBlockType.FULL);
         block.setEncodedBlock(full);
         // a NEW block is sent in full, also as its borders
-        block.setEncodedBlockBorders(BlockState.NEW.equals(block.getBlockState())
+        block.setEncodedBlockBorders(block.getBlockState() == BlockState.NEW
                 ? full
                 : new LazyEncodedBlock(block, snapshot, EncodedBlockType.BORDER));
     }
@@ -55,42 +59,75 @@ public class Packer extends Worker {
 
     /**
      * A copy of the rows of one block that is reused every tick, so packing allocates no new arrays after the first
-     * tick. Rows with live inner cells are copied into a retained buffer, empty rows stay null. The next tick
-     * overwrites the copy: an encoding that was not read yet then encodes the newer generation.
+     * tick. Rows that are known to be empty are null. The next tick overwrites the copy: an encoding that was not
+     * read yet then encodes the newer generation.
      */
     private static final class Snapshot {
         final int size;
-        final long[] innerMask;
         final long[][] rows;
         final long[][] buffers;
         int generation;
 
         Snapshot(int size) {
             this.size = size;
-            this.innerMask = PackedRows.innerMask(size);
             this.rows = new long[size + 2][];
             this.buffers = new long[size + 2][];
         }
 
-        void fill(long[][] packedCells, int generation) {
-            this.generation = generation;
-            int lastWord = PackedRows.words(size);
-            for (int x = 1; x <= size; x++) {
-                long[] row = packedCells[x];
-                long any = 0;
-                for (int i = 1; i <= lastWord; i++) {
-                    any |= row[i] & innerMask[i];
-                }
-                if (any == 0) {
-                    rows[x] = null;
+        /**
+         * With exact sector counts a band of rows whose sectors are all 0 is empty and not read, and the rows of the
+         * other bands are copied without looking, which is faster than checking them first. Without exact counts a
+         * row is only copied when it has cells.
+         */
+        void fill(Block block) {
+            generation = block.getGeneration();
+            long[][] packedCells = block.getPackedCells();
+            short[][] counts = exactSectorCounts(block);
+            int bandRows = counts == null ? size : size / counts.length;
+            for (int band = 0, first = 1; first <= size; band++, first += bandRows) {
+                int end = first + bandRows;
+                if (counts != null && isEmpty(counts[band])) {
+                    Arrays.fill(rows, first, end, null);
                     continue;
                 }
-                if (buffers[x] == null || buffers[x].length != row.length) {
-                    buffers[x] = new long[row.length];
+                for (int x = first; x < end; x++) {
+                    long[] row = packedCells[x];
+                    rows[x] = counts == null && isEmpty(row) ? null : copy(x, row);
                 }
-                System.arraycopy(row, 0, buffers[x], 0, row.length);
-                rows[x] = buffers[x];
             }
+        }
+
+        // the GoL recounts the sectors of every block it steps and only it changes the inner cells of ACTIVE blocks,
+        // the counts of NEW and HIBERNATION blocks may be stale
+        private short[][] exactSectorCounts(Block block) {
+            short[][] counts = block.getSectorCounts();
+            boolean exact = block.getBlockState() == BlockState.ACTIVE && counts != null
+                    && counts.length > 0 && size % counts.length == 0;
+            return exact ? counts : null;
+        }
+
+        private long[] copy(int x, long[] row) {
+            long[] buffer = buffers[x];
+            if (buffer == null || buffer.length != row.length) {
+                buffer = buffers[x] = new long[row.length];
+            }
+            // the first and last word are always-zero padding
+            System.arraycopy(row, 1, buffer, 1, row.length - 2);
+            return buffer;
+        }
+
+        private static boolean isEmpty(short[] counts) {
+            for (short count : counts) {
+                if (count != 0) return false;
+            }
+            return true;
+        }
+
+        private static boolean isEmpty(long[] row) {
+            for (long word : row) {
+                if (word != 0) return false;
+            }
+            return true;
         }
     }
 
@@ -122,30 +159,20 @@ public class Packer extends Worker {
         }
     }
 
-    private static void setBit(byte[] packed, int i) {
-        packed[i / 8] |= (byte) (1 << (i % 8));
-    }
-
+    // column size, column 1, then row 1 and row size without the corners
     private static byte[] getPackedBorders(long[][] rows, int size) {
         byte[] packed = new byte[(size * 4 - 4 + 7) / 8];
         int index = 0;
-        for (int i = 1; i <= size; i++) {
-            if (bit(rows[i], size)) setBit(packed, index);
-            index++;
-        }
-        for (int i = 1; i <= size; i++) {
-            if (bit(rows[i], 1)) setBit(packed, index);
-            index++;
-        }
-        for (int i = 2; i < size; i++) {
-            if (bit(rows[1], i)) setBit(packed, index);
-            index++;
-        }
-        for (int i = 2; i < size; i++) {
-            if (bit(rows[size], i)) setBit(packed, index);
-            index++;
-        }
+        for (int i = 1; i <= size; i++) index = append(packed, index, bit(rows[i], size));
+        for (int i = 1; i <= size; i++) index = append(packed, index, bit(rows[i], 1));
+        for (int i = 2; i < size; i++) index = append(packed, index, bit(rows[1], i));
+        for (int i = 2; i < size; i++) index = append(packed, index, bit(rows[size], i));
         return packed;
+    }
+
+    private static int append(byte[] packed, int index, boolean alive) {
+        if (alive) packed[index >>> 3] |= (byte) (1 << (index & 7));
+        return index + 1;
     }
 
     private static boolean bit(long[] row, int column) {
