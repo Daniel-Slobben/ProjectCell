@@ -1,0 +1,7 @@
+#N Sparky
+#C The Sparky tagalong riding on a c/4 orthogonal spaceship.
+#C https://copy.sh/life/examples/sparky.rle
+x = 30, y = 11, rule = B3/S23
+10b2obo12b2o$6b3obob3o8bob3o$2bobo10bo3b2obo4bo$2o4b2o5bo3b4obo3b2o$2b
+ob2o2bo4b3obo5b4obo$8bo4bo13b3o$2bob2o2bo4b3obo5b4obo$2o4b2o5bo3b4obo
+3b2o$2bobo10bo3b2obo4bo$6b3obob3o8bob3o$10b2obo12b2o!

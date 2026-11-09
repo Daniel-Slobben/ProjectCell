@@ -1,0 +1,8 @@
+#N Wing
+#O Hartmut Holzwart
+#C The first extensible c/4 diagonal spaceship (1993).
+#C https://copy.sh/life/examples/wingspaceship.rle
+x = 23, y = 23, rule = B3/S23
+4b2o$4bobo$4bo$7bo$3o4bobo$o6bo2bo3b3o$bo7b2o2bo2b2o$3b3o7bo5b2o$13b2o
+4b3o$4bobo3b3o9bo$5b2o2bo2bo6bo2bo$9bo9bo$9b2o8bobo$6b3o$5bo2bo$5bo$5b
+2o$6bo2$7b2ob3o$7b2o$8bo3bo$9b2o!

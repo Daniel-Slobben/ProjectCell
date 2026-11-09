@@ -6,11 +6,11 @@ import java.util.Arrays;
 import java.util.Random;
 
 public enum ChaosType {
-    SQUARE(SquareMaker.class, 5),
-    //    SQUARE_IN_SQUARE(SquareInSquareMaker.class, 0),
-    LETTUCE(LettuceMaker.class, 4),
-    GROWTH_PATTERN(GrowthMaker.class, 1),
-    DIAGONAL_LINES(DiagonalMaker.class, 5);
+    SQUARE(SquareMaker.class, 3),
+    LETTUCE(LettuceMaker.class, 3),
+    GROWTH_PATTERN(GrowthMaker.class, 2),
+    SPACESHIP(SpaceshipMaker.class, 5),
+    DIAGONAL_LINES(DiagonalMaker.class, 3);
 
     private static final Random random = new Random();
     private static final int TOTAL_WEIGHT = Arrays.stream(values()).mapToInt(type -> type.weight).sum();

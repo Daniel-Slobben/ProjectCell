@@ -7,7 +7,6 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.internal.Coordinates;
-import slobben.cells.dto.internal.Pattern;
 
 import java.io.*;
 import java.util.Random;
@@ -25,19 +24,22 @@ public class RleReader {
     private static final Random random = new Random();
     private static final ResourcePatternResolver RESOLVER = new PathMatchingResourcePatternResolver(RleReader.class.getClassLoader());
 
-    public void writePatternToWorld(String name, Coordinates coordinates, UUID hitId, byte rotation) throws IOException {
+    /**
+     * @return the largest dimension of the pattern in cells
+     */
+    public int writePatternToWorld(String name, Coordinates coordinates, UUID hitId, byte rotation) throws IOException {
         name = name.replace(".rle", "");
         Resource resource = RESOLVER.getResource("classpath:" + DIR + name + ".rle");
         if (!resource.exists()) {
             throw new FileNotFoundException("No pattern on classpath: " + name + ".rle");
         }
         try (InputStream in = resource.getInputStream()) {
-            writeRleInputStreamToWorld(name, hitId, coordinates, rotation, in);
+            return writeRleInputStreamToWorld(name, hitId, coordinates, rotation, in);
         }
     }
 
 
-    private void writeRleInputStreamToWorld(String name, UUID hitId, Coordinates worldStartingCoordinates, byte rotation, InputStream inputStream) throws IOException {
+    private int writeRleInputStreamToWorld(String name, UUID hitId, Coordinates worldStartingCoordinates, byte rotation, InputStream inputStream) throws IOException {
         if (rotation < 0 || rotation > 3) {
             throw new IllegalArgumentException("Rotation must be 0, 1, 2 or 3 but was %s".formatted(rotation));
         }
@@ -98,7 +100,7 @@ public class RleReader {
                         continue;
                     }
                     if (c == '!') {
-                        return;
+                        return Math.max(x, y);
                     }
 
                     for (int i = 0; i < multiplier; i++) {

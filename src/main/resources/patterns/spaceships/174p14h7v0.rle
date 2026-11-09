@@ -1,0 +1,11 @@
+#N 174P14H7V0
+#O Paul Tooke
+#C The smallest known period-14 spaceship, c/2 (2002).
+#C https://sourceforge.net/p/golly/code/ci/master/tree/Patterns/Life/Spaceships/smallest-low-period.rle
+x = 56, y = 38, rule = B3/S23
+30b3o15b3o$29bo3bo13bo3bo$28b2o4bo11bo4b2o$27bobob2ob2o3b3o3b2ob2obobo
+$26b2obo4bob2ob3ob2obo4bob2o$25bo4bo3bo4bobo4bo3bo4bo$37bo5bo$25b2o7b
+2o9b2o7b2o$5b3o16bo$4bo3bo15bobo$3b2o4bo17b2o$2bobob2ob2o3b3o3bo2bobob
+o$b2obo4bob2ob3ob2ob3o3bob2o$o4bo3bo4bobo5bobobo2b2o$12bo5bo2bo7b2o$2o
+7b2o8bo5b2obo2b2o$25b2obo2bo$20b3o3bobobobo$22b3o3bo$21bob2o3b2o$23bob
+obobo$25bobo$23bobo2bo$24b3o6$25b2o$24b2o5$25b2o$24b2o$24b2o!

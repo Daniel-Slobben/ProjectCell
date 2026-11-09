@@ -1,0 +1,9 @@
+#N Snail
+#O Tim Coe
+#C The first c/5 orthogonal spaceship (January 1996).
+#C https://copy.sh/life/examples/snail.rle
+x = 38, y = 21, rule = B3/S23
+bo$bo$o$b3o17b3o3b3o$b2obo9bo3bobo6b3o$2bo11b2obo7bo4b4o$6bo6bo3bobo3b
+2obo5b2o$3bo2bob3o3b2o9bo8b2obo$3b2obo5bo5bo17bo$9bob7o2$9bob7o$3b2obo
+5bo5bo17bo$3bo2bob3o3b2o9bo8b2obo$6bo6bo3bobo3b2obo5b2o$2bo11b2obo7bo
+4b4o$b2obo9bo3bobo6b3o$b3o17b3o3b3o$o$bo$bo!

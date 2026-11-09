@@ -1,0 +1,10 @@
+#N Pre-pulsar spaceship
+#O David Bell
+#C Two spiders pushing a pre-pulsar. c/5, period 30 (May 1998).
+#C https://copy.sh/life/examples/prepulsarspaceship.rle
+x = 69, y = 13, rule = B3/S23
+31bo5bo$30b3o3b3o4$2b2o5b2o5b2o5b2o19b2o5b2o5b2o5b2o$o3bo3bo2bo3bo2bo
+3bo3bo15bo3bo3bo2bo3bo2bo3bo3bo$o3bobob3o5b3obobo3bo15bo3bobob3o5b3obo
+bo3bo$o5b2o2b3ob3o2b2o5bo15bo5b2o2b3ob3o2b2o5bo$2ob3o15b3ob2o15b2ob3o
+15b3ob2o$o25bo15bo25bo$bo3bo15bo3bo17bo3bo15bo3bo$2bo2bo15bo2bo19bo2bo
+15bo2bo!

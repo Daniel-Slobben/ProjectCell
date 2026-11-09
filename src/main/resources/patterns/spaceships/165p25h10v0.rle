@@ -1,0 +1,12 @@
+#N 165P25H10V0
+#O Paul Tooke
+#C The smallest known period-25 spaceship, 2c/5 (2002).
+#C https://sourceforge.net/p/golly/code/ci/master/tree/Patterns/Life/Spaceships/smallest-low-period.rle
+x = 37, y = 46, rule = B3/S23
+8bo19bo$7b3o17b3o$6bo3bo15bo3bo$6b2ob2o15b2ob2o$2bo31bo$bobo2bob4o13b
+4obo2bobo$o3bo2bo2bo15bo2bo2bo3bo$bob2o27b2obo$2b2o8bo11bo8b2o$2b2o9b
+2o7b2o9b2o$2bo12bo5bo12bo$12bo2b2o3b2o2bo$13b2o2bobo2b2o2$13b2o2bobo2b
+2o$12bo3bo3bo3bo$12bo11bo$12bobo7bobo$13bo9bo$14bo7bo$13bobo5bobo$13bo
+2bo3bo2bo$13bobo5bobo$12b2ob2o3b2ob2o$12bobobo3bobobo$17bobo$16b2ob2o$
+17bobo$18bo7$11bo$10b3o$9b2ob2o2$5bo2bobobobo$4b3o3bo3b2o$3bo6bo3b2o$
+3bobo$5bobo$3bo2bo$3bo!

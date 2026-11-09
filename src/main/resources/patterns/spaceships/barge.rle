@@ -1,0 +1,11 @@
+#N Barge
+#O Hartmut Holzwart, David Bell
+#C An extendable c/3 spaceship, here 61 cells wide.
+#C https://copy.sh/life/examples/bargespaceship.rle
+x = 61, y = 20, rule = B3/S23
+7bo45bo$5b4o5b3o27b3o5b4o$b2ob2o3bo3bo33bo3bo3b2ob2o$b2o2bo5b3o4bo3bo
+15bo3bo4b3o5bo2b2o$o2bo7bobob5ob4o11b4ob5obobo7bo2bo$9bo6bo2bobo3bob2o
+3b2obo3bobo2bo6bo$10bo16b2o3b2o16bo$22bo3bo2bobo2bo3bo$22bobo11bobo$
+23bo13bo$22b2o3bo5bo3b2o$21b2o2b4o3b4o2b2o$25bo3bobo3bo$21b2o6bobo6b2o
+$22bo4bobobobo4bo$21bo4b2obobob2o4bo$22b2obo3bobo3bob2o$22b4o2b2ob2o2b
+4o$21b2o3bo2bobo2bo3b2o$28bo3bo!

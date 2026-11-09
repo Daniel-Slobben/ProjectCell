@@ -1,0 +1,8 @@
+#N Enterprise
+#O Dean Hickerson
+#C A c/4 diagonal spaceship found in March 1993.
+#C https://copy.sh/life/examples/enterprise.rle
+x = 21, y = 21, rule = B3/S23
+8bo$6b2obo$4b2o3bo$3bo3b2o$2bo4b2obo$bo2b2ob3obo$bo$3bobo3b2o$2o3bobo$
+o3bo3b2o$bo2b2o2bo2bo$4b2o3bo8bo$10bobo3bobobo$12b2ob3o2bo$12b2o4b2o$
+13bob2o2$11bobo$11bo$11b3o$12bobo!

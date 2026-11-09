@@ -1,0 +1,7 @@
+#N Hammerhead
+#C A c/2 spaceship; many different rear ends are possible.
+#C https://copy.sh/life/examples/hammerhead.rle
+x = 18, y = 16, rule = B3/S23
+5o$o4bo7b2o$o11b2ob3o$bo9b2ob4o$3b2o3b2ob2o2b2o$5bo4bo2bo$6bobobobo$7b
+o$7bo$6bobobobo$5bo4bo2bo$3b2o3b2ob2o2b2o$bo9b2ob4o$o11b2ob3o$o4bo7b2o
+$5o!

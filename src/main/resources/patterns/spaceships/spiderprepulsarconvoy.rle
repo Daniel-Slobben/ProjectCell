@@ -1,0 +1,16 @@
+#N Spider pre-pulsar convoy
+#O David Bell
+#C A row of spiders pushing pre-pulsars side by side, 187 cells wide. c/5, period 30. From Alan Hensel's lifebc collection.
+#C https://sourceforge.net/p/golly/code/ci/master/tree/Patterns/Life/Spaceships/orthogonal.rle
+x = 187, y = 15, rule = B3/S23
+96bo35bo5bo$95b3o33b3o3b3o$48bo5bo35bo$47b3o3b3o33b3o2$6bo3b3o90b2o5b
+2o5b2o5b2o19b2o5b2o5b2o5b2o6b3o3bo$3b2ob5ob2o87bo3bo3bo2bo3bo2bo3bo3bo
+15bo3bo3bo2bo3bo2bo3bo3bo3b2ob5ob2o$bob2obo5bobo4b2o5b2o5b2o5b2o19b2o
+5b2o5b2o5b2o17bo3bobob3o5b3obobo3bo15bo3bobob3o5b3obobo3bo2bobo5bob2ob
+o$o3bobo3b5o2bo3bo3bo2bo3bo2bo3bo3bo15bo3bo3bo2bo3bo2bo3bo3bo15bo5b2o
+2b3ob3o2b2o5bo15bo5b2o2b3ob3o2b2o5bo2b5o3bobo3bo$4b3o5b2o3bo3bobob3o5b
+3obobo3bo3b3o9bo3bobob3o5b3obobo3bo15b2ob3o15b3ob2o15b2ob3o15b3ob2o3b
+2o5b3o$bo2bob3o8bo5b2o2b3ob3o2b2o5bo4bo10bo5b2o2b3ob3o2b2o5bo15bo25bo
+15bo25bo8b3obo2bo$3bo13b2ob3o15b3ob2o15b2ob3o15b3ob2o16bo3bo15bo3bo17b
+o3bo15bo3bo14bo$17bo25bo15bo25bo17bo2bo15bo2bo19bo2bo15bo2bo$18bo3bo
+15bo3bo17bo3bo15bo3bo$19bo2bo15bo2bo19bo2bo15bo2bo!

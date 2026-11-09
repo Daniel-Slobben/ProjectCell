@@ -1,0 +1,10 @@
+#N Turtle with tagalong
+#O David Bell, Dean Hickerson
+#C A turtle (c/3) dragging an extensible tagalong; 70 cells wide.
+#C https://copy.sh/life/examples/turtlewithtagalong.rle
+x = 70, y = 11, rule = B3/S23
+19b2o10bo21b2o$b3o7bo18b2o9b3o14bo$b2o2bob2ob2o5b2o2bo6b5o7bo10b2o2bo
+2b3o7bo$3b3o4bo5bo10bo6bo3b2o4bo5bo6bobo2bobob2o$bo2bobo3bo4b2o4b3o3bo
+bo2b2o4b3o3bobo2b2o4b2o2bobo2bo3b2o$o4bo4bo3bo2bo3b2o4bo5bo10bo6bo3b3o
+2b3o$o4bo4bo12bo10b2o2bo6b5o10bo$bo2bobo3bo13b3o20b2o$3b3o4bo25b2o10bo
+$b2o2bob2ob2o$b3o7bo!

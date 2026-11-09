@@ -1,0 +1,9 @@
+#N 89P8H2V2
+#O Chris Rowett
+#C The smallest known (2,2)c/8 spaceship: c/4 diagonal, but with period 8 (2021).
+#C https://sourceforge.net/p/golly/code/ci/master/tree/Patterns/Life/Spaceships/spaceship-types.rle
+x = 26, y = 27, rule = B3/S23
+17b2o$19bo$16bobo5bo$3bo2bo9bo4bo3bo$3bo8bo2bobob2o4bo$4bo7b2o3bo2bo4b
+o$obo3b2obo3bo4bobo$2o5bo2bo6bo2bo4bo$bo6b2o7b2o5bo$19bobob2o$10b2o$
+10b2o8b2o2$7bobo10bobo$7b2o5bo2bo2b2o$8bo5bo$15bo$11bobo3b2obo$11b2o5b
+o2bo$12bo6b2o2$21b2o$21b2o2$18bobo$18b2o$19bo!

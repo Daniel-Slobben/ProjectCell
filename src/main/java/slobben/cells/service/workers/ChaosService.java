@@ -30,14 +30,13 @@ public class ChaosService extends Worker {
 
     private final Random random = new Random();
 
-    private ChaosType lastType;
     @Value("${cells.chaos.type:NULL}")
     private String preferredType = null;
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
-    private static final long SIZE_COUNT_TARGET = (long) Math.sqrt(15_000_000_000L);
-    private static final int TICKS_BETWEEN_NEW_HITS = 75;
+    private static final long SIZE_COUNT_TARGET = 5_000_000;
+    private static final int TICKS_BETWEEN_NEW_HITS = 25;
     private long currentSizeCounter = 0;
     private int tickCounter = 0;
 
@@ -81,7 +80,7 @@ public class ChaosService extends Worker {
 
         ChaosHit chaosHit = maker.getChaosHit(coordinates.x(), coordinates.y(), size);
         chaosHits.addFirst(chaosHit);
-        currentSizeCounter += size;
+        currentSizeCounter += chaosHit.getSize();
     }
 
     private @NonNull Maker getRandomMaker() {
@@ -89,7 +88,7 @@ public class ChaosService extends Worker {
         try {
             type = ChaosType.valueOf(this.preferredType);
         } catch (IllegalArgumentException _) {
-            type = getWeightedRandomType();
+            type = ChaosType.getRandomType();
         }
         return beanFactory.getBean(type.maker);
     }
@@ -123,16 +122,5 @@ public class ChaosService extends Worker {
             }
         }
         return true;
-    }
-
-    private ChaosType getWeightedRandomType() {
-        ChaosType type = ChaosType.getRandomType();
-
-        // don't generate the same type twice in a row
-        if (type == lastType) {
-            return getWeightedRandomType();
-        }
-        this.lastType = type;
-        return type;
     }
 }

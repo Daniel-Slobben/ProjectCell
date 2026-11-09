@@ -1,0 +1,9 @@
+#N 106P28H14V0
+#O Charity Engine
+#C A block puffer found in a random soup in October 2022, cleaned up by two middleweight spaceships. c/2, period 28.
+#C https://sourceforge.net/p/golly/code/ci/master/tree/Patterns/Life/Spaceships/smallest-low-period.rle
+x = 29, y = 28, rule = B3/S23
+11bo5bo$10b3o3b3o$b3o6bob2ob2obo6b3o$o2bo21bo2bo$3bo21bo$3bo3b3o9b3o3b
+o$obo5b2o9b2o5bobo2$10bobo3bobo3$7bo13bo$6b2o13b2o$5b2ob2o2bo3bo2b2ob
+2o$6b2o3b2o3b2o3b2o$7b2o11b2o$9bo9bo3$11b2o3b2o$11b2o3b2o2$5b3o13b3o$
+5bo2bo11bo2bo$5bo17bo$5bo3bo9bo3bo$5bo17bo$6bobo11bobo!
