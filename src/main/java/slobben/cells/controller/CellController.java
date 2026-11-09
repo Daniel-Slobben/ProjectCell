@@ -21,6 +21,7 @@ import slobben.cells.dto.outgoing.StateInfo;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.ViewportService;
 
+import java.util.List;
 import java.util.UUID;
 
 @Controller
@@ -41,7 +42,7 @@ public class CellController {
         UUID clientId = clientService.createNewClient();
 
         log.debug("Received settings request. Assigning clientId {}", clientId);
-        Coordinates viewport = viewportService.getInterestingViewport();
+        Coordinates viewport = viewportService.getInterestingViewport(List.of());
 
         return ResponseEntity.ok(new Settings(blockSize, clientId, viewport));
     }
@@ -54,14 +55,14 @@ public class CellController {
         if (clientService.hasVisibleBlocks(reconnectRequest.visibleBlocks())) {
             return ResponseEntity.ok(new ReconnectResponse(clientId, null));
         }
-        Coordinates viewport = viewportService.getInterestingViewport();
+        Coordinates viewport = viewportService.getInterestingViewport(List.of());
 
         return ResponseEntity.ok(new ReconnectResponse(clientId, viewport));
     }
 
-    @GetMapping("viewport")
-    public ResponseEntity<Coordinates> getNewViewport() {
-        return ResponseEntity.ok(viewportService.getInterestingViewport());
+    @PostMapping("viewport")
+    public ResponseEntity<Coordinates> getNewViewport(@RequestBody List<Coordinates> recentViewports) {
+        return ResponseEntity.ok(viewportService.getInterestingViewport(recentViewports));
     }
 
     @MessageMapping("/client-update")
