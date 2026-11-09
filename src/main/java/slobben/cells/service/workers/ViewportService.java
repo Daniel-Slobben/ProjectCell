@@ -5,8 +5,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
+import slobben.cells.util.BlockUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,20 +21,23 @@ public class ViewportService extends Worker {
 
     private final Map<String, Block> blocks;
     private List<CoordinateEntry> interestingCoordinates = new ArrayList<>();
+    private Map<String, UUID> blockChaosHits = Map.of();
 
     private static final int COORDINATES_MAX = 20;
     private static final int RECENT_DISTANCE_BLOCKS = 3;
     private static final Random RANDOM = new Random();
 
-    record CoordinateEntry(short count, Coordinates coordinates) {
+    record CoordinateEntry(short count, Coordinates coordinates, UUID chaosHit) {
     }
 
     @Override
     public void execute() {
         short lowestHighCount = 0;
         List<CoordinateEntry> newCoordinates = new ArrayList<>();
+        Map<String, UUID> newBlockChaosHits = new HashMap<>();
 
         for (Block block : blocks.values()) {
+            newBlockChaosHits.put(block.getKey(), block.getResponsibleChaosHit());
             CoordinateEntry best = bestSector(block);
 
             if (best != null && (newCoordinates.size() < COORDINATES_MAX || best.count() > lowestHighCount)) {
@@ -46,6 +51,7 @@ public class ViewportService extends Worker {
             }
         }
         interestingCoordinates = newCoordinates;
+        blockChaosHits = newBlockChaosHits;
     }
 
     // a block only offers its best sector, so one busy block can't fill the whole list
@@ -66,7 +72,7 @@ public class ViewportService extends Worker {
                     int worldX = block.getX() * blockSize + sx * sectorSize;
                     int worldY = block.getY() * blockSize + sy * sectorSize;
 
-                    best = new CoordinateEntry(count, new Coordinates(worldX, worldY));
+                    best = new CoordinateEntry(count, new Coordinates(worldX, worldY), block.getResponsibleChaosHit());
                 }
             }
         }
@@ -83,7 +89,9 @@ public class ViewportService extends Worker {
         if (viewportListSnapshot.isEmpty()) {
             return new Coordinates(0, 0);
         }
+        Set<UUID> recentChaosHits = recentChaosHits(recentViewports);
         List<CoordinateEntry> farFromRecent = viewportListSnapshot.stream()
+                .filter(entry -> !recentChaosHits.contains(entry.chaosHit()))
                 .filter(entry -> recentViewports.stream().noneMatch(recent -> isNear(entry.coordinates(), recent)))
                 .toList();
 
@@ -92,6 +100,15 @@ public class ViewportService extends Worker {
                 : farFromRecent;
         return candidates.get(RANDOM.nextInt(0, candidates.size()))
                 .coordinates();
+    }
+
+    private Set<UUID> recentChaosHits(List<Coordinates> recentViewports) {
+        Map<String, UUID> chaosHitSnapshot = blockChaosHits;
+        return recentViewports.stream()
+                .map(recent -> chaosHitSnapshot.get(BlockUtils.getKey(
+                        Math.floorDiv(recent.x(), blockSize), Math.floorDiv(recent.y(), blockSize))))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     private boolean isNear(Coordinates a, Coordinates b) {

@@ -34,6 +34,9 @@ public class ChaosService extends Worker {
     private String preferredType = null;
     @Value("${cells.size.blockSize}")
     private int blockSize;
+    // failsafe on top of SIZE_COUNT_TARGET: stop new hits once the blocks in memory exceed this many pixels
+    @Value("${cells.chaos.max-pixels:10000000000}")
+    private long maxPixels;
 
     private static final long SIZE_COUNT_TARGET = 500_000;
     private static final int TICKS_BETWEEN_NEW_HITS = 25;
@@ -65,6 +68,11 @@ public class ChaosService extends Worker {
         if (tickCounter > TICKS_BETWEEN_NEW_HITS
                 && currentSizeCounter < SIZE_COUNT_TARGET) {
             tickCounter = 0;
+            long pixels = (long) blocks.size() * blockSize * blockSize;
+            if (pixels > maxPixels) {
+                log.warn("Max pixels exceeded ({} > {}), not creating new chaos hits", pixels, maxPixels);
+                return;
+            }
             createChaosHit();
         }
     }
