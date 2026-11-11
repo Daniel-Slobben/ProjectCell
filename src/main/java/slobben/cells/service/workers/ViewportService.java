@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
+import slobben.cells.entities.ChaosHit;
+import slobben.cells.enums.ChaosType;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
@@ -20,11 +22,14 @@ public class ViewportService extends Worker {
     private int sectorSize = 40;
 
     private final Map<String, Block> blocks;
+    private final List<ChaosHit> chaosHits;
     private List<CoordinateEntry> interestingCoordinates = new ArrayList<>();
     private Map<String, UUID> blockChaosHits = Map.of();
+    private Map<UUID, ChaosType> chaosHitTypes = Map.of();
 
     private static final int COORDINATES_MAX = 20;
     private static final int RECENT_DISTANCE_BLOCKS = 3;
+    private static final int RECENT_CHAOS_TYPES = 3;
     private static final Random RANDOM = new Random();
 
     record CoordinateEntry(short count, Coordinates coordinates, UUID chaosHit) {
@@ -52,6 +57,9 @@ public class ViewportService extends Worker {
         }
         interestingCoordinates = newCoordinates;
         blockChaosHits = newBlockChaosHits;
+        chaosHitTypes = chaosHits.stream()
+                .filter(hit -> hit.getType() != null)
+                .collect(Collectors.toMap(ChaosHit::getId, ChaosHit::getType));
     }
 
     // a block only offers its best sector, so one busy block can't fill the whole list
@@ -89,26 +97,38 @@ public class ViewportService extends Worker {
         if (viewportListSnapshot.isEmpty()) {
             return new Coordinates(0, 0);
         }
-        Set<UUID> recentChaosHits = recentChaosHits(recentViewports);
+        Map<UUID, ChaosType> typeSnapshot = chaosHitTypes;
+        List<UUID> recentHits = recentChaosHits(recentViewports);
+        Set<ChaosType> recentTypes = recentHits.subList(Math.max(0, recentHits.size() - RECENT_CHAOS_TYPES), recentHits.size())
+                .stream()
+                .map(typeSnapshot::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
         List<CoordinateEntry> farFromRecent = viewportListSnapshot.stream()
-                .filter(entry -> !recentChaosHits.contains(entry.chaosHit()))
+                .filter(entry -> !recentHits.contains(entry.chaosHit()))
                 .filter(entry -> recentViewports.stream().noneMatch(recent -> isNear(entry.coordinates(), recent)))
                 .toList();
+        List<CoordinateEntry> otherType = farFromRecent.stream()
+                .filter(entry -> !recentTypes.contains(typeSnapshot.get(entry.chaosHit())))
+                .toList();
 
-        List<CoordinateEntry> candidates = farFromRecent.isEmpty()
-                ? viewportListSnapshot
-                : farFromRecent;
+        // relax the filters when nothing is left: first the chaos type, then the rest
+        List<CoordinateEntry> candidates = !otherType.isEmpty() ? otherType
+                : !farFromRecent.isEmpty() ? farFromRecent
+                : viewportListSnapshot;
         return candidates.get(RANDOM.nextInt(0, candidates.size()))
                 .coordinates();
     }
 
-    private Set<UUID> recentChaosHits(List<Coordinates> recentViewports) {
+    // in the order of the recent viewports, so the last ones are the latest
+    private List<UUID> recentChaosHits(List<Coordinates> recentViewports) {
         Map<String, UUID> chaosHitSnapshot = blockChaosHits;
         return recentViewports.stream()
                 .map(recent -> chaosHitSnapshot.get(BlockUtils.getKey(
                         Math.floorDiv(recent.x(), blockSize), Math.floorDiv(recent.y(), blockSize))))
                 .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+                .toList();
     }
 
     private boolean isNear(Coordinates a, Coordinates b) {

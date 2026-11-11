@@ -78,7 +78,8 @@ public class ChaosService extends Worker {
     }
 
     private void createChaosHit() {
-        Maker maker = getRandomMaker();
+        ChaosType type = getRandomType();
+        Maker maker = beanFactory.getBean(type.maker);
 
         double uniform = random.nextDouble();
         double skewed = Math.pow(uniform, 2.0);
@@ -87,18 +88,17 @@ public class ChaosService extends Worker {
         Coordinates coordinates = findFreeSpot(size);
 
         ChaosHit chaosHit = maker.getChaosHit(coordinates.x(), coordinates.y(), size);
+        chaosHit.setType(type);
         chaosHits.addFirst(chaosHit);
         currentSizeCounter += chaosHit.getSize();
     }
 
-    private @NonNull Maker getRandomMaker() {
-        ChaosType type;
+    private @NonNull ChaosType getRandomType() {
         try {
-            type = ChaosType.valueOf(this.preferredType);
+            return ChaosType.valueOf(this.preferredType);
         } catch (IllegalArgumentException _) {
-            type = ChaosType.getRandomType();
+            return ChaosType.getRandomType();
         }
-        return beanFactory.getBean(type.maker);
     }
 
 

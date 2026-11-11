@@ -23,6 +23,10 @@ public class Block {
     private boolean[][] cells;
     private short[][] sectorCounts;
     private long[][] packedCells;
+    // outer columns of the packed cells: the edges (column 1 and size) from the GoL for Stitching, the borders
+    // (column 0 and size + 1) from Stitching for the GoL
+    private Columns edges;
+    private Columns borders;
     private BlockState blockState = BlockState.NEW;
 
     private UUID responsibleChaosHit;

@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.dto.outgoing.ChaosHitDto;
+import slobben.cells.enums.ChaosType;
 
 import java.util.UUID;
 
@@ -16,6 +17,8 @@ public class ChaosHit {
     private final int maxAge;
     private final int size;
     private int age = 0;
+    @Setter
+    private ChaosType type;
 
     public ChaosHit(String name, UUID id, Coordinates currentStartingView, int maxAge, int size) {
         this.name = name;

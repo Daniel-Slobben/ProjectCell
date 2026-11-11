@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
+import slobben.cells.entities.Columns;
 import slobben.cells.enums.BlockState;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.ExecutorService;
@@ -22,18 +23,17 @@ import static slobben.cells.enums.Direction.*;
  * Copies the edge cells of every block into the border cells (rows 0 and size + 1, columns 0 and size + 1) of its
  * neighbours, so the GoL sees across block edges. Neighbours that do not exist yet are created.
  * <p>
- * First every block clears the border cells it got last tick and reads its own edges, then all blocks push their
- * edges. A {@link State} per block remembers which border cells it got, so only those are cleared. Blocks that are new
- * or changed from outside are cleared and read in full; for the others the sector counts of the GoL tell which parts
- * of the edges can hold cells.
+ * The GoL swaps between the two cell arrays of a block, so the border cells in the cells of a block are those of two
+ * ticks ago. Per array the {@link Received} border cells are remembered, so only what differs is written: first every
+ * block clears its border rows and finds its edges, then all blocks push their edges, a border column only where it
+ * differs from the edge column, and last the border columns that no neighbour pushed to are cleared.
  */
 @RequiredArgsConstructor
 @Service
 public class Stitching extends Worker {
     private static final int PARALLEL_TASKS = 2;
     private static final int PARALLEL_MIN_FULL_READS = 4;
-    private static final int PARALLEL_MIN_PUSH_WORK = 6000;
-    private static final int PUSH_WORK_PER_BLOCK = 16;
+    private static final int PARALLEL_MIN_PUSHES = 256;
     private static final int PRUNE_INTERVAL = 64;
 
     private final ExecutorService executorService;
@@ -41,48 +41,53 @@ public class Stitching extends Worker {
     private final Map<String, Block> newBlocks;
     @Value("${cells.size.blockSize}")
     private int blockSize;
-    @Value("${cells.size.sectorSize}")
-    private int sectorSize;
     private long[] innerMask;
-    private int bitsetWords;
-    private int sectors;
 
     private final IdentityHashMap<Block, State> states = new IdentityHashMap<>();
     private int tick = 0;
 
-    private static final class State {
-        // column 1 and column size, bit x - 1 for row x
-        final long[] leftColumn;
-        final long[] rightColumn;
-        // rows whose border columns got cells from a neighbour
-        final long[] receivedColumnRows;
+    private final class State {
         final Block[] neighbours = new Block[Direction.values().length];
-        long[][] cells;
+        final Received[] received = {new Received(), new Received()};
+        // of the cells of the block in this tick
+        Received current;
+        // column 1 and column size, bit x for row x
+        long[] left;
+        long[] right;
         int tick = Integer.MIN_VALUE;
-        boolean valid;
-        boolean receivedTop;
-        boolean receivedBottom;
         boolean topEdge;
         boolean bottomEdge;
         boolean leftEdge;
         boolean rightEdge;
 
-        State(int words) {
-            leftColumn = new long[words];
-            rightColumn = new long[words];
-            receivedColumnRows = new long[words];
-        }
-
         boolean hasEdges() {
             return topEdge || bottomEdge || leftEdge || rightEdge;
         }
+
+        // what is remembered of this cell array, else the place of the array that was seen longest ago
+        Received received(long[][] cells) {
+            if (received[0].cells == cells) return received[0];
+            if (received[1].cells == cells) return received[1];
+            return received[0].tick <= received[1].tick ? received[0] : received[1];
+        }
+    }
+
+    // the border cells that one cell array of a block got from its neighbours
+    private final class Received {
+        // column 0 and column size + 1 as they are in the array, bit x for row x
+        long[] left;
+        long[] right;
+        long[][] cells;
+        int tick = Integer.MIN_VALUE;
+        boolean top;
+        boolean bottom;
+        boolean leftPushed;
+        boolean rightPushed;
     }
 
     @PostConstruct
     void init() {
         innerMask = PackedRows.innerMask(blockSize);
-        bitsetWords = (blockSize + 63) >>> 6;
-        sectors = sectorSize > 0 && blockSize % sectorSize == 0 ? blockSize / sectorSize : -1;
     }
 
     @Override
@@ -98,13 +103,10 @@ public class Stitching extends Worker {
         int fullReads = 0;
         for (int i = 0; i < blockArray.length; i++) {
             Block block = blockArray[i];
-            State state = states.computeIfAbsent(block, b -> new State(bitsetWords));
-            // the border cells are still as this worker left them last tick
-            state.valid = state.tick == currentTick - 1 && state.cells == block.getPackedCells()
-                    && block.getBlockState() == BlockState.ACTIVE;
+            State state = states.computeIfAbsent(block, b -> new State());
             state.tick = currentTick;
             blockStates[i] = state;
-            if (!state.valid) fullReads++;
+            if (!known(block, state)) fullReads++;
         }
         if (states.size() > blockArray.length + 32 || currentTick % PRUNE_INTERVAL == 0) {
             prune(currentTick);
@@ -116,11 +118,12 @@ public class Stitching extends Worker {
         } else {
             for (int i = 0; i < blockArray.length; i++) prepare(blockArray[i], blockStates[i]);
         }
-        if (parallel && pushWork(blockStates) >= PARALLEL_MIN_PUSH_WORK) {
+        if (parallel && pushes(blockStates) >= PARALLEL_MIN_PUSHES) {
             runParallel(blockArray, blockStates, this::push);
         } else {
             for (int i = 0; i < blockArray.length; i++) push(blockArray[i], blockStates[i]);
         }
+        for (int i = 0; i < blockArray.length; i++) clearUnpushed(blockArray[i], blockStates[i]);
     }
 
     private void prune(int currentTick) {
@@ -151,108 +154,84 @@ public class Stitching extends Worker {
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    private static long pushWork(State[] blockStates) {
-        long work = 0;
-        for (int i = 0; i < blockStates.length && work < PARALLEL_MIN_PUSH_WORK; i++) {
-            State state = blockStates[i];
-            if (!state.hasEdges()) continue;
-            if (state.leftEdge) work += bitCount(state.leftColumn);
-            if (state.rightEdge) work += bitCount(state.rightColumn);
-            work += PUSH_WORK_PER_BLOCK;
+    private static int pushes(State[] blockStates) {
+        int pushes = 0;
+        for (State state : blockStates) {
+            if (state.hasEdges()) pushes++;
         }
-        return work;
+        return pushes;
+    }
+
+    // the border cells of the cells of the block are still as this worker left them, two ticks ago
+    private boolean known(Block block, State state) {
+        long[][] cells = block.getPackedCells();
+        Received received = state.received(cells);
+        return received.cells == cells && received.tick == tick - 2 && block.getBlockState() == BlockState.ACTIVE;
     }
 
     private void prepare(Block block, State state) {
-        boolean isNew = block.getBlockState() == BlockState.NEW;
-        if (isNew) {
+        if (block.getBlockState() == BlockState.NEW) {
             block.setPackedCells(PackedRows.pack(block.getCells()));
         }
         long[][] cells = block.getPackedCells();
-        state.cells = cells;
-        boolean known = state.valid && !isNew;
-        if (!known || state.receivedTop) Arrays.fill(cells[0], 0L);
-        if (!known || state.receivedBottom) Arrays.fill(cells[blockSize + 1], 0L);
-        state.receivedTop = false;
-        state.receivedBottom = false;
-        Arrays.fill(state.leftColumn, 0L);
-        Arrays.fill(state.rightColumn, 0L);
-
-        short[][] counts = known ? exactSectorCounts(block) : null;
-        if (counts == null) {
-            readEdges(cells, state, 1, blockSize + 1, true, true, !known);
-        } else {
-            int last = counts.length - 1;
-            for (int band = 0; band <= last; band++) {
-                boolean left = counts[band][0] != 0;
-                boolean right = counts[band][last] != 0;
-                if (left || right) {
-                    readEdges(cells, state, band * sectorSize + 1, (band + 1) * sectorSize + 1, left, right, false);
-                }
-            }
+        boolean known = known(block, state);
+        Received received = state.received(cells);
+        received.cells = cells;
+        received.tick = tick;
+        received.leftPushed = received.rightPushed = false;
+        state.current = received;
+        if (!known || received.top) Arrays.fill(cells[0], 0L);
+        if (!known || received.bottom) Arrays.fill(cells[blockSize + 1], 0L);
+        received.top = received.bottom = false;
+        // cells that were not seen two ticks ago: what their border columns hold is read, the pushes fix it
+        if (!known) {
+            received.left = PackedRows.column(cells, 0);
+            received.right = PackedRows.column(cells, blockSize + 1);
         }
-        if (known) {
-            clearReceivedColumns(cells, state.receivedColumnRows);
-        } else {
-            Arrays.fill(state.receivedColumnRows, 0L);
-        }
-
-        state.topEdge = (counts == null || hasCount(counts[0])) && hasInnerCells(cells[1]);
-        state.bottomEdge = (counts == null || hasCount(counts[counts.length - 1])) && hasInnerCells(cells[blockSize]);
-        state.leftEdge = hasBits(state.leftColumn);
-        state.rightEdge = hasBits(state.rightColumn);
-    }
-
-    private short[][] exactSectorCounts(Block block) {
-        short[][] counts = block.getSectorCounts();
-        if (counts == null || counts.length != sectors) return null;
-        for (short[] row : counts) {
-            if (row == null || row.length != sectors) return null;
-        }
-        return counts;
-    }
-
-    private void readEdges(long[][] cells, State state, int from, int to, boolean left, boolean right,
-                           boolean clearBorder) {
-        for (int x = from; x < to; x++) {
-            long[] row = cells[x];
-            int bit = x - 1;
-            if (left) state.leftColumn[bit >>> 6] |= cell(row, 1) << bit;
-            if (right) state.rightColumn[bit >>> 6] |= cell(row, blockSize) << bit;
-            if (clearBorder) {
-                clear(row, 0);
-                clear(row, blockSize + 1);
-            }
-        }
-    }
-
-    private void clearReceivedColumns(long[][] cells, long[] rows) {
-        for (int w = 0; w < rows.length; w++) {
-            for (long bits = rows[w]; bits != 0; bits &= bits - 1) {
-                long[] row = cells[(w << 6) + Long.numberOfTrailingZeros(bits) + 1];
-                clear(row, 0);
-                clear(row, blockSize + 1);
-            }
-            rows[w] = 0L;
-        }
+        // the edge columns of the GoL, or else from the rows
+        Columns edges = block.getEdges();
+        boolean stepped = edges != null && edges.of(block);
+        state.left = stepped ? edges.left() : PackedRows.column(cells, 1);
+        state.right = stepped ? edges.right() : PackedRows.column(cells, blockSize);
+        state.topEdge = hasInnerCells(cells[1]);
+        state.bottomEdge = hasInnerCells(cells[blockSize]);
+        state.leftEdge = hasBits(state.left);
+        state.rightEdge = hasBits(state.right);
+        block.setBorders(new Columns(cells, block.getGeneration(), received.left, received.right));
     }
 
     private void push(Block block, State state) {
         if (!state.hasEdges()) return;
         long[][] cells = block.getPackedCells();
         int border = blockSize + 1;
-        int lastBit = blockSize - 1;
         if (state.topEdge) copyRow(neighbour(block, state, LOW_X_MID_Y), cells[1], border);
         if (state.bottomEdge) copyRow(neighbour(block, state, HIGH_X_MID_Y), cells[blockSize], 0);
         if (state.leftEdge) {
-            copyColumn(neighbour(block, state, MID_X_LOW_Y), state.leftColumn, border);
-            if (bit(state.leftColumn, 0)) setCell(neighbour(block, state, LOW_X_LOW_Y), border, border);
-            if (bit(state.leftColumn, lastBit)) setCell(neighbour(block, state, HIGH_X_LOW_Y), 0, border);
+            copyColumn(neighbour(block, state, MID_X_LOW_Y), state.left, border);
+            if (bit(state.left, 1)) setCell(neighbour(block, state, LOW_X_LOW_Y), border, border);
+            if (bit(state.left, blockSize)) setCell(neighbour(block, state, HIGH_X_LOW_Y), 0, border);
         }
         if (state.rightEdge) {
-            copyColumn(neighbour(block, state, MID_X_HIGH_Y), state.rightColumn, 0);
-            if (bit(state.rightColumn, 0)) setCell(neighbour(block, state, LOW_X_HIGH_Y), border, 0);
-            if (bit(state.rightColumn, lastBit)) setCell(neighbour(block, state, HIGH_X_HIGH_Y), 0, 0);
+            copyColumn(neighbour(block, state, MID_X_HIGH_Y), state.right, 0);
+            if (bit(state.right, 1)) setCell(neighbour(block, state, LOW_X_HIGH_Y), border, 0);
+            if (bit(state.right, blockSize)) setCell(neighbour(block, state, HIGH_X_HIGH_Y), 0, 0);
+        }
+    }
+
+    // a border column that no neighbour pushed to still has the cells of two ticks ago
+    private void clearUnpushed(Block block, State state) {
+        Received received = state.current;
+        long[][] cells = block.getPackedCells();
+        if (!received.leftPushed) clearColumn(cells, received.left, 0);
+        if (!received.rightPushed) clearColumn(cells, received.right, blockSize + 1);
+    }
+
+    private static void clearColumn(long[][] cells, long[] rows, int column) {
+        for (int w = 0; w < rows.length; w++) {
+            for (long bits = rows[w]; bits != 0; bits &= bits - 1) {
+                PackedRows.clear(cells[(w << 6) + Long.numberOfTrailingZeros(bits)], column);
+            }
+            rows[w] = 0L;
         }
     }
 
@@ -280,7 +259,7 @@ public class Stitching extends Worker {
         State state = currentState(target);
         synchronized (target) {
             PackedRows.set(target.getPackedCells()[row], column);
-            if (state != null) markReceivedRow(state, row);
+            if (state != null) markReceivedRow(state.current, row);
         }
     }
 
@@ -291,63 +270,43 @@ public class Stitching extends Worker {
             for (int i = 0; i < border.length; i++) {
                 border[i] |= edge[i] & innerMask[i];
             }
-            if (state != null) markReceivedRow(state, row);
+            if (state != null) markReceivedRow(state.current, row);
         }
     }
 
-    private static void markReceivedRow(State state, int row) {
-        if (row == 0) state.receivedTop = true;
-        else state.receivedBottom = true;
+    private static void markReceivedRow(Received received, int row) {
+        if (row == 0) received.top = true;
+        else received.bottom = true;
     }
 
+    // makes a border column of the target equal to the edge column: only the cells that differ are written
     private void copyColumn(Block target, long[] edge, int column) {
         State state = currentState(target);
         int word = (column >>> 6) + 1;
         long mask = 1L << column;
         synchronized (target) {
             long[][] cells = target.getPackedCells();
+            // a block that was created in this tick has no border cells yet
+            long[] border = state == null ? null : column == 0 ? state.current.left : state.current.right;
             for (int w = 0; w < edge.length; w++) {
-                long rows = edge[w];
-                if (rows == 0) continue;
-                if (state != null) state.receivedColumnRows[w] |= rows;
+                long rows = border == null ? edge[w] : edge[w] ^ border[w];
                 for (; rows != 0; rows &= rows - 1) {
-                    cells[(w << 6) + Long.numberOfTrailingZeros(rows) + 1][word] |= mask;
+                    cells[(w << 6) + Long.numberOfTrailingZeros(rows)][word] ^= mask;
                 }
+                if (border != null) border[w] = edge[w];
             }
+            if (state != null && column == 0) state.current.leftPushed = true;
+            if (state != null && column != 0) state.current.rightPushed = true;
         }
-    }
-
-    private static long cell(long[] row, int column) {
-        return row[(column >>> 6) + 1] >>> column & 1L;
-    }
-
-    // writes only when the bit is set, so rows without border cells are not touched
-    private static void clear(long[] row, int column) {
-        int word = (column >>> 6) + 1;
-        long mask = 1L << column;
-        if ((row[word] & mask) != 0) row[word] &= ~mask;
     }
 
     private static boolean bit(long[] bits, int i) {
         return (bits[i >>> 6] >>> i & 1L) != 0;
     }
 
-    private static long bitCount(long[] bits) {
-        long count = 0;
-        for (long word : bits) count += Long.bitCount(word);
-        return count;
-    }
-
     private static boolean hasBits(long[] bits) {
         for (long word : bits) {
             if (word != 0) return true;
-        }
-        return false;
-    }
-
-    private static boolean hasCount(short[] counts) {
-        for (short count : counts) {
-            if (count != 0) return true;
         }
         return false;
     }

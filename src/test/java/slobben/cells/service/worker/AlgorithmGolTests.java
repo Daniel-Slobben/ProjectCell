@@ -100,28 +100,12 @@ class AlgorithmGolTests {
         nextState(algorithmGol, block);
 
         // verify
-        // the border cells themselves are left alone, Stitching owns them
-        assertThat(window(block, 0, 10, 2, 4)).isEqualTo("""
-                ####
-                .##.
-                """);
-        assertThat(window(block, 70, 10, 2, 4)).isEqualTo("""
-                .##.
-                ####
-                """);
-        assertThat(window(block, 10, 0, 4, 2)).isEqualTo("""
-                #.
-                ##
-                ##
-                #.
-                """);
-        assertThat(window(block, 10, 70, 4, 2)).isEqualTo("""
-                .#
-                ##
-                ##
-                .#
-                """);
-        assertThat(aliveCount(block)).isEqualTo(16 + 8);
+        // only the inner cells, Stitching writes the border cells of the new generation
+        assertThat(window(block, 1, 10, 1, 4)).isEqualTo(".##.\n");
+        assertThat(window(block, 70, 10, 1, 4)).isEqualTo(".##.\n");
+        assertThat(window(block, 10, 1, 4, 1)).isEqualTo(".\n#\n#\n.\n");
+        assertThat(window(block, 10, 70, 4, 1)).isEqualTo(".\n#\n#\n.\n");
+        assertThat(window(block, 1, 1, blockSize, blockSize).chars().filter(c -> c == '#').count()).isEqualTo(8);
     }
 
     @Test
