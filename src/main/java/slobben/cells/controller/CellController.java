@@ -36,6 +36,9 @@ public class CellController {
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
+    @Value("${cells.targetspeed}")
+    private int targetSpeed;
+
 
     @GetMapping("settings")
     public ResponseEntity<Settings> getSettings() {
@@ -44,7 +47,7 @@ public class CellController {
         log.debug("Received settings request. Assigning clientId {}", clientId);
         Coordinates viewport = viewportService.getInterestingViewport(List.of());
 
-        return ResponseEntity.ok(new Settings(blockSize, clientId, viewport));
+        return ResponseEntity.ok(new Settings(blockSize, clientId, viewport, targetSpeed));
     }
 
     @PostMapping("reconnect")
