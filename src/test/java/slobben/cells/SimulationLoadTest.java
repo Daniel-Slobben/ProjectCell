@@ -33,7 +33,7 @@ import java.util.TreeMap;
 class SimulationLoadTest {
 
     private static final int GENERATIONS = 3000;
-    private static final int HIT_SIZE = 5000;
+    private static final int HIT_SIZE = 50000;
     private static final List<Coordinates> HITS = List.of(new Coordinates(0, 0));
 
     @MockitoBean
@@ -54,6 +54,7 @@ class SimulationLoadTest {
     @Disabled("Too expensive for normal test run")
     @SuppressWarnings("java:S2699")
     void squareHits() {
+
         HITS.forEach(hit -> squareMaker.getChaosHit(hit.x(), hit.y(), HIT_SIZE));
 
         long start = System.nanoTime();
@@ -79,7 +80,7 @@ class SimulationLoadTest {
                 for (int y = 1; y <= blockSize; y++) {
                     if (!PackedRows.get(packed[x], y)) continue;
                     liveCells++;
-                    hash = hash * 31 + ((long) ((long) block.getX() * blockSize + x) << 32 | (((long) block.getY() * blockSize + y) & 0xffffffffL));
+                    hash = hash * 31 + (((long) block.getX() * blockSize + x) << 32 | (((long) block.getY() * blockSize + y) & 0xffffffffL));
                 }
             }
         }

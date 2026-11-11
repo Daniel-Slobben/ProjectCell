@@ -27,7 +27,7 @@ public class ViewportService extends Worker {
     private Map<String, UUID> blockChaosHits = Map.of();
     private Map<UUID, ChaosType> chaosHitTypes = Map.of();
 
-    private static final int COORDINATES_MAX = 20;
+    private static final int COORDINATES_MAX = 50;
     private static final int RECENT_DISTANCE_BLOCKS = 3;
     private static final int RECENT_CHAOS_TYPES = 3;
     private static final Random RANDOM = new Random();
@@ -108,16 +108,13 @@ public class ViewportService extends Worker {
         List<CoordinateEntry> farFromRecent = viewportListSnapshot.stream()
                 .filter(entry -> !recentHits.contains(entry.chaosHit()))
                 .filter(entry -> recentViewports.stream().noneMatch(recent -> isNear(entry.coordinates(), recent)))
-                .toList();
-        List<CoordinateEntry> otherType = farFromRecent.stream()
                 .filter(entry -> !recentTypes.contains(typeSnapshot.get(entry.chaosHit())))
                 .toList();
 
-        // relax the filters when nothing is left: first the chaos type, then the rest
-        List<CoordinateEntry> candidates = !otherType.isEmpty() ? otherType
-                : !farFromRecent.isEmpty() ? farFromRecent
-                : viewportListSnapshot;
-        return candidates.get(RANDOM.nextInt(0, candidates.size()))
+        if (farFromRecent.isEmpty()) {
+            farFromRecent = interestingCoordinates;
+        }
+        return farFromRecent.get(RANDOM.nextInt(0, farFromRecent.size()))
                 .coordinates();
     }
 

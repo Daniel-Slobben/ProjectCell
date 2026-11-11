@@ -11,7 +11,7 @@ cells:
 
   chaos:
     type: ANY
-    max-pixels: 10_000_000_000
+    max-pixels: 1_000_000_000
 
   size:
     x: '0'
@@ -20,7 +20,7 @@ cells:
     sectorSize: '50'
 
   runmode: AUTO
-  targetspeed: '500'
+  targetspeed: '100'
 
   recording:
     max-recording-depth: 4

@@ -34,7 +34,6 @@ public class ChaosService extends Worker {
     private String preferredType = null;
     @Value("${cells.size.blockSize}")
     private int blockSize;
-    // failsafe on top of SIZE_COUNT_TARGET: stop new hits once the blocks in memory exceed this many pixels
     @Value("${cells.chaos.max-pixels:1000000000}")
     private long maxPixels;
 

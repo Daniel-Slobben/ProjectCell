@@ -4,8 +4,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.internal.Columns;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.Columns;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.ExecutorService;
 import slobben.cells.util.PackedRows;
@@ -13,6 +13,8 @@ import slobben.cells.util.PackedRows;
 import java.util.*;
 
 /**
+ * AI optimized on Blocksize = 2000, sector size = 50.
+ * -- below passes the tests
  * Bit-parallel Game of Life on the packed rows of a block: a long holds 64 cells, one pass of boolean logic computes
  * them all.
  * <p>

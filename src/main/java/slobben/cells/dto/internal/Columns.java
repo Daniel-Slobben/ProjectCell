@@ -1,4 +1,6 @@
-package slobben.cells.entities;
+package slobben.cells.dto.internal;
+
+import slobben.cells.entities.Block;
 
 /**
  * Two columns of the cells of a block as bit sets over the rows (bit x for row x). The worker that knows them leaves

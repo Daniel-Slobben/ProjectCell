@@ -19,6 +19,8 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
+ * AI optimized on Blocksize = 2000, sector size = 50.
+ * -- below passes the tests
  * Gives every block the encodings a client can ask for: the full block and its borders, as bit-packed, LZ4
  * compressed cells.
  * <p>
@@ -44,7 +46,6 @@ public class Packer extends Worker {
         snapshot.take(block);
         LazyEncodedBlock full = new LazyEncodedBlock(block, snapshot, EncodedBlockType.FULL);
         block.setEncodedBlock(full);
-        // a NEW block is sent in full, also as its borders
         block.setEncodedBlockBorders(block.getBlockState() == BlockState.NEW
                 ? full
                 : new LazyEncodedBlock(block, snapshot, EncodedBlockType.BORDER));
@@ -52,7 +53,7 @@ public class Packer extends Worker {
 
     @Override
     public String getName() {
-        return "Caching Encoded Blocks";
+        return "Packer";
     }
 
     /**
@@ -99,38 +100,39 @@ public class Packer extends Worker {
             }
             return encoded;
         }
-    }
 
-    // column size, column 1, then row 1 and row size without the corners
-    private static byte[] getPackedBorders(long[][] rows, int size) {
-        byte[] packed = new byte[(size * 4 - 4 + 7) / 8];
-        int index = 0;
-        for (int i = 1; i <= size; i++) index = append(packed, index, PackedRows.get(rows[i], size));
-        for (int i = 1; i <= size; i++) index = append(packed, index, PackedRows.get(rows[i], 1));
-        for (int i = 2; i < size; i++) index = append(packed, index, PackedRows.get(rows[1], i));
-        for (int i = 2; i < size; i++) index = append(packed, index, PackedRows.get(rows[size], i));
-        return packed;
-    }
-
-    private static int append(byte[] packed, int index, boolean alive) {
-        if (alive) packed[index >>> 3] |= (byte) (1 << (index & 7));
-        return index + 1;
-    }
-
-    private static byte[] getPacked(long[][] packedCells, int size) {
-        final int wholeWords = size >>> 6;
-        final long tailMask = (1L << (size & 63)) - 1;
-        BitStream out = new BitStream(size);
-
-        for (int x = 1; x <= size; x++) {
-            long[] row = packedCells[x];
-            for (int i = 1; i <= wholeWords; i++) {
-                out.write64(row[i] >>> 1 | row[i + 1] << 63);
-            }
-            // masks off the right border column
-            out.writeTail((row[wholeWords + 1] >>> 1 | row[wholeWords + 2] << 63) & tailMask);
+        // column size, column 1, then row 1 and row size without the corners
+        private static byte[] getPackedBorders(long[][] rows, int size) {
+            byte[] packed = new byte[(size * 4 - 4 + 7) / 8];
+            int index = 0;
+            for (int i = 1; i <= size; i++) index = append(packed, index, PackedRows.get(rows[i], size));
+            for (int i = 1; i <= size; i++) index = append(packed, index, PackedRows.get(rows[i], 1));
+            for (int i = 2; i < size; i++) index = append(packed, index, PackedRows.get(rows[1], i));
+            for (int i = 2; i < size; i++) index = append(packed, index, PackedRows.get(rows[size], i));
+            return packed;
         }
-        return out.finish();
+
+        private static int append(byte[] packed, int index, boolean alive) {
+            if (alive) packed[index >>> 3] |= (byte) (1 << (index & 7));
+            return index + 1;
+        }
+
+        private static byte[] getPacked(long[][] packedCells, int size) {
+            final int wholeWords = size >>> 6;
+            final long tailMask = (1L << (size & 63)) - 1;
+            BitStream out = new BitStream(size);
+
+            for (int x = 1; x <= size; x++) {
+                long[] row = packedCells[x];
+                for (int i = 1; i <= wholeWords; i++) {
+                    out.write64(row[i] >>> 1 | row[i + 1] << 63);
+                }
+                // masks off the right border column
+                out.writeTail((row[wholeWords + 1] >>> 1 | row[wholeWords + 2] << 63) & tailMask);
+            }
+            return out.finish();
+        }
+
     }
 
     private static final class BitStream {

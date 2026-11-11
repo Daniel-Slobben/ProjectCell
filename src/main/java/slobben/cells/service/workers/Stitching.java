@@ -4,9 +4,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.internal.Columns;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.Columns;
 import slobben.cells.enums.BlockState;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.ExecutorService;
@@ -20,6 +20,8 @@ import java.util.function.BiConsumer;
 import static slobben.cells.enums.Direction.*;
 
 /**
+ * AI optimized on Blocksize = 2000, sector size = 50.
+ * -- below passes the tests
  * Copies the edge cells of every block into the border cells (rows 0 and size + 1, columns 0 and size + 1) of its
  * neighbours, so the GoL sees across block edges. Neighbours that do not exist yet are created.
  * <p>
@@ -46,7 +48,7 @@ public class Stitching extends Worker {
     private final IdentityHashMap<Block, State> states = new IdentityHashMap<>();
     private int tick = 0;
 
-    private final class State {
+    private static final class State {
         final Block[] neighbours = new Block[Direction.values().length];
         final Received[] received = {new Received(), new Received()};
         // of the cells of the block in this tick
@@ -73,7 +75,7 @@ public class Stitching extends Worker {
     }
 
     // the border cells that one cell array of a block got from its neighbours
-    private final class Received {
+    private static final class Received {
         // column 0 and column size + 1 as they are in the array, bit x for row x
         long[] left;
         long[] right;
@@ -92,13 +94,16 @@ public class Stitching extends Worker {
 
     @Override
     public String getName() {
-        return "Adding bordercells";
+        return "Stitching";
     }
 
     public void execute() {
         int currentTick = ++tick;
         Block[] blockArray = blocks.values().toArray(new Block[0]);
-        if (blockArray.length == 0) return;
+
+        if (blockArray.length == 0)
+            return;
+
         State[] blockStates = new State[blockArray.length];
         int fullReads = 0;
         for (int i = 0; i < blockArray.length; i++) {

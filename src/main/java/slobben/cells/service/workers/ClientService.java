@@ -16,6 +16,7 @@ import slobben.cells.service.ExecutorService;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static slobben.cells.dto.outgoing.HealthCheckResponse.HEALTH_CHECK_TYPE.HEALTH_ACK;
@@ -56,7 +57,11 @@ public class ClientService extends Worker {
         } else {
             // Full blocks are ~75 KB each, one message per block: on a slow connection the client sees them come in,
             // instead of nothing until a message of megabytes has arrived and its watchdog gives up.
-            copyOfBlocks.forEach(block -> send(client, List.of(block)));
+            try (var virtualExector = Executors.newVirtualThreadPerTaskExecutor()) {
+                for (EncodedBlock block : copyOfBlocks) {
+                    virtualExector.execute(() -> send(client, List.of(block)));
+                }
+            }
         }
     }
 

@@ -3,6 +3,7 @@ package slobben.cells.entities;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import slobben.cells.dto.internal.Columns;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.BlockUtils;
@@ -23,13 +24,14 @@ public class Block {
     private boolean[][] cells;
     private short[][] sectorCounts;
     private long[][] packedCells;
+    private BlockState blockState = BlockState.NEW;
+
+    private UUID responsibleChaosHit;
+
     // outer columns of the packed cells: the edges (column 1 and size) from the GoL for Stitching, the borders
     // (column 0 and size + 1) from Stitching for the GoL
     private Columns edges;
     private Columns borders;
-    private BlockState blockState = BlockState.NEW;
-
-    private UUID responsibleChaosHit;
 
     // encodings are only sent for blocks a client watches, so the Packer compresses them on first use
     @Getter(AccessLevel.NONE)

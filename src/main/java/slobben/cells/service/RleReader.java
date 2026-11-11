@@ -25,7 +25,7 @@ public class RleReader {
     private static final ResourcePatternResolver RESOLVER = new PathMatchingResourcePatternResolver(RleReader.class.getClassLoader());
 
     /**
-     * @return the largest dimension of the pattern in cells
+     * @return the largest dimension of the patern
      */
     public int writePatternToWorld(String name, Coordinates coordinates, UUID hitId, byte rotation) throws IOException {
         name = name.replace(".rle", "");
@@ -37,7 +37,6 @@ public class RleReader {
             return writeRleInputStreamToWorld(name, hitId, coordinates, rotation, in);
         }
     }
-
 
     private int writeRleInputStreamToWorld(String name, UUID hitId, Coordinates worldStartingCoordinates, byte rotation, InputStream inputStream) throws IOException {
         if (rotation < 0 || rotation > 3) {

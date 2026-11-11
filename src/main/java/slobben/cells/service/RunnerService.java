@@ -1,6 +1,5 @@
 package slobben.cells.service;
 
-import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -34,8 +33,6 @@ public class RunnerService {
     @Value("${cells.runmode}")
     private String runMode;
 
-    private boolean running = false;
-
     private int ticks = 0;
 
     public void runCycle() {
@@ -56,7 +53,8 @@ public class RunnerService {
 
     @SneakyThrows
     public void run() {
-        running = runMode.equals("AUTO");
+        boolean running = runMode.equals("AUTO");
+        //noinspection LoopConditionNotUpdatedInsideLoop
         while (running) {
             ticks++;
             int blocksInMemory = blocks.size();
@@ -76,10 +74,5 @@ public class RunnerService {
                 log.info("Ending run. Time Taken: {}ms, No waiting!\n", timeTaken);
             }
         }
-    }
-
-    @PreDestroy
-    public void destroy() {
-        running = false;
     }
 }
