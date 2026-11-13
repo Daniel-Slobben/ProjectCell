@@ -117,6 +117,20 @@ class ViewportServiceTest {
     }
 
     @Test
+    void prefersANearbyOtherChaosTypeOverAFarSameType() {
+        // prepare
+        getTestBlock(0, 0, addChaosHit(ChaosType.GROWTH_PATTERN));
+        getTestBlock(2, 0, addChaosHit(ChaosType.LETTUCE)).getSectorCounts()[0][0] = 101;
+        getTestBlock(20, 0, addChaosHit(ChaosType.GROWTH_PATTERN)).getSectorCounts()[0][0] = 101;
+
+        // execute
+        viewportService.execute();
+
+        // verify
+        assertThat(collectPickedViewports(List.of(new Coordinates(0, 0)))).containsExactly(new Coordinates(1000, 0));
+    }
+
+    @Test
     void picksAnyViewportWhenAllAreNearRecentOnes() {
         // prepare
         getTestBlock(0, 0).getSectorCounts()[0][0] = 101;
