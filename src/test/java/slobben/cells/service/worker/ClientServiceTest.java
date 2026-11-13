@@ -31,7 +31,7 @@ class ClientServiceTest {
     private final List<Message<?>> sent = new ArrayList<>();
     private final Map<String, Block> blocks = new HashMap<>();
     private final ClientService clientService;
-    private final AlgorithmGol algorithmGol = AlgorithmGolLoadTest.algorithmGol(20, 5);
+    private final AlgorithmGol algorithmGol = AlgorithmGolLoadTest.createAlgorithmGol(20, 5);
 
     ClientServiceTest() {
         MessageChannel channel = (message, timeout) -> sent.add(message);
@@ -45,14 +45,14 @@ class ClientServiceTest {
     @Test
     void sendsBlocksAsABinaryFrame() {
         // prepare
-        Block active = block(0, 0);
+        Block active = getTestBlock(0, 0);
         nextState(algorithmGol, active);
         Packer.packAll(active);
-        Block fresh = block(-1, 0);
+        Block fresh = getTestBlock(-1, 0);
         Packer.packAll(fresh);
         blocks.put(active.getKey(), active);
         blocks.put(fresh.getKey(), fresh);
-        blocks.put(block(5, 5).getKey(), block(5, 5)); // not packed yet: no encoding
+        blocks.put(getTestBlock(5, 5).getKey(), getTestBlock(5, 5)); // not packed yet: no encoding
 
         Client client = new Client();
 
@@ -74,7 +74,7 @@ class ClientServiceTest {
     @Test
     void sendsFullBlocksWhenAsked() {
         // prepare
-        Block active = block(2, 3);
+        Block active = getTestBlock(2, 3);
         nextState(algorithmGol, active);
         Packer.packAll(active);
         blocks.put(active.getKey(), active);
@@ -89,8 +89,8 @@ class ClientServiceTest {
     @Test
     void sendsEachFullBlockInItsOwnMessage() {
         // prepare
-        Block first = block(2, 3);
-        Block second = block(3, 3);
+        Block first = getTestBlock(2, 3);
+        Block second = getTestBlock(3, 3);
         for (Block block : List.of(first, second)) {
             nextState(algorithmGol, block);
             Packer.packAll(block);
@@ -106,7 +106,7 @@ class ClientServiceTest {
     }
 
     // packed like Stitching does for NEW blocks
-    private static Block block(int x, int y) {
+    private static Block getTestBlock(int x, int y) {
         Block block = BlockUtils.setBlockToRandom(new Block(x, y, UUID.randomUUID(), 20), 3, 20);
         block.setPackedCells(PackedRows.pack(block.getCells()));
         return block;

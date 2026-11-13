@@ -22,14 +22,14 @@ class AlgorithmGolLoadTest {
     @Disabled("Too expensive for normal test run")
     @ValueSource(ints = {200, 300, 900, 1000, 1100, 2000})
     void profileRandom(int blockSize) {
-        profile(algorithmGol(blockSize, 50), blockSize);
+        profile(createAlgorithmGol(blockSize, 50), blockSize);
     }
 
     @ParameterizedTest
     @Disabled("Too expensive for normal test run")
     @ValueSource(ints = {5, 10, 20, 50, 100, 200})
     void profileSector(int sectorSize) {
-        profile(algorithmGol(2000, sectorSize), 2000);
+        profile(createAlgorithmGol(2000, sectorSize), 2000);
     }
 
     private static void profile(AlgorithmGol algorithmGol, int blockSize) {
@@ -43,7 +43,7 @@ class AlgorithmGolLoadTest {
         }
     }
 
-    static AlgorithmGol algorithmGol(int blockSize, int sectorSize) {
+    static AlgorithmGol createAlgorithmGol(int blockSize, int sectorSize) {
         AlgorithmGol algorithmGol = new AlgorithmGol(new ExecutorService(), new HashMap<>());
         ReflectionTestUtils.setField(algorithmGol, "blockSize", blockSize);
         ReflectionTestUtils.setField(algorithmGol, "sectorSize", sectorSize);

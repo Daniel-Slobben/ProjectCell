@@ -29,17 +29,17 @@ class AlgorithmGolTest {
     @Test
     void squaresStayAlive() {
         // prepare
-        Block block = block();
-        draw(block, 1, 1, "##\n##");
-        draw(block, 30, 63, "##\n##");
+        Block block = getTestBlock();
+        drawPattern(block, 1, 1, "##\n##");
+        drawPattern(block, 30, 63, "##\n##");
 
         // execute
         nextState(algorithmGol, block);
 
         // verify
-        assertThat(window(block, 1, 1, 2, 2)).isEqualTo("##\n##\n");
-        assertThat(window(block, 30, 63, 2, 2)).isEqualTo("##\n##\n");
-        assertThat(aliveCount(block)).isEqualTo(8);
+        assertThat(readWindow(block, 1, 1, 2, 2)).isEqualTo("##\n##\n");
+        assertThat(readWindow(block, 30, 63, 2, 2)).isEqualTo("##\n##\n");
+        assertThat(countAliveCells(block)).isEqualTo(8);
         assertThat(block.getGeneration()).isEqualTo(1);
         assertThat(block.getBlockState()).isEqualTo(BlockState.ACTIVE);
     }
@@ -47,26 +47,26 @@ class AlgorithmGolTest {
     @Test
     void blinkerOscillates() {
         // prepare
-        Block block = block();
-        draw(block, 20, 63, "###");
+        Block block = getTestBlock();
+        drawPattern(block, 20, 63, "###");
 
         // execute
         nextState(algorithmGol, block);
 
         // verify
-        assertThat(window(block, 19, 63, 3, 3)).isEqualTo("""
+        assertThat(readWindow(block, 19, 63, 3, 3)).isEqualTo("""
                 .#.
                 .#.
                 .#.
                 """);
-        assertThat(aliveCount(block)).isEqualTo(3);
+        assertThat(countAliveCells(block)).isEqualTo(3);
     }
 
     @Test
     void gliderMoves() {
         // prepare
-        Block block = block();
-        draw(block, 10, 61, """
+        Block block = getTestBlock();
+        drawPattern(block, 10, 61, """
                 .#.
                 ..#
                 ###
@@ -78,42 +78,42 @@ class AlgorithmGolTest {
         }
 
         // verify
-        assertThat(window(block, 10, 61, 4, 4)).isEqualTo("""
+        assertThat(readWindow(block, 10, 61, 4, 4)).isEqualTo("""
                 ....
                 ..#.
                 ...#
                 .###
                 """);
-        assertThat(aliveCount(block)).isEqualTo(5);
+        assertThat(countAliveCells(block)).isEqualTo(5);
     }
 
     @Test
     void bordersAreNeighbours() {
         // prepare
-        Block block = block();
-        draw(block, 0, 10, "####");
-        draw(block, 71, 10, "####");
-        draw(block, 10, 0, "#\n#\n#\n#");
-        draw(block, 10, 71, "#\n#\n#\n#");
+        Block block = getTestBlock();
+        drawPattern(block, 0, 10, "####");
+        drawPattern(block, 71, 10, "####");
+        drawPattern(block, 10, 0, "#\n#\n#\n#");
+        drawPattern(block, 10, 71, "#\n#\n#\n#");
 
         // execute
         nextState(algorithmGol, block);
 
         // verify
         // only the inner cells, Stitching writes the border cells of the new generation
-        assertThat(window(block, 1, 10, 1, 4)).isEqualTo(".##.\n");
-        assertThat(window(block, 70, 10, 1, 4)).isEqualTo(".##.\n");
-        assertThat(window(block, 10, 1, 4, 1)).isEqualTo(".\n#\n#\n.\n");
-        assertThat(window(block, 10, 70, 4, 1)).isEqualTo(".\n#\n#\n.\n");
-        assertThat(window(block, 1, 1, blockSize, blockSize).chars().filter(c -> c == '#').count()).isEqualTo(8);
+        assertThat(readWindow(block, 1, 10, 1, 4)).isEqualTo(".##.\n");
+        assertThat(readWindow(block, 70, 10, 1, 4)).isEqualTo(".##.\n");
+        assertThat(readWindow(block, 10, 1, 4, 1)).isEqualTo(".\n#\n#\n.\n");
+        assertThat(readWindow(block, 10, 70, 4, 1)).isEqualTo(".\n#\n#\n.\n");
+        assertThat(readWindow(block, 1, 1, blockSize, blockSize).chars().filter(c -> c == '#').count()).isEqualTo(8);
     }
 
     @Test
     void sectorCountsFollowTheCells() {
         // prepare
-        Block block = block();
-        draw(block, 20, 30, "###");
-        draw(block, 50, 50, "#");
+        Block block = getTestBlock();
+        drawPattern(block, 20, 30, "###");
+        drawPattern(block, 50, 50, "#");
 
         // expected sector counts after gol run
         short[][] expectedSector = new short[7][7];
@@ -130,15 +130,15 @@ class AlgorithmGolTest {
     @Test
     void cellsAreDroppedAfterNew() {
         // prepare
-        Block block = block();
-        draw(block, 20, 20, "###");
+        Block block = getTestBlock();
+        drawPattern(block, 20, 20, "###");
 
         // execute
         nextState(algorithmGol, block);
 
         // verify
         assertThat(block.getCells()).isNull();
-        assertThat(window(block, 19, 20, 3, 3)).isEqualTo("""
+        assertThat(readWindow(block, 19, 20, 3, 3)).isEqualTo("""
                 .#.
                 .#.
                 .#.
@@ -153,11 +153,11 @@ class AlgorithmGolTest {
         algorithmGol.setNextState(block);
     }
 
-    private Block block() {
+    private Block getTestBlock() {
         return new Block(0, 0, UUID.randomUUID(), blockSize);
     }
 
-    static void draw(Block block, int x, int y, String pattern) {
+    static void drawPattern(Block block, int x, int y, String pattern) {
         List<String> lines = pattern.lines().toList();
         for (int i = 0; i < lines.size(); i++) {
             for (int j = 0; j < lines.get(i).length(); j++) {
@@ -166,7 +166,7 @@ class AlgorithmGolTest {
         }
     }
 
-    private static String window(Block block, int x, int y, int height, int width) {
+    private static String readWindow(Block block, int x, int y, int height, int width) {
         StringBuilder window = new StringBuilder();
         for (int i = x; i < x + height; i++) {
             for (int j = y; j < y + width; j++) {
@@ -177,7 +177,7 @@ class AlgorithmGolTest {
         return window.toString();
     }
 
-    private static int aliveCount(Block block) {
+    private static int countAliveCells(Block block) {
         int alive = 0;
         for (long[] row : block.getPackedCells()) {
             for (long word : row) {
