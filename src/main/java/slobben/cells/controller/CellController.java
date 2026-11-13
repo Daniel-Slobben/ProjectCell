@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
@@ -13,16 +14,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
-import slobben.cells.dto.incoming.ReconnectRequest;
 import slobben.cells.dto.internal.Coordinates;
-import slobben.cells.dto.outgoing.ReconnectResponse;
 import slobben.cells.dto.outgoing.Settings;
 import slobben.cells.dto.outgoing.StateInfo;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.ViewportService;
 
 import java.util.List;
-import java.util.UUID;
 
 @Controller
 @RequiredArgsConstructor
@@ -42,25 +40,10 @@ public class CellController {
 
     @GetMapping("settings")
     public ResponseEntity<Settings> getSettings() {
-        UUID clientId = clientService.createNewClient();
-
-        log.debug("Received settings request. Assigning clientId {}", clientId);
+        log.debug("Received settings request");
         Coordinates viewport = viewportService.getInterestingViewport(List.of());
 
-        return ResponseEntity.ok(new Settings(blockSize, clientId, viewport, targetSpeed));
-    }
-
-    @PostMapping("reconnect")
-    public ResponseEntity<ReconnectResponse> postReconnect(@RequestBody ReconnectRequest reconnectRequest) {
-        UUID clientId = clientService.createNewClient();
-
-        log.debug("Reconnect request");
-        if (clientService.hasVisibleBlocks(reconnectRequest.visibleBlocks())) {
-            return ResponseEntity.ok(new ReconnectResponse(clientId, null));
-        }
-        Coordinates viewport = viewportService.getInterestingViewport(List.of());
-
-        return ResponseEntity.ok(new ReconnectResponse(clientId, viewport));
+        return ResponseEntity.ok(new Settings(blockSize, viewport, targetSpeed));
     }
 
     @PostMapping("viewport")
@@ -69,16 +52,10 @@ public class CellController {
     }
 
     @MessageMapping("/client-update")
-    public void updateClient(@Payload ClientUpdateRequest message) {
-        log.debug("Received update request for clientId: {}", message.client());
+    public void updateClient(@Payload ClientUpdateRequest message, @Header("simpSessionId") String sessionId) {
+        log.debug("Received update request for session: {}", sessionId);
 
-        clientService.updateClientBlocks(message);
-    }
-
-    @MessageMapping("/health-check")
-    public void getBlocks(@Payload UUID clientId) {
-        log.debug("Received health-check for clientId: {}", clientId);
-        clientService.healthCheck(clientId);
+        clientService.updateClientBlocks(sessionId, message);
     }
 
     @GetMapping("/state-info")

@@ -7,8 +7,15 @@ import org.springframework.messaging.converter.ByteArrayMessageConverter;
 import org.springframework.messaging.converter.CompositeMessageConverter;
 import org.springframework.messaging.converter.JacksonJsonMessageConverter;
 import org.springframework.messaging.converter.StringMessageConverter;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.MimeTypeUtils;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.messaging.SessionConnectEvent;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
+import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.outgoing.BlockFrameReader;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
@@ -55,7 +62,7 @@ class ClientServiceTest {
         blocks.put(fresh.getKey(), fresh);
         blocks.put(getTestBlock(5, 5).getKey(), getTestBlock(5, 5)); // not packed yet: no encoding
 
-        Client client = new Client();
+        Client client = new Client("s1");
 
         // execute
         clientService.sendClientUpdate(client, Set.of(active.getKey(), fresh.getKey(), "5_5", "9_9"), true);
@@ -63,7 +70,9 @@ class ClientServiceTest {
         // verify
         assertThat(sent).hasSize(1);
         Message<?> message = sent.getFirst();
-        assertThat(message.getHeaders().get("simpDestination")).isEqualTo("/topic/" + client.getClientId());
+        assertThat(message.getHeaders().get("simpDestination")).isEqualTo("/queue/blocks-users1");
+        // the broker would take it as a heartbeat from the client
+        assertThat(message.getHeaders().get("simpSessionId")).isNull();
         assertThat(message.getHeaders().get("contentType").toString()).isEqualTo(MimeTypeUtils.APPLICATION_OCTET_STREAM_VALUE);
         List<EncodedBlock> received = BlockFrameReader.read((byte[]) message.getPayload());
         assertThat(received).containsExactlyInAnyOrder(active.getEncodedBlockBorders(), fresh.getEncodedBlockBorders());
@@ -81,7 +90,7 @@ class ClientServiceTest {
         blocks.put(active.getKey(), active);
 
         // execute
-        clientService.sendClientUpdate(new Client(), Set.of(active.getKey()), false);
+        clientService.sendClientUpdate(new Client("s1"), Set.of(active.getKey()), false);
 
         // verify
         assertThat(BlockFrameReader.read((byte[]) sent.getFirst().getPayload())).containsExactly(active.getEncodedBlock());
@@ -99,11 +108,68 @@ class ClientServiceTest {
         }
 
         // execute
-        clientService.sendClientUpdate(new Client(), Set.of(first.getKey(), second.getKey()), false);
+        clientService.sendClientUpdate(new Client("s1"), Set.of(first.getKey(), second.getKey()), false);
 
         // verify
         assertThat(sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())))
                 .containsExactlyInAnyOrder(List.of(first.getEncodedBlock()), List.of(second.getEncodedBlock()));
+    }
+
+    @Test
+    void sendsNoBlocksWhenTheFirstUpdateFindsNothing() {
+        // prepare
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+
+        // execute
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{"7/7", "7/8"}));
+
+        // verify
+        assertThat(sent).hasSize(1);
+        assertThat(new String((byte[]) sent.getFirst().getPayload())).isEqualTo("{\"type\":\"NO_BLOCKS\"}");
+    }
+
+    @Test
+    void sendsNoBlocksOnlyForTheFirstUpdate() {
+        // prepare
+        Block block = getTestBlock(2, 3);
+        nextState(algorithmGol, block);
+        Packer.packAll(block);
+        blocks.put(block.getKey(), block);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}));
+        sent.clear();
+
+        // execute: panning to where there are no blocks
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[]{block.getKey()}, new String[]{"7/7"}));
+
+        // verify
+        assertThat(sent).isEmpty();
+    }
+
+    @Test
+    void forgetsAClientWhenItsSessionCloses() {
+        // prepare
+        Block block = getTestBlock(2, 3);
+        nextState(algorithmGol, block);
+        Packer.packAll(block);
+        blocks.put(block.getKey(), block);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}));
+        sent.clear();
+
+        // execute
+        clientService.onDisconnect(new SessionDisconnectEvent(this, stompMessage("s1"), "s1", CloseStatus.NORMAL));
+        clientService.execute();
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}));
+
+        // verify
+        assertThat(sent).isEmpty();
+    }
+
+    private static Message<byte[]> stompMessage(String sessionId) {
+        SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.create(SimpMessageType.CONNECT);
+        accessor.setSessionId(sessionId);
+        return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
 
     // packed like Stitching does for NEW blocks
