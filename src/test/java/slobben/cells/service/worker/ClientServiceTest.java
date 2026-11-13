@@ -24,7 +24,7 @@ import slobben.cells.util.PackedRows;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static slobben.cells.service.worker.AlgorithmGolTests.nextState;
+import static slobben.cells.service.worker.AlgorithmGolTest.nextState;
 
 class ClientServiceTest {
 
@@ -44,6 +44,7 @@ class ClientServiceTest {
 
     @Test
     void sendsBlocksAsABinaryFrame() {
+        // prepare
         Block active = block(0, 0);
         nextState(algorithmGol, active);
         Packer.packAll(active);
@@ -54,8 +55,11 @@ class ClientServiceTest {
         blocks.put(block(5, 5).getKey(), block(5, 5)); // not packed yet: no encoding
 
         Client client = new Client();
+
+        // execute
         clientService.sendClientUpdate(client, Set.of(active.getKey(), fresh.getKey(), "5_5", "9_9"), true);
 
+        // verify
         assertThat(sent).hasSize(1);
         Message<?> message = sent.getFirst();
         assertThat(message.getHeaders().get("simpDestination")).isEqualTo("/topic/" + client.getClientId());
@@ -69,18 +73,22 @@ class ClientServiceTest {
 
     @Test
     void sendsFullBlocksWhenAsked() {
+        // prepare
         Block active = block(2, 3);
         nextState(algorithmGol, active);
         Packer.packAll(active);
         blocks.put(active.getKey(), active);
 
+        // execute
         clientService.sendClientUpdate(new Client(), Set.of(active.getKey()), false);
 
+        // verify
         assertThat(BlockFrameReader.read((byte[]) sent.getFirst().getPayload())).containsExactly(active.getEncodedBlock());
     }
 
     @Test
     void sendsEachFullBlockInItsOwnMessage() {
+        // prepare
         Block first = block(2, 3);
         Block second = block(3, 3);
         for (Block block : List.of(first, second)) {
@@ -89,8 +97,10 @@ class ClientServiceTest {
             blocks.put(block.getKey(), block);
         }
 
+        // execute
         clientService.sendClientUpdate(new Client(), Set.of(first.getKey(), second.getKey()), false);
 
+        // verify
         assertThat(sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())))
                 .containsExactlyInAnyOrder(List.of(first.getEncodedBlock()), List.of(second.getEncodedBlock()));
     }

@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(properties = {"cells.size.blockSize=70", "cells.size.sectorSize=10"})
 @ComponentScan("slobben.cells.service")
 @ActiveProfiles(profiles = "unit")
-class AlgorithmGolTests {
+class AlgorithmGolTest {
 
     @Autowired
     private AlgorithmGol algorithmGol;

@@ -20,7 +20,7 @@ class PackerLoadTest {
     void profilePacker(int blockSize) {
         Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
         setBlockToRandom(block, 6, blockSize);
-        AlgorithmGolTests.nextState(AlgorithmGolLoadTest.algorithmGol(blockSize, 50), block);
+        AlgorithmGolTest.nextState(AlgorithmGolLoadTest.algorithmGol(blockSize, 50), block);
 
         for (int i = 0; i < CELL_PACKS / ((long) blockSize * blockSize); i++) {
             Packer.packAll(block);

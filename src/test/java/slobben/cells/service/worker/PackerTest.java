@@ -18,13 +18,13 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static slobben.cells.service.worker.AlgorithmGolTests.draw;
-import static slobben.cells.service.worker.AlgorithmGolTests.nextState;
+import static slobben.cells.service.worker.AlgorithmGolTest.draw;
+import static slobben.cells.service.worker.AlgorithmGolTest.nextState;
 
 @SpringBootTest(properties = {"cells.size.blockSize=70", "cells.size.sectorSize=10"})
 @ComponentScan("slobben.cells.service")
 @ActiveProfiles(profiles = "unit")
-class PackerTests {
+class PackerTest {
 
     @Autowired
     private AlgorithmGol algorithmGol;
