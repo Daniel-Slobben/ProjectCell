@@ -3,35 +3,36 @@ package slobben.cells.service.workers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.context.event.EventListener;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.socket.messaging.SessionConnectEvent;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.outgoing.BlockFrame;
 import slobben.cells.dto.outgoing.EncodedBlock;
-import slobben.cells.dto.outgoing.HealthCheckResponse;
+import slobben.cells.dto.outgoing.StatusResponse;
 import slobben.cells.entities.Block;
 import slobben.cells.entities.Client;
-import slobben.cells.exceptions.NotAClientException;
 import slobben.cells.service.ExecutorService;
 
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-import static slobben.cells.dto.outgoing.HealthCheckResponse.HEALTH_CHECK_TYPE.HEALTH_ACK;
-import static slobben.cells.dto.outgoing.HealthCheckResponse.HEALTH_CHECK_TYPE.SESSION_DEAD;
+import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ClientService extends Worker {
-    private static final int HEALTH_CHECK_LIMIT_MS = 20_000;
-    private static final String TOPIC = "/topic/%s";
+    private static final String DESTINATION = "/queue/blocks-user%s";
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
-    private final List<Client> clients = new CopyOnWriteArrayList<>();
+    private final Map<String, Client> clients = new ConcurrentHashMap<>();
 
     @Override
     public String getName() {
@@ -39,34 +40,40 @@ public class ClientService extends Worker {
     }
 
     public void execute() {
-        Set<Runnable> tasks = clients.stream().map(client -> (Runnable) () -> sendClientUpdate(client, client.getActiveBlocks(), !client.isInError())).collect(Collectors.toSet());
+        Set<Runnable> tasks = clients.values().stream().map(client -> (Runnable) () -> sendClientUpdate(client, client.getActiveBlocks(), !client.isInError())).collect(Collectors.toSet());
 
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    public void sendClientUpdate(Client client, Set<String> blockKeys, boolean sendBorderBlocks) {
-        // Client health check
-        if (sendBorderBlocks && client.getHealthCheck() + HEALTH_CHECK_LIMIT_MS < System.currentTimeMillis()) {
-            disconnectClient(client);
-            return;
-        }
+    @EventListener
+    public void onConnect(SessionConnectEvent event) {
+        String sessionId = SimpMessageHeaderAccessor.getSessionId(event.getMessage().getHeaders());
+        clients.put(sessionId, new Client(sessionId));
+    }
 
+    // Also comes when the broker closes a session that stopped sending heartbeats.
+    @EventListener
+    public void onDisconnect(SessionDisconnectEvent event) {
+        clients.remove(event.getSessionId());
+    }
+
+    public void sendClientUpdate(Client client, Set<String> blockKeys, boolean sendBorderBlocks) {
         List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks).stream().filter(Objects::nonNull).toList();
         if (sendBorderBlocks) {
-            send(client, copyOfBlocks);
+            send(client, BlockFrame.write(copyOfBlocks));
         } else {
             // Full blocks are ~75 KB each, one message per block: on a slow connection the client sees them come in,
             // instead of nothing until a message of megabytes has arrived and its watchdog gives up.
             try (var virtualExector = Executors.newVirtualThreadPerTaskExecutor()) {
                 for (EncodedBlock block : copyOfBlocks) {
-                    virtualExector.execute(() -> send(client, List.of(block)));
+                    virtualExector.execute(() -> send(client, BlockFrame.write(List.of(block))));
                 }
             }
         }
     }
 
-    private void send(Client client, List<EncodedBlock> encodedBlocks) {
-        simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), BlockFrame.write(encodedBlocks));
+    private void send(Client client, Object payload) {
+        simpMessagingTemplate.convertAndSend(DESTINATION.formatted(client.getSessionId()), payload);
     }
 
     private @NonNull List<EncodedBlock> getEncodedBlocks(Set<String> blockKeys, boolean sendBorderBlocks) {
@@ -79,52 +86,23 @@ public class ClientService extends Worker {
         }).toList();
     }
 
-    public void disconnectClient(Client client) {
-        log.info("Disconnecting client: {}", client.getClientId());
-        this.clients.remove(client);
-        simpMessagingTemplate.convertAndSend(TOPIC.formatted(client.getClientId()), new HealthCheckResponse(SESSION_DEAD));
-    }
-
-    public boolean hasVisibleBlocks(String[] visibleBlocks) {
-        for (String key : visibleBlocks) {
-            if (blocks.containsKey(key)) {
-                return true;
-            }
+    public void updateClientBlocks(String sessionId, ClientUpdateRequest clientUpdateRequest) {
+        Client client = clients.get(sessionId);
+        if (client == null) {
+            log.debug("Update for a closed session {}", sessionId);
+            return;
         }
-        return false;
-    }
-
-    public UUID createNewClient() {
-        Client client = new Client();
-        clients.add(client);
-        return client.getClientId();
-    }
-
-    public void healthCheck(UUID clientId) {
-        log.debug("Received healthcheck for client {}", clientId);
-
-        findClient(clientId).resetHealthCheck();
-        simpMessagingTemplate.convertAndSend(TOPIC.formatted(clientId), new HealthCheckResponse(HEALTH_ACK));
-    }
-
-    public void updateClientBlocks(ClientUpdateRequest clientUpdateRequest) {
-        Client client = findClient(clientUpdateRequest.client());
         Set<String> clientBlocks = client.getActiveBlocks();
+        boolean firstUpdate = clientBlocks.isEmpty();
 
         Arrays.asList(clientUpdateRequest.blocksToRemove()).forEach(clientBlocks::remove);
         clientBlocks.addAll(Arrays.asList(clientUpdateRequest.blocksToAdd()));
 
-        sendClientUpdate(client, Set.of(clientUpdateRequest.blocksToAdd()), false);
-    }
-
-    private Client findClient(UUID clientId) {
-        Optional<Client> optionalClient = clients.stream().filter(client -> client.getClientId().equals(clientId)).findFirst();
-
-        if (optionalClient.isEmpty()) {
-            simpMessagingTemplate.convertAndSend(TOPIC.formatted(clientId), new HealthCheckResponse(SESSION_DEAD));
-            throw new NotAClientException("Client not found. Send SESSION_DEAD response. ID:" + clientId.toString());
+        // A client that comes back to a part of the world that was pruned in the meantime finds nothing there.
+        if (firstUpdate && Arrays.stream(clientUpdateRequest.blocksToAdd()).noneMatch(blocks::containsKey)) {
+            send(client, new StatusResponse(NO_BLOCKS));
+            return;
         }
-
-        return optionalClient.get();
+        sendClientUpdate(client, Set.of(clientUpdateRequest.blocksToAdd()), false);
     }
 }

@@ -1,7 +1,10 @@
 package slobben.cells.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -11,9 +14,18 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    // Spring's own scheduler for the broker; lazy, because this configuration helps create it.
+    @Autowired
+    @Lazy
+    private TaskScheduler messageBrokerTaskScheduler;
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic");
+        // Every tick already sends each client a message, so the server's heartbeat only tells clients to expect
+        // one every 2 s. Clients send theirs every 5 s; a session silent for 3 of those is closed.
+        registry.enableSimpleBroker("/queue")
+                .setHeartbeatValue(new long[]{2000, 5000})
+                .setTaskScheduler(messageBrokerTaskScheduler);
         registry.setPreservePublishOrder(true);
     }
 
