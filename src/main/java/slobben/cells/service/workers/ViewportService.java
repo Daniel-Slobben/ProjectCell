@@ -10,6 +10,7 @@ import slobben.cells.enums.ChaosType;
 import slobben.cells.util.BlockUtils;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
@@ -105,17 +106,26 @@ public class ViewportService extends Worker {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        List<CoordinateEntry> farFromRecent = viewportListSnapshot.stream()
-                .filter(entry -> !recentHits.contains(entry.chaosHit()))
-                .filter(entry -> recentViewports.stream().noneMatch(recent -> isNear(entry.coordinates(), recent)))
-                .filter(entry -> !recentTypes.contains(typeSnapshot.get(entry.chaosHit())))
-                .toList();
+        // most important first; the last one is dropped until something matches
+        List<Predicate<CoordinateEntry>> preferences = List.of(
+                entry -> !recentHits.contains(entry.chaosHit()),
+                entry -> !recentTypes.contains(typeSnapshot.get(entry.chaosHit())),
+                entry -> recentViewports.stream().noneMatch(recent -> isNear(entry.coordinates(), recent)));
 
-        if (farFromRecent.isEmpty()) {
-            farFromRecent = interestingCoordinates;
+        for (int kept = preferences.size(); kept > 0; kept--) {
+            List<Predicate<CoordinateEntry>> active = preferences.subList(0, kept);
+            List<CoordinateEntry> candidates = viewportListSnapshot.stream()
+                    .filter(entry -> active.stream().allMatch(preference -> preference.test(entry)))
+                    .toList();
+            if (!candidates.isEmpty()) {
+                return pickRandom(candidates);
+            }
         }
-        return farFromRecent.get(RANDOM.nextInt(0, farFromRecent.size()))
-                .coordinates();
+        return pickRandom(viewportListSnapshot);
+    }
+
+    private Coordinates pickRandom(List<CoordinateEntry> entries) {
+        return entries.get(RANDOM.nextInt(0, entries.size())).coordinates();
     }
 
     // in the order of the recent viewports, so the last ones are the latest
