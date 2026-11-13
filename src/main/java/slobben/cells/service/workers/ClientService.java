@@ -28,9 +28,6 @@ import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 @RequiredArgsConstructor
 @Slf4j
 public class ClientService extends Worker {
-    // Clients subscribe to /user/queue/blocks, which Spring turns into this destination for their session. Sending
-    // here directly skips that lookup, and leaves out the session header: the broker takes a message with that
-    // header as a sign of life from the client, and would never close a silent session.
     private static final String DESTINATION = "/queue/blocks-user%s";
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;

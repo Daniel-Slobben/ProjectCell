@@ -14,12 +14,10 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private TaskScheduler messageBrokerTaskScheduler;
-
+    // Spring's own scheduler for the broker; lazy, because this configuration helps create it.
     @Autowired
-    public void setMessageBrokerTaskScheduler(@Lazy TaskScheduler messageBrokerTaskScheduler) {
-        this.messageBrokerTaskScheduler = messageBrokerTaskScheduler;
-    }
+    @Lazy
+    private TaskScheduler messageBrokerTaskScheduler;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
