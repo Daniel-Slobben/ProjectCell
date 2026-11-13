@@ -22,13 +22,14 @@ import slobben.cells.util.BlockUtils;
 import slobben.cells.util.PackedRows;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static slobben.cells.service.worker.AlgorithmGolTest.nextState;
 
 class ClientServiceTest {
 
-    private final List<Message<?>> sent = new ArrayList<>();
+    private final List<Message<?>> sent = new CopyOnWriteArrayList<>(); // full blocks are sent from parallel threads
     private final Map<String, Block> blocks = new HashMap<>();
     private final ClientService clientService;
     private final AlgorithmGol algorithmGol = AlgorithmGolLoadTest.createAlgorithmGol(20, 5);
