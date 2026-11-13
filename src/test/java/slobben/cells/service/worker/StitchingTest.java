@@ -40,30 +40,28 @@ class StitchingTest {
 
     @ParameterizedTest
     @EnumSource(value = Direction.class)
-    void testStitching(Direction direction) {
+    void bordersReachTheNeighbours(Direction direction) {
         // prepare
         Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
-
         blocks.put(block.getKey(), block);
-        assert blocks.size() == 1;
+        newBlocks.clear();
 
         var cells = block.getCells();
         cells[1][1] = true;
         cells[1][10] = true;
         cells[10][1] = true;
         cells[10][10] = true;
-
         cells[1][2] = true;
-        newBlocks.clear();
 
+        // execute
         stitching.execute();
-        assertThat(newBlocks).hasSize(8);
         addNewBlocks.execute();
-        assertThat(blocks).hasSize(9);
 
+        // verify
+        assertThat(blocks).hasSize(9);
         Block blockToCheck = blocks.get(BlockUtils.getKey(direction.getDx(), direction.getDy()));
 
-        switch(direction) {
+        switch (direction) {
             case Direction.LOW_X_LOW_Y -> assertThat(isAlive(blockToCheck, 11, 11)).isTrue();
             case Direction.LOW_X_MID_Y -> {
                 assertThat(isAlive(blockToCheck, 11, 10)).isTrue();

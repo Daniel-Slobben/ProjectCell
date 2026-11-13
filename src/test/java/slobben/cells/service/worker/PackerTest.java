@@ -18,13 +18,13 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static slobben.cells.service.worker.AlgorithmGolTests.draw;
-import static slobben.cells.service.worker.AlgorithmGolTests.nextState;
+import static slobben.cells.service.worker.AlgorithmGolTest.drawPattern;
+import static slobben.cells.service.worker.AlgorithmGolTest.nextState;
 
 @SpringBootTest(properties = {"cells.size.blockSize=70", "cells.size.sectorSize=10"})
 @ComponentScan("slobben.cells.service")
 @ActiveProfiles(profiles = "unit")
-class PackerTests {
+class PackerTest {
 
     @Autowired
     private AlgorithmGol algorithmGol;
@@ -48,7 +48,7 @@ class PackerTests {
 
         byte[] bits = decompress(full);
         assertThat(bits).hasSize(613); // 70 * 70 bits
-        assertThat(aliveBits(bits)).containsExactly(
+        assertThat(getAliveBitIndexes(bits)).containsExactly(
                 0, 1, // [1][1], [1][2]
                 62, 63,       // [1][63], [1][64]
                 70, 71,       // [2][1], [2][2]
@@ -71,7 +71,7 @@ class PackerTests {
         assertThat(borders.type()).isEqualTo(EncodedBlockType.BORDER);
         byte[] bits = decompress(borders);
         assertThat(bits).hasSize(35); // 70 * 4 - 4 bits
-        assertThat(aliveBits(bits)).containsExactly(
+        assertThat(getAliveBitIndexes(bits)).containsExactly(
                 68, 69,        // [69][70], [70][70] in line [1..70][70]
                 70, 71,        // [1][1], [2][1] in line [1..70][1], from bit 70
                 140, 201, 202, // [1][2], [1][63], [1][64] in line [1][2..69], from bit 140
@@ -95,7 +95,7 @@ class PackerTests {
     void encodingsStayAtThePackedTick() {
         // prepare
         Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
-        draw(block, 10, 20, "###");
+        drawPattern(block, 10, 20, "###");
         nextState(algorithmGol, block);
 
         // execute
@@ -105,18 +105,18 @@ class PackerTests {
         // verify
         EncodedBlock full = block.getEncodedBlock();
         assertThat(full.generation()).isEqualTo(1);
-        assertThat(aliveBits(decompress(full))).containsExactly(580, 650, 720); // the vertical blinker [9..11][21]
+        assertThat(getAliveBitIndexes(decompress(full))).containsExactly(580, 650, 720); // the vertical blinker [9..11][21]
     }
 
     private Block getActiveBlock() {
         Block block = new Block(3, -2, UUID.randomUUID(), blockSize);
-        draw(block, 1, 1, "##\n##");
-        draw(block, 1, 63, "##\n##");
-        draw(block, 69, 69, "##\n##");
-        draw(block, 0, 30, "#");
-        draw(block, 71, 30, "#");
-        draw(block, 69, 0, "#");
-        draw(block, 1, 71, "#");
+        drawPattern(block, 1, 1, "##\n##");
+        drawPattern(block, 1, 63, "##\n##");
+        drawPattern(block, 69, 69, "##\n##");
+        drawPattern(block, 0, 30, "#");
+        drawPattern(block, 71, 30, "#");
+        drawPattern(block, 69, 0, "#");
+        drawPattern(block, 1, 71, "#");
         nextState(algorithmGol, block);
         return block;
     }
@@ -125,7 +125,7 @@ class PackerTests {
         return LZ4Factory.fastestInstance().safeDecompressor().decompress(encoded.encodedCells(), 1 << 20);
     }
 
-    private static List<Integer> aliveBits(byte[] bits) {
+    private static List<Integer> getAliveBitIndexes(byte[] bits) {
         List<Integer> alive = new ArrayList<>();
         for (int i = 0; i < bits.length * 8; i++) {
             if ((bits[i / 8] >> (i % 8) & 1) == 1) alive.add(i);

@@ -24,14 +24,14 @@ import slobben.cells.util.PackedRows;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static slobben.cells.service.worker.AlgorithmGolTests.nextState;
+import static slobben.cells.service.worker.AlgorithmGolTest.nextState;
 
 class ClientServiceTest {
 
     private final List<Message<?>> sent = new ArrayList<>();
     private final Map<String, Block> blocks = new HashMap<>();
     private final ClientService clientService;
-    private final AlgorithmGol algorithmGol = AlgorithmGolLoadTest.algorithmGol(20, 5);
+    private final AlgorithmGol algorithmGol = AlgorithmGolLoadTest.createAlgorithmGol(20, 5);
 
     ClientServiceTest() {
         MessageChannel channel = (message, timeout) -> sent.add(message);
@@ -44,18 +44,22 @@ class ClientServiceTest {
 
     @Test
     void sendsBlocksAsABinaryFrame() {
-        Block active = block(0, 0);
+        // prepare
+        Block active = getTestBlock(0, 0);
         nextState(algorithmGol, active);
         Packer.packAll(active);
-        Block fresh = block(-1, 0);
+        Block fresh = getTestBlock(-1, 0);
         Packer.packAll(fresh);
         blocks.put(active.getKey(), active);
         blocks.put(fresh.getKey(), fresh);
-        blocks.put(block(5, 5).getKey(), block(5, 5)); // not packed yet: no encoding
+        blocks.put(getTestBlock(5, 5).getKey(), getTestBlock(5, 5)); // not packed yet: no encoding
 
         Client client = new Client();
+
+        // execute
         clientService.sendClientUpdate(client, Set.of(active.getKey(), fresh.getKey(), "5_5", "9_9"), true);
 
+        // verify
         assertThat(sent).hasSize(1);
         Message<?> message = sent.getFirst();
         assertThat(message.getHeaders().get("simpDestination")).isEqualTo("/topic/" + client.getClientId());
@@ -69,34 +73,40 @@ class ClientServiceTest {
 
     @Test
     void sendsFullBlocksWhenAsked() {
-        Block active = block(2, 3);
+        // prepare
+        Block active = getTestBlock(2, 3);
         nextState(algorithmGol, active);
         Packer.packAll(active);
         blocks.put(active.getKey(), active);
 
+        // execute
         clientService.sendClientUpdate(new Client(), Set.of(active.getKey()), false);
 
+        // verify
         assertThat(BlockFrameReader.read((byte[]) sent.getFirst().getPayload())).containsExactly(active.getEncodedBlock());
     }
 
     @Test
     void sendsEachFullBlockInItsOwnMessage() {
-        Block first = block(2, 3);
-        Block second = block(3, 3);
+        // prepare
+        Block first = getTestBlock(2, 3);
+        Block second = getTestBlock(3, 3);
         for (Block block : List.of(first, second)) {
             nextState(algorithmGol, block);
             Packer.packAll(block);
             blocks.put(block.getKey(), block);
         }
 
+        // execute
         clientService.sendClientUpdate(new Client(), Set.of(first.getKey(), second.getKey()), false);
 
+        // verify
         assertThat(sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())))
                 .containsExactlyInAnyOrder(List.of(first.getEncodedBlock()), List.of(second.getEncodedBlock()));
     }
 
     // packed like Stitching does for NEW blocks
-    private static Block block(int x, int y) {
+    private static Block getTestBlock(int x, int y) {
         Block block = BlockUtils.setBlockToRandom(new Block(x, y, UUID.randomUUID(), 20), 3, 20);
         block.setPackedCells(PackedRows.pack(block.getCells()));
         return block;

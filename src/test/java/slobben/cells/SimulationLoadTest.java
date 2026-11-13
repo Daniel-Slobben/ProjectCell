@@ -66,12 +66,12 @@ class SimulationLoadTest {
         }
         long millis = (System.nanoTime() - start) / 1_000_000;
 
-        System.out.printf("RESULT %d generations in %dms (%.1fms/gen), %s%n", GENERATIONS, millis, (double) millis / GENERATIONS, fingerprint());
+        System.out.printf("RESULT %d generations in %dms (%.1fms/gen), %s%n", GENERATIONS, millis, (double) millis / GENERATIONS, getFingerprint());
         serverInfoService.getAverageWorkTimes().forEach((worker, ms) -> System.out.printf("WORKER %-30s %.3fms%n", worker, ms));
     }
 
     // the inner cells only, so versions that handle the borders differently still compare
-    private String fingerprint() {
+    private String getFingerprint() {
         long liveCells = 0;
         long hash = 1;
         for (Block block : new TreeMap<>(blocks).values()) {
