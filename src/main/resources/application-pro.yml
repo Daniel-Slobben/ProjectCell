@@ -1,8 +1,0 @@
-cells:
-  targetspeed: '250'
-
-  chaos:
-    type: ANY
-    max-blocks: 500
-    # leaves the other half of each tick for clients fetching blocks
-    max-cycle-share: 0.5

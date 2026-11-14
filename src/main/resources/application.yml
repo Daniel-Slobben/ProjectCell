@@ -1,3 +1,4 @@
+# production, the jar runs with these under any profile. mvn spring-boot:run adds application-local.yml (see pom.xml)
 logging.level.slobben: INFO
 spring:
   application:
@@ -5,12 +6,15 @@ spring:
   threads:
     virtual:
       enabled: true
-  # the jar runs as pro unless told otherwise, mvn spring-boot:run activates local (see pom.xml)
-  profiles:
-    default: pro
 
 cells:
   pruning-per-generation: '100'
+
+  chaos:
+    type: ANY
+    max-blocks: 500
+    # leaves the other half of each tick for clients fetching blocks
+    max-cycle-share: 0.5
 
   size:
     x: '0'
@@ -19,6 +23,7 @@ cells:
     sectorSize: '50'
 
   runmode: AUTO
+  targetspeed: '250'
 
   recording:
     max-recording-depth: 4
