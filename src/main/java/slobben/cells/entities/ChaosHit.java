@@ -10,6 +10,9 @@ import java.util.UUID;
 
 @Getter
 public class ChaosHit {
+    // a hit with this max age lasts until the world resets
+    public static final int NO_AGE = Integer.MAX_VALUE;
+
     private final UUID id;
     private final String name;
     @Setter
@@ -30,6 +33,10 @@ public class ChaosHit {
 
     public boolean isActive() {
         return age <= maxAge;
+    }
+
+    public boolean ages() {
+        return maxAge != NO_AGE;
     }
 
     public boolean incrementAge() {

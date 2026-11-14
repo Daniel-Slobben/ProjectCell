@@ -31,6 +31,6 @@ public class GrowthMaker implements Maker {
             log.error("Error reading .rle. continue.", e);
         }
 
-        return new ChaosHit("Growth pattern " + pattern, chaosHitId, new Coordinates(worldX, worldY), size / 2 + 1000, size);
+        return new ChaosHit("Growth pattern " + pattern, chaosHitId, new Coordinates(worldX, worldY), ChaosHit.NO_AGE, size);
     }
 }

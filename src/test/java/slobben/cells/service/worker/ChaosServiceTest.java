@@ -81,6 +81,40 @@ class ChaosServiceTest {
     }
 
     @Test
+    void resetsTheWorldWhenTheLastHitThatAgesIsGone() {
+        // prepare
+        hitAge = ChaosHit.NO_AGE;
+        tick(1);
+        hitAge = 50;
+        tick(100);
+        addBlocks(2);
+        tick(50);
+        int blocksAtMaxAge = blocks.size();
+
+        // execute
+        tick(1);
+
+        // verify
+        assertThat(blocksAtMaxAge).isEqualTo(2);
+        assertThat(blocks).isEmpty();
+    }
+
+    @Test
+    void hitsWithoutAnAgeKeepTheWorld() {
+        // prepare
+        hitAge = ChaosHit.NO_AGE;
+        tick(1);
+        addBlocks(2);
+
+        // execute
+        tick(1000);
+
+        // verify
+        assertThat(blocks).hasSize(2);
+        assertThat(chaosHits).extracting(ChaosHit::getAge).contains(1000);
+    }
+
+    @Test
     void resetsTheWorldAfterTwentySlowCyclesInARow() {
         // prepare
         ReflectionTestUtils.setField(chaosService, "maxCycleShare", 0.5);
