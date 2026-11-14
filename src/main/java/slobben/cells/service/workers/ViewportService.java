@@ -66,28 +66,40 @@ public class ViewportService extends Worker {
     // a block only offers its best sector, so one busy block can't fill the whole list
     private CoordinateEntry bestSector(Block block) {
         short[][] sectorCount = block.getSectorCounts();
-        CoordinateEntry best = null;
+        int below = Integer.MAX_VALUE;
 
-        for (int sx = 0; sx < sectorCount.length; sx++) {
-            for (int sy = 0; sy < sectorCount.length; sy++) {
-                short count = sectorCount[sx][sy];
+        // the zebra stripes an intact spacefiller leaves behind are the densest sectors there are, so a block full of
+        // them looks past a few and then offers nothing
+        for (int tries = 0; tries < 3; tries++) {
+            int bestCount = 0;
+            int bestX = 0;
+            int bestY = 0;
+            for (int sx = 0; sx < sectorCount.length; sx++) {
+                for (int sy = 0; sy < sectorCount.length; sy++) {
+                    short count = sectorCount[sx][sy];
 
-                if ((best == null || count > best.count())
-                        // filters for a minimum threshold
-                        && count > sectorSize + sectorSize
-                        // filters sectors with just pure lines
-                        && count % sectorSize != 0
-                        // filters the zebra stripes an intact spacefiller leaves behind
-                        && 2 * stripeCells(block.getPackedCells(), sx, sy) < count) {
-
-                    int worldX = block.getX() * blockSize + sx * sectorSize;
-                    int worldY = block.getY() * blockSize + sy * sectorSize;
-
-                    best = new CoordinateEntry(count, new Coordinates(worldX, worldY), block.getResponsibleChaosHit());
+                    if (count > bestCount && count < below
+                            // filters for a minimum threshold
+                            && count > sectorSize + sectorSize
+                            // filters sectors with just pure lines
+                            && count % sectorSize != 0) {
+                        bestCount = count;
+                        bestX = sx;
+                        bestY = sy;
+                    }
                 }
             }
+            if (bestCount == 0) {
+                return null;
+            }
+            if (2 * stripeCells(block.getPackedCells(), bestX, bestY) < bestCount) {
+                int worldX = block.getX() * blockSize + bestX * sectorSize;
+                int worldY = block.getY() * blockSize + bestY * sectorSize;
+                return new CoordinateEntry((short) bestCount, new Coordinates(worldX, worldY), block.getResponsibleChaosHit());
+            }
+            below = bestCount;
         }
-        return best;
+        return null;
     }
 
     // cells with both neighbours along their row or column and none beside it
