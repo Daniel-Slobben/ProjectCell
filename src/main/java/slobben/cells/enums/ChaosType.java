@@ -11,7 +11,6 @@ public enum ChaosType {
     GROWTH_PATTERN(GrowthMaker.class, 2),
     SPACESHIP(SpaceshipMaker.class, 8),
     DIAGONAL_LINES(DiagonalMaker.class, 3),
-    // local testing only
     NOISE(NoiseMaker.class, 0);
 
     private static final Random random = new Random();

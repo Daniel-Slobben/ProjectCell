@@ -18,8 +18,6 @@ import java.util.concurrent.ThreadLocalRandom;
 @Component
 @RequiredArgsConstructor
 public class NoiseMaker implements Maker {
-    private static final int BLOCKS = 24;
-
     private final Map<String, Block> newBlocks;
     @Value("${cells.size.blockSize}")
     private int blockSize;
@@ -27,17 +25,18 @@ public class NoiseMaker implements Maker {
     @Override
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {
         UUID chaosHitId = UUID.randomUUID();
-        int startX = Math.floorDiv(worldX, blockSize) - BLOCKS / 2;
-        int startY = Math.floorDiv(worldY, blockSize) - BLOCKS / 2;
-        for (int x = startX; x < startX + BLOCKS; x++) {
-            for (int y = startY; y < startY + BLOCKS; y++) {
+        int blocks = Math.max(1, size / blockSize);
+        int startX = Math.floorDiv(worldX - size / 2, blockSize);
+        int startY = Math.floorDiv(worldY - size / 2, blockSize);
+        for (int x = startX; x < startX + blocks; x++) {
+            for (int y = startY; y < startY + blocks; y++) {
                 Block block = new Block(x, y, chaosHitId, blockSize);
                 fill(block.getCells());
                 newBlocks.put(block.getKey(), block);
             }
         }
-        return new ChaosHit("Noise of " + BLOCKS + " x " + BLOCKS + " blocks", chaosHitId, new Coordinates(worldX, worldY),
-                100_000, BLOCKS * blockSize);
+        return new ChaosHit("Noise of " + blocks + " x " + blocks + " blocks", chaosHitId, new Coordinates(worldX, worldY),
+                100_000, size);
     }
 
     // a third of the cells alive
