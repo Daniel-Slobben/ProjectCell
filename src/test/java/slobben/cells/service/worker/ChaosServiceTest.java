@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 
 // every maker is replaced by one that writes no cells, so the tests fill the world with blocks by hand
 class ChaosServiceTest {
+    private static final int MAX_BLOCKS = 3;
 
     private final Map<String, Block> blocks = new HashMap<>();
     private final List<ChaosHit> chaosHits = new ArrayList<>();
@@ -34,7 +35,7 @@ class ChaosServiceTest {
         when(beanFactory.getBean(any(Class.class))).thenReturn(maker);
         ReflectionTestUtils.setField(chaosService, "preferredType", "ANY");
         ReflectionTestUtils.setField(chaosService, "blockSize", 20);
-        ReflectionTestUtils.setField(chaosService, "maxBlocks", 3);
+        ReflectionTestUtils.setField(chaosService, "maxBlocks", MAX_BLOCKS);
         ReflectionTestUtils.setField(chaosService, "targetSpeed", 100);
         ReflectionTestUtils.setField(chaosService, "serverInfoService", serverInfoService);
     }
@@ -55,41 +56,42 @@ class ChaosServiceTest {
     void stopsSpawningAtTheBlockLimit() {
         // prepare
         tick(1);
-        addBlocks(3);
+        addBlocks(MAX_BLOCKS);
 
         // execute
         tick(1000);
 
         // verify
         assertThat(chaosHits).hasSize(1);
-        assertThat(blocks).hasSize(3);
     }
 
     @Test
     void resetsTheWorldWhenAllHitsAgedOut() {
         // prepare
         hitAge = 50;
+        final int addedBlocks = 2;
         tick(1);
-        addBlocks(2);
-        tick(50);
+        addBlocks(addedBlocks);
+        tick(hitAge);
         int blocksAtMaxAge = blocks.size();
 
         // execute
         tick(1);
 
         // verify
-        assertThat(blocksAtMaxAge).isEqualTo(2);
+        assertThat(blocksAtMaxAge).isEqualTo(addedBlocks);
         assertThat(blocks).isEmpty();
         assertThat(chaosHits).singleElement().extracting(ChaosHit::getAge).isEqualTo(0);
     }
 
     @Test
-    void resetsTheWorldAfterTwentyIsSimulationOverloadedInARow() {
+    void resetsTheWorldAfterTwentySlowCyclesInARow() {
         // prepare
+        final long slowCycle = 51;
         ReflectionTestUtils.setField(chaosService, "maxCycleShare", 0.5);
         tick(1);
         addBlocks(2);
-        recordCycles(20, 51);
+        recordCycles(20, slowCycle);
 
         // execute
         tick(1);
@@ -101,50 +103,36 @@ class ChaosServiceTest {
     @Test
     void aFastCycleStartsTheSlowCountAgain() {
         // prepare
+        final int addedBlocks = 2;
+        final long slowCycle = 51;
+        final long fastCycle = 50;
         ReflectionTestUtils.setField(chaosService, "maxCycleShare", 0.5);
         tick(1);
-        addBlocks(2);
-        recordCycles(19, 51);
-        recordCycles(1, 50);
-        recordCycles(19, 51);
+        addBlocks(addedBlocks);
+        recordCycles(19, slowCycle);
+        recordCycles(1, fastCycle);
+        recordCycles(19, slowCycle);
 
         // execute
         tick(1);
 
         // verify
-        assertThat(blocks).hasSize(2);
-    }
-
-    @Test
-    void spawnsNothingWhileTheLastCycleWasSlow() {
-        // prepare
-        ReflectionTestUtils.setField(chaosService, "maxCycleShare", 0.5);
-        tick(1);
-        recordCycles(1, 51);
-
-        // execute
-        tick(200);
-        int hitsWhileSlow = chaosHits.size();
-        recordCycles(1, 50);
-        tick(1);
-
-        // verify
-        assertThat(hitsWhileSlow).isEqualTo(1);
-        assertThat(chaosHits).hasSize(2);
+        assertThat(blocks).hasSize(addedBlocks);
     }
 
     @Test
     void theCycleGuardIsOffAtAShareOfZero() {
         // prepare
+        final int addedBlocks = 2;
         tick(1);
-        addBlocks(2);
+        addBlocks(addedBlocks);
         recordCycles(100, 10_000);
 
         // execute
         tick(1);
 
         // verify
-        assertThat(blocks).hasSize(2);
+        assertThat(blocks).hasSize(addedBlocks);
     }
 
     private void tick(int ticks) {

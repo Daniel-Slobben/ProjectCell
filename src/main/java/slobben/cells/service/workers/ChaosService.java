@@ -64,21 +64,21 @@ public class ChaosService extends Worker {
         if (chaosHits.isEmpty()) {
             log.info("All chaos hits aged out, resetting the world");
             reset();
-        } else if (isSimulationOverloaded(OVERLOADED_CYCLES_BEFORE_RESET)) {
+        } else if (isSimulationOverloaded()) {
             log.warn("{} cycles in a row took over {} of the target speed, resetting the world", OVERLOADED_CYCLES_BEFORE_RESET, maxCycleShare);
             reset();
         }
 
-        if (tickCounter >= TICKS_BETWEEN_NEW_HITS && blocks.size() < maxBlocks && !isSimulationOverloaded(1)) {
+        if (tickCounter >= TICKS_BETWEEN_NEW_HITS && blocks.size() < maxBlocks) {
             tickCounter = 0;
             createChaosHit();
         }
     }
 
     // the last cycles all took over the share of targetspeed
-    private boolean isSimulationOverloaded(int amount) {
-        List<Long> deltas = serverInfoService.getLastTimeDeltas(amount);
-        return maxCycleShare > 0 && deltas.size() == amount
+    private boolean isSimulationOverloaded() {
+        List<Long> deltas = serverInfoService.getLastTimeDeltas(OVERLOADED_CYCLES_BEFORE_RESET);
+        return maxCycleShare > 0 && deltas.size() == OVERLOADED_CYCLES_BEFORE_RESET
                 && deltas.stream().allMatch(delta -> delta + targetSpeed > maxCycleShare * targetSpeed);
     }
 
