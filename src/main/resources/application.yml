@@ -1,4 +1,3 @@
-# production, the jar runs with these under any profile. mvn spring-boot:run adds application-local.yml (see pom.xml)
 logging.level.slobben: INFO
 spring:
   application:
@@ -12,9 +11,7 @@ cells:
 
   chaos:
     type: ANY
-    max-blocks: 500
-    # leaves the other half of each tick for clients fetching blocks
-    max-cycle-share: 0.5
+    max-pixels: 1_000_000_000
 
   size:
     x: '0'

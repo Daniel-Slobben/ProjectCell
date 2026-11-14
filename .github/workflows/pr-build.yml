@@ -15,7 +15,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          fetch-depth: 0
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -24,7 +23,5 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build, test and analyze with Maven
-        run: mvn clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=daniel-slobben -Dsonar.projectKey=Daniel-Slobben_ProjectCell
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Build and test with Maven
+        run: mvn clean verify
