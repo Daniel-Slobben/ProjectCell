@@ -76,7 +76,9 @@ public class ViewportService extends Worker {
                         // filters for a minimum threshold
                         && count > sectorSize + sectorSize
                         // filters sectors with just pure lines
-                        && count % sectorSize != 0) {
+                        && count % sectorSize != 0
+                        // filters the zebra stripes an intact spacefiller leaves behind
+                        && 2 * stripeCells(block.getPackedCells(), sx, sy) < count) {
 
                     int worldX = block.getX() * blockSize + sx * sectorSize;
                     int worldY = block.getY() * blockSize + sy * sectorSize;
@@ -86,6 +88,32 @@ public class ViewportService extends Worker {
             }
         }
         return best;
+    }
+
+    // cells with both neighbours along their row or column and none beside it
+    private int stripeCells(long[][] cells, int sx, int sy) {
+        int from = sy * sectorSize + 1;
+        int to = from + sectorSize - 1;
+        int stripes = 0;
+        for (int x = sx * sectorSize + 1; x <= sx * sectorSize + sectorSize; x++) {
+            long[] above = cells[x - 1];
+            long[] row = cells[x];
+            long[] below = cells[x + 1];
+            for (int w = (from >>> 6) + 1; w <= (to >>> 6) + 1; w++) {
+                long low = row[w] << 1 | row[w - 1] >>> 63;
+                long high = row[w] >>> 1 | row[w + 1] << 63;
+                long along = low & high & ~above[w] & ~below[w];
+                long across = above[w] & below[w] & ~low & ~high;
+                stripes += Long.bitCount(row[w] & (along | across) & columnMask(w, from, to));
+            }
+        }
+        return stripes;
+    }
+
+    // the bits of columns from .. to in word w of a packed row
+    private static long columnMask(int w, int from, int to) {
+        int base = (w - 1) << 6;
+        return -1L >>> (63 - Math.min(to - base, 63)) & -1L << Math.max(from - base, 0);
     }
 
     @Override
