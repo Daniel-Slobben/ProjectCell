@@ -50,6 +50,6 @@ public class SpaceshipMaker implements Maker {
 
         // the pattern is written from its corner, the hit is tracked from its center
         Coordinates center = new Coordinates(worldX + shipSize / 2, worldY + shipSize / 2);
-        return new ChaosHit("Spaceship " + pattern, chaosHitId, center, 10_000, shipSize);
+        return new ChaosHit("Spaceship " + pattern, chaosHitId, center, 2_500, shipSize);
     }
 }

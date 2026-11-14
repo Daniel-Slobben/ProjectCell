@@ -65,6 +65,7 @@ public class RunnerService {
             runCycle();
 
             long timeTaken = System.currentTimeMillis() - timer;
+            chaosService.recordCycleTime(timeTaken);
             long timeDelta = timeTaken - targetSpeed;
             serverInfoService.updateTimeDeltaRecordings(timeDelta);
             if (timeDelta < 0) {
