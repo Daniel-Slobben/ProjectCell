@@ -115,6 +115,20 @@ class ChaosServiceTest {
     }
 
     @Test
+    void resetsAFullWorldOfHitsWithoutAnAge() {
+        // prepare
+        hitAge = ChaosHit.NO_AGE;
+        tick(1);
+        addBlocks(3);
+
+        // execute
+        tick(1);
+
+        // verify
+        assertThat(blocks).isEmpty();
+    }
+
+    @Test
     void resetsTheWorldAfterTwentySlowCyclesInARow() {
         // prepare
         ReflectionTestUtils.setField(chaosService, "maxCycleShare", 0.5);

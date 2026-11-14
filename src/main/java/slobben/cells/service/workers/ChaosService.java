@@ -63,8 +63,8 @@ public class ChaosService extends Worker {
         }
         boolean agedOut = chaosHits.removeIf(hit -> !hit.isActive());
 
-        // hits without an age last until the last hit that ages is gone
-        if (chaosHits.isEmpty() || agedOut && chaosHits.stream().noneMatch(ChaosHit::ages)) {
+        // hits without an age last until the last hit that ages is gone, or until the world is full and no hit can come
+        if (chaosHits.isEmpty() || (agedOut || blocks.size() >= maxBlocks) && chaosHits.stream().noneMatch(ChaosHit::ages)) {
             log.info("All chaos hits aged out, resetting the world");
             reset();
         } else if (overloadedCycles >= OVERLOADED_CYCLES_BEFORE_RESET) {
