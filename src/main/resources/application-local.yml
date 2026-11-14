@@ -1,5 +1,5 @@
 cells:
-  targetspeed: '100'
+  targetspeed: '250'
 
   chaos:
     # ANY, or one of ChaosType: SQUARE, LETTUCE, GROWTH_PATTERN, SPACESHIP, DIAGONAL_LINES

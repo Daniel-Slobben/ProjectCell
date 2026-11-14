@@ -38,14 +38,12 @@ public class ChaosService extends Worker {
     private int maxBlocks;
     @Value("${cells.targetspeed}")
     private int targetSpeed;
-    // the share of targetspeed a cycle may take, 0 turns the guard off
     @Value("${cells.chaos.max-cycle-share:0}")
     private double maxCycleShare;
 
     private static final int TICKS_BETWEEN_NEW_HITS = 100;
     private static final int OVERLOADED_CYCLES_BEFORE_RESET = 20;
     private int tickCounter = 0;
-    private int overloadedCycles = 0;
 
     @PostConstruct
     void init() {
@@ -66,29 +64,27 @@ public class ChaosService extends Worker {
         if (chaosHits.isEmpty()) {
             log.info("All chaos hits aged out, resetting the world");
             reset();
-        } else if (overloadedCycles >= OVERLOADED_CYCLES_BEFORE_RESET) {
-            log.warn("{} cycles in a row took over {} of the target speed, resetting the world", overloadedCycles, maxCycleShare);
+        } else if (isSimulationOverloaded(OVERLOADED_CYCLES_BEFORE_RESET)) {
+            log.warn("{} cycles in a row took over {} of the target speed, resetting the world", OVERLOADED_CYCLES_BEFORE_RESET, maxCycleShare);
             reset();
         }
 
-        if (tickCounter >= TICKS_BETWEEN_NEW_HITS && blocks.size() < maxBlocks && overloadedCycles == 0) {
+        if (tickCounter >= TICKS_BETWEEN_NEW_HITS && blocks.size() < maxBlocks && !isSimulationOverloaded(1)) {
             tickCounter = 0;
             createChaosHit();
         }
     }
 
-    public void recordCycleTime(long millis) {
-        if (maxCycleShare > 0 && millis > maxCycleShare * targetSpeed) {
-            overloadedCycles++;
-        } else {
-            overloadedCycles = 0;
-        }
+    // the last cycles all took over the share of targetspeed
+    private boolean isSimulationOverloaded(int amount) {
+        List<Long> deltas = serverInfoService.getLastTimeDeltas(amount);
+        return maxCycleShare > 0 && deltas.size() == amount
+                && deltas.stream().allMatch(delta -> delta + targetSpeed > maxCycleShare * targetSpeed);
     }
 
     private void reset() {
         blocks.clear();
         chaosHits.clear();
-        overloadedCycles = 0;
         tickCounter = TICKS_BETWEEN_NEW_HITS;
     }
 
@@ -115,7 +111,6 @@ public class ChaosService extends Worker {
             return ChaosType.getRandomType();
         }
     }
-
 
     public Coordinates findFreeSpot(final int size) {
         int searchRadius = size;

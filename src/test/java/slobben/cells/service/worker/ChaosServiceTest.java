@@ -7,6 +7,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
 import slobben.cells.entities.ChaosHit;
+import slobben.cells.service.ServerInfoService;
 import slobben.cells.service.workers.ChaosService;
 import slobben.cells.service.workers.chaosmakers.Maker;
 
@@ -24,6 +25,7 @@ class ChaosServiceTest {
     private final List<ChaosHit> chaosHits = new ArrayList<>();
     private final BeanFactory beanFactory = mock(BeanFactory.class);
     private final ChaosService chaosService = new ChaosService(blocks, beanFactory, chaosHits);
+    private final ServerInfoService serverInfoService = new ServerInfoService();
     private int hitAge = 10_000;
 
     @BeforeEach
@@ -34,6 +36,7 @@ class ChaosServiceTest {
         ReflectionTestUtils.setField(chaosService, "blockSize", 20);
         ReflectionTestUtils.setField(chaosService, "maxBlocks", 3);
         ReflectionTestUtils.setField(chaosService, "targetSpeed", 100);
+        ReflectionTestUtils.setField(chaosService, "serverInfoService", serverInfoService);
     }
 
     @Test
@@ -81,7 +84,7 @@ class ChaosServiceTest {
     }
 
     @Test
-    void resetsTheWorldAfterTwentySlowCyclesInARow() {
+    void resetsTheWorldAfterTwentyIsSimulationOverloadedInARow() {
         // prepare
         ReflectionTestUtils.setField(chaosService, "maxCycleShare", 0.5);
         tick(1);
@@ -159,7 +162,7 @@ class ChaosServiceTest {
 
     private void recordCycles(int amount, long millis) {
         for (int i = 0; i < amount; i++) {
-            chaosService.recordCycleTime(millis);
+            serverInfoService.updateTimeDeltaRecordings(millis - 100);
         }
     }
 }

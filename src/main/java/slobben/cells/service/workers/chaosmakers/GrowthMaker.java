@@ -31,7 +31,6 @@ public class GrowthMaker implements Maker {
             log.error("Error reading .rle. continue.", e);
         }
 
-        // a growth pattern keeps growing, so it doesn't hold a cycle open
         return new ChaosHit("Growth pattern " + pattern, chaosHitId, new Coordinates(worldX, worldY), 100, size);
     }
 }

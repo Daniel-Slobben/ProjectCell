@@ -7,7 +7,7 @@ import slobben.cells.service.ServerInfoService;
 @Slf4j
 public abstract class Worker {
 
-    private ServerInfoService serverInfoService;
+    protected ServerInfoService serverInfoService;
 
     @Autowired
     void setServerInfoService(ServerInfoService serverInfoService) {

@@ -164,7 +164,7 @@ class ViewportServiceTest {
     }
 
     private Block getTestBlock(int x, int y, UUID chaosHit) {
-        Block block = new Block(x, y, chaosHit, 500);
+        Block block = new Block(x, y, chaosHit, 20);
         block.setSectorCounts(new short[4][4]);
         blocks.put(block.getKey(), block);
         return block;
