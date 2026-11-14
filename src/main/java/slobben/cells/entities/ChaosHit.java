@@ -32,9 +32,8 @@ public class ChaosHit {
         return age <= maxAge;
     }
 
-    public boolean incrementAge() {
+    public void incrementAge() {
         age++;
-        return age > maxAge;
     }
 
     public ChaosHitDto getDto() {

@@ -26,7 +26,7 @@ public class ChaosService extends Worker {
     private final List<ChaosHit> chaosHits;
 
     private static final int MIN_SIZE = 2000;
-    private static final int MAX_SIZE = 30000;
+    private static final int MAX_SIZE = 16000;
 
     private final Random random = new Random();
 
@@ -34,12 +34,15 @@ public class ChaosService extends Worker {
     private String preferredType = null;
     @Value("${cells.size.blockSize}")
     private int blockSize;
-    @Value("${cells.chaos.max-pixels:1000000000}")
-    private long maxPixels;
+    @Value("${cells.chaos.max-blocks:500}")
+    private int maxBlocks;
+    @Value("${cells.targetspeed}")
+    private int targetSpeed;
+    @Value("${cells.chaos.max-cycle-share:0}")
+    private double maxCycleShare;
 
-    private static final long SIZE_COUNT_TARGET = 500_000;
-    private static final int TICKS_BETWEEN_NEW_HITS = 25;
-    private long currentSizeCounter = 0;
+    private static final int TICKS_BETWEEN_NEW_HITS = 100;
+    private static final int OVERLOADED_CYCLES_BEFORE_RESET = 20;
     private int tickCounter = 0;
 
     @PostConstruct
@@ -56,24 +59,33 @@ public class ChaosService extends Worker {
         for (ChaosHit hit : chaosHits) {
             hit.incrementAge();
         }
+        chaosHits.removeIf(hit -> !hit.isActive());
 
-        if (chaosHits.stream().noneMatch(ChaosHit::isActive)) {
-            blocks.clear();
-            chaosHits.clear();
-            currentSizeCounter = 0;
-            tickCounter = TICKS_BETWEEN_NEW_HITS + 1;
+        if (chaosHits.isEmpty()) {
+            log.info("All chaos hits aged out, resetting the world");
+            reset();
+        } else if (isSimulationOverloaded(OVERLOADED_CYCLES_BEFORE_RESET)) {
+            log.warn("{} cycles in a row took over {} of the target speed, resetting the world", OVERLOADED_CYCLES_BEFORE_RESET, maxCycleShare);
+            reset();
         }
 
-        if (tickCounter > TICKS_BETWEEN_NEW_HITS
-                && currentSizeCounter < SIZE_COUNT_TARGET) {
+        if (tickCounter >= TICKS_BETWEEN_NEW_HITS && blocks.size() < maxBlocks && !isSimulationOverloaded(1)) {
             tickCounter = 0;
-            long pixels = (long) blocks.size() * blockSize * blockSize;
-            if (pixels > maxPixels) {
-                log.warn("Max pixels exceeded ({} > {}), not creating new chaos hits", pixels, maxPixels);
-                return;
-            }
             createChaosHit();
         }
+    }
+
+    // the last cycles all took over the share of targetspeed
+    private boolean isSimulationOverloaded(int amount) {
+        List<Long> deltas = serverInfoService.getLastTimeDeltas(amount);
+        return maxCycleShare > 0 && deltas.size() == amount
+                && deltas.stream().allMatch(delta -> delta + targetSpeed > maxCycleShare * targetSpeed);
+    }
+
+    private void reset() {
+        blocks.clear();
+        chaosHits.clear();
+        tickCounter = TICKS_BETWEEN_NEW_HITS;
     }
 
     private void createChaosHit() {
@@ -81,7 +93,7 @@ public class ChaosService extends Worker {
         Maker maker = beanFactory.getBean(type.maker);
 
         double uniform = random.nextDouble();
-        double skewed = Math.pow(uniform, 2.0);
+        double skewed = Math.pow(uniform, 3.0);
         int size = MIN_SIZE + (int) (skewed * (MAX_SIZE - MIN_SIZE));
 
         Coordinates coordinates = findFreeSpot(size);
@@ -89,7 +101,7 @@ public class ChaosService extends Worker {
         ChaosHit chaosHit = maker.getChaosHit(coordinates.x(), coordinates.y(), size);
         chaosHit.setType(type);
         chaosHits.addFirst(chaosHit);
-        currentSizeCounter += chaosHit.getSize();
+        log.info("New chaos hit: {}, {} blocks in the world", chaosHit.getName(), blocks.size());
     }
 
     private @NonNull ChaosType getRandomType() {
@@ -99,7 +111,6 @@ public class ChaosService extends Worker {
             return ChaosType.getRandomType();
         }
     }
-
 
     public Coordinates findFreeSpot(final int size) {
         int searchRadius = size;

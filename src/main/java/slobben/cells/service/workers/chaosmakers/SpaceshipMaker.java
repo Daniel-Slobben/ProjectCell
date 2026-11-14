@@ -9,10 +9,7 @@ import slobben.cells.entities.ChaosHit;
 import slobben.cells.service.RleReader;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -27,7 +24,7 @@ public class SpaceshipMaker implements Maker {
         this.rleReader = rleReader;
         Resource[] resources = new PathMatchingResourcePatternResolver().getResources("classpath:patterns/" + DIR + "*.rle");
         this.patterns = Arrays.stream(resources)
-                .map(Resource::getFilename)
+                .map(Resource::getFilename).filter(Objects::nonNull)
                 .map(name -> name.replace(".rle", ""))
                 .toList();
         if (patterns.isEmpty()) {
@@ -50,6 +47,6 @@ public class SpaceshipMaker implements Maker {
 
         // the pattern is written from its corner, the hit is tracked from its center
         Coordinates center = new Coordinates(worldX + shipSize / 2, worldY + shipSize / 2);
-        return new ChaosHit("Spaceship " + pattern, chaosHitId, center, 10_000, shipSize);
+        return new ChaosHit("Spaceship " + pattern, chaosHitId, center, 100, shipSize);
     }
 }

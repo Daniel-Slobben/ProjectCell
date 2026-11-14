@@ -31,6 +31,10 @@ public class ServerInfoService {
         addToList(timeDeltas, freeTime);
     }
 
+    public List<Long> getLastTimeDeltas(int amount) {
+        return timeDeltas.subList(Math.max(0, timeDeltas.size() - amount), timeDeltas.size());
+    }
+
     public synchronized void recordWorkTime(String worker, long nanos) {
         addToList(workTimes.computeIfAbsent(worker, _ -> new ArrayList<>(MAX_ENTRIES)), nanos);
     }

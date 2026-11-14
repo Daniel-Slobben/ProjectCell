@@ -1,0 +1,9 @@
+cells:
+  targetspeed: '250'
+
+  chaos:
+    # ANY, or one of ChaosType: SQUARE, LETTUCE, GROWTH_PATTERN, SPACESHIP, DIAGONAL_LINES
+    type: ANY
+    max-blocks: 500
+    # 0 is off, so a low targetspeed runs as fast as the machine can
+    max-cycle-share: 0
