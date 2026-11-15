@@ -5,6 +5,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.dto.outgoing.EncodedBlock;
+import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.ExecutorService;
@@ -60,7 +61,7 @@ class CycleTest {
             stitching.execute();
             addNewBlocks.execute();
             // the encodings of the tick before are read after the GoL and Stitching of this tick
-            encodings.forEach(CycleTest::checkEncoding);
+            encodings.forEach(this::checkEncoding);
             packer.execute();
             pruning.execute();
 
@@ -162,10 +163,12 @@ class CycleTest {
         return encodings;
     }
 
-    private static void checkEncoding(Encoding expected) {
+    private void checkEncoding(Encoding expected) {
         EncodedBlock encoded = expected.encoding().get();
         assertThat(encoded.generation()).as(expected.what()).isEqualTo(expected.generation());
-        byte[] bits = Zstd.decompress(encoded.encodedCells(), expected.bits().length);
+        byte[] bits = encoded.type() == EncodedBlockType.FULL
+                ? PackerTest.decodeFull(encoded.encodedCells(), size)
+                : Zstd.decompress(encoded.encodedCells(), expected.bits().length);
         assertThat(bits).as(expected.what()).isEqualTo(expected.bits());
     }
 

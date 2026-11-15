@@ -2,6 +2,8 @@ package slobben.cells.service.worker;
 
 import com.github.luben.zstd.Zstd;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,9 +14,11 @@ import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
 import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.service.workers.Packer;
+import slobben.cells.util.PackedRows;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,7 +50,7 @@ class PackerTest {
         assertThat(full.generation()).isEqualTo(1);
         assertThat(full.type()).isEqualTo(EncodedBlockType.FULL);
 
-        byte[] bits = decompress(full);
+        byte[] bits = decodeFull(full.encodedCells(), blockSize);
         assertThat(bits).hasSize(613); // 70 * 70 bits
         assertThat(getAliveBitIndexes(bits)).containsExactly(
                 0, 1, // [1][1], [1][2]
@@ -105,7 +109,51 @@ class PackerTest {
         // verify
         EncodedBlock full = block.getEncodedBlock();
         assertThat(full.generation()).isEqualTo(1);
-        assertThat(getAliveBitIndexes(decompress(full))).containsExactly(580, 650, 720); // the vertical blinker [9..11][21]
+        assertThat(getAliveBitIndexes(decodeFull(full.encodedCells(), blockSize))).containsExactly(580, 650, 720); // the vertical blinker [9..11][21]
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2000, 0", "2000, 0.002", "2000, 0.03", "2000, 0.5", "2000, 1", "500, 0.1", "61, 1", "10, 0.5", "1, 1"})
+    void fullBlockDecodesToItsCells(int size, double density) {
+        // prepare: random cells, and live cells all around the block, which are not part of it
+        Random random = new Random(size + (long) (density * 1000));
+        Block block = new Block(0, 0, UUID.randomUUID(), size);
+        long[][] rows = block.getPackedCells();
+        byte[] expected = new byte[(size * size + 7) / 8];
+        for (int x = 0; x <= size + 1; x++) {
+            for (int y = 0; y <= size + 1; y++) {
+                boolean inner = x >= 1 && x <= size && y >= 1 && y <= size;
+                if (inner && random.nextDouble() >= density) continue;
+                PackedRows.set(rows[x], y);
+                if (inner) setBit(expected, (x - 1) * size + y - 1);
+            }
+        }
+
+        // execute
+        Packer.packAll(block);
+
+        // verify
+        assertThat(decodeFull(block.getEncodedBlock().encodedCells(), size)).isEqualTo(expected);
+    }
+
+    // a FULL block as the frontend reads it: per run, a varint of the empty bytes before it, then its bytes down a strip
+    static byte[] decodeFull(byte[] payload, int size) {
+        byte[] runs = Zstd.decompress(payload, (int) Zstd.getFrameContentSize(payload));
+        int columns = (size + 7) / 8;
+        byte[] bits = new byte[(size * size + 7) / 8];
+        for (int i = 0, position = 0; i < runs.length; i++) {
+            for (int shift = 0; ; shift += 7) {
+                position += (runs[i] & 0x7F) << shift;
+                if (runs[i++] >= 0) break;
+            }
+            int strip = position / 64, c = strip % columns;
+            for (int x = strip / columns * 64 + position % 64; runs[i] != 0; i++, x++, position++) {
+                for (int k = 0; k < 8; k++) {
+                    if ((runs[i] >> k & 1) != 0) setBit(bits, x * size + 8 * c + k);
+                }
+            }
+        }
+        return bits;
     }
 
     private Block getActiveBlock() {
@@ -123,6 +171,10 @@ class PackerTest {
 
     private static byte[] decompress(EncodedBlock encoded) {
         return Zstd.decompress(encoded.encodedCells(), (int) Zstd.getFrameContentSize(encoded.encodedCells()));
+    }
+
+    private static void setBit(byte[] bits, int i) {
+        bits[i >>> 3] |= (byte) (1 << (i & 7));
     }
 
     private static List<Integer> getAliveBitIndexes(byte[] bits) {

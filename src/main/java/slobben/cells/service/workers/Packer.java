@@ -9,9 +9,7 @@ import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.PackedRows;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -20,8 +18,8 @@ import java.util.function.Supplier;
 /**
  * AI optimized on Blocksize = 2000, sector size = 50.
  * -- below passes the tests
- * Gives every block the encodings a client can ask for: the full block and its borders, as bit-packed, zstd
- * compressed cells.
+ * Gives every block the encodings a client can ask for, zstd compressed: the full block, as the runs of its strips
+ * (see getStrips), and its borders, as bit-packed cells.
  * <p>
  * Encoding is expensive and most blocks are not watched by any client, so a tick only takes a {@link Snapshot} of
  * each block and a client compresses it on first use. The snapshot is the cell array of the block itself: the GoL
@@ -31,7 +29,6 @@ import java.util.function.Supplier;
 @Service
 @RequiredArgsConstructor
 public class Packer extends Worker {
-    private static final VarHandle LONG_LE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
     private final Map<String, Block> blocks;
     private Map<Block, Snapshot> snapshots = new IdentityHashMap<>();
 
@@ -91,12 +88,13 @@ public class Packer extends Worker {
                     }
                     int size = snapshot.rows.length - 2;
                     packed = type == EncodedBlockType.FULL
-                            ? getPacked(snapshot.rows, size)
+                            ? getStrips(snapshot.rows, size)
                             : getPackedBorders(snapshot.rows, size);
                     generation = snapshot.generation;
                 }
                 // outside the snapshot, so the next tick of this worker does not wait for the compression
-                encoded = new EncodedBlock(block.getX(), block.getY(), generation, type, Zstd.compress(packed));
+                encoded = new EncodedBlock(block.getX(), block.getY(), generation, type,
+                        Zstd.compress(type == EncodedBlockType.FULL ? getRuns(packed) : packed));
             }
             return encoded;
         }
@@ -117,61 +115,46 @@ public class Packer extends Worker {
             return index + 1;
         }
 
-        private static byte[] getPacked(long[][] packedCells, int size) {
-            final int wholeWords = size >>> 6;
-            final long tailMask = (1L << (size & 63)) - 1;
-            BitStream out = new BitStream(size);
-
-            for (int x = 1; x <= size; x++) {
-                long[] row = packedCells[x];
-                for (int i = 1; i <= wholeWords; i++) {
-                    out.write64(row[i] >>> 1 | row[i + 1] << 63);
+        /**
+         * The cells as bytes of 8 cells of a row, bit k for column 8c + k, strip by strip: 8 columns wide and 64 rows
+         * tall, each from top to bottom, so byte (x, c) is at (x / 64 * columns + c) * 64 + x % 64. A still life or
+         * oscillator is then a few bytes next to each other, the same bytes wherever it is in the block.
+         */
+        private static byte[] getStrips(long[][] rows, int size) {
+            int columns = (size + 7) >>> 3, words = (size + 63) >>> 6;
+            // the cells of the last word that are in the block
+            long last = -1L >>> (64 * words - size);
+            byte[] strips = new byte[(size + 63) / 64 * 64 * columns];
+            for (int x = 0; x < size; x++) {
+                long[] row = rows[x + 1];
+                int at = x / 64 * columns * 64 + x % 64;
+                for (int i = 0; i < words; i++) {
+                    long cells = (row[i + 1] >>> 1 | row[i + 2] << 63) & (i < words - 1 ? -1L : last);
+                    for (int c = 8 * i; cells != 0; c++, cells >>>= 8) strips[at + 64 * c] = (byte) cells;
                 }
-                // masks off the right border column
-                out.writeTail((row[wholeWords + 1] >>> 1 | row[wholeWords + 2] << 63) & tailMask);
             }
-            return out.finish();
+            return strips;
         }
 
-    }
-
-    private static final class BitStream {
-        private final byte[] packed;
-        private final int tailCells;
-        private long pending = 0;
-        private int pendingBits = 0;
-        private int pos = 0;
-
-        BitStream(int size) {
-            this.packed = new byte[(size * size + 7) / 8];
-            this.tailCells = size & 63;
-        }
-
-        void write64(long bits) {
-            LONG_LE.set(packed, pos, pending | bits << pendingBits);
-            pos += 8;
-            // bits >>> (64 - pendingBits), but 0 instead of bits when pendingBits == 0
-            pending = (bits >>> 1) >>> (63 - pendingBits);
-        }
-
-        // bits holds the last tailCells cells of a row, the higher bits are 0
-        void writeTail(long bits) {
-            if (tailCells == 0) return;
-            pending |= bits << pendingBits;
-            pendingBits += tailCells;
-            if (pendingBits >= 64) {
-                LONG_LE.set(packed, pos, pending);
-                pos += 8;
-                pendingBits -= 64;
-                pending = bits >>> (tailCells - pendingBits);
+        // per run of live bytes down a strip: varint the empty bytes before it, its bytes and a zero
+        private static byte[] getRuns(byte[] strips) {
+            byte[] runs = new byte[strips.length / 8 + 70];
+            int length = 0;
+            for (int i = 0, end = 0; i < strips.length; ) {
+                if (strips[i] == 0) {
+                    i++;
+                    continue;
+                }
+                // a run takes at most 5 + 64 + 1 bytes
+                if (length + 70 > runs.length) runs = Arrays.copyOf(runs, 2 * runs.length);
+                int gap = i - end;
+                for (; gap >= 0x80; gap >>>= 7) runs[length++] = (byte) (gap | 0x80);
+                runs[length++] = (byte) gap;
+                do runs[length++] = strips[i++]; while (i % 64 != 0 && strips[i] != 0);
+                runs[length++] = 0;
+                end = i;
             }
-        }
-
-        byte[] finish() {
-            for (; pos < packed.length; pos++, pending >>>= 8) {
-                packed[pos] = (byte) pending;
-            }
-            return packed;
+            return Arrays.copyOf(runs, length);
         }
     }
 
