@@ -9,9 +9,10 @@ import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.PackedRows;
 
-import java.io.ByteArrayOutputStream;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -21,7 +22,7 @@ import java.util.function.Supplier;
  * AI optimized on Blocksize = 2000, sector size = 50.
  * -- below passes the tests
  * Gives every block the encodings a client can ask for, zstd compressed: the full block, as its repeated rows and the
- * runs of its strips (see getStrips), and its borders, as bit-packed cells.
+ * runs of its strips (see getFull), and its borders, as bit-packed cells.
  * <p>
  * Encoding is expensive and most blocks are not watched by any client, so a tick only takes a {@link Snapshot} of
  * each block and a client compresses it on first use. The snapshot is the cell array of the block itself: the GoL
@@ -31,6 +32,7 @@ import java.util.function.Supplier;
 @Service
 @RequiredArgsConstructor
 public class Packer extends Worker {
+    private static final VarHandle LONG_LE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
     private final Map<String, Block> blocks;
     private Map<Block, Snapshot> snapshots = new IdentityHashMap<>();
 
@@ -82,7 +84,6 @@ public class Packer extends Worker {
         public synchronized EncodedBlock get() {
             if (encoded == null) {
                 byte[] packed;
-                ByteArrayOutputStream copies = new ByteArrayOutputStream();
                 int generation;
                 synchronized (snapshot) {
                     // without a tick of this worker in between, the GoL is writing into these cells again
@@ -91,13 +92,13 @@ public class Packer extends Worker {
                     }
                     int size = snapshot.rows.length - 2;
                     packed = type == EncodedBlockType.FULL
-                            ? getStrips(snapshot.rows, size, copies)
+                            ? getFull(snapshot.rows, size)
                             : getPackedBorders(snapshot.rows, size);
                     generation = snapshot.generation;
                 }
                 // outside the snapshot, so the next tick of this worker does not wait for the compression
                 encoded = new EncodedBlock(block.getX(), block.getY(), generation, type,
-                        Zstd.compress(type == EncodedBlockType.FULL ? getRuns(packed, copies.toByteArray()) : packed));
+                        Zstd.compress(packed));
             }
             return encoded;
         }
@@ -119,85 +120,131 @@ public class Packer extends Worker {
         }
 
         /**
-         * The cells as bytes of 8 cells of a row, bit k for column 8c + k, strip by strip: 8 columns wide and 64 rows
-         * tall, each from top to bottom, so byte (x, c) is at (x / 64 * columns + c) * 64 + x % 64. A still life or
-         * oscillator is then a few bytes next to each other, the same bytes wherever it is in the block.
+         * The full block before zstd. A row with the same cells as an earlier row is a copy: chaos hits are symmetric or
+         * made of lines, so many rows are. Per copy two varints: the rows since the copy before it, and how much further
+         * back its earlier row is than that of the copy before it, zigzag. A zero ends the copies.
          * <p>
-         * A row with the same cells as an earlier row stays out of the strips: chaos hits are symmetric or made of
-         * lines, so many rows are. Copies gets two varints for it: the rows since the copied row before it, and how
-         * much further back its earlier row is than that of the copied row before it, zigzag.
+         * The other rows are read as bytes of 8 cells of a row, bit k for column 8c + k, strip by strip: 8 columns wide
+         * and 64 rows tall, each from top to bottom, so byte (x, c) is at (x / 64 * columns + c) * 64 + x % 64. A still
+         * life or oscillator is then a few bytes next to each other, the same bytes wherever it is in the block. Per run
+         * of live bytes down a strip: a varint of the empty bytes before it, its bytes and a zero.
          */
-        private static byte[] getStrips(long[][] rows, int size, ByteArrayOutputStream copies) {
+        private static byte[] getFull(long[][] rows, int size) {
             int columns = (size + 7) >>> 3, words = (size + 63) >>> 6;
             // the cells of the last word that are in the block
             long last = -1L >>> (64 * words - size);
-            byte[] strips = new byte[(size + 63) / 64 * 64 * columns];
-            Map<Row, Integer> seen = new HashMap<>();
-            int copied = 0, distance = 0;
-            for (int x = 0; x < size; x++) {
-                long[] row = rows[x + 1], cells = new long[words];
-                long alive = 0;
-                for (int i = 0; i < words; i++) {
-                    cells[i] = (row[i + 1] >>> 1 | row[i + 2] << 63) & (i < words - 1 ? -1L : last);
-                    alive |= cells[i];
+            Bytes copies = new Bytes(64), runs = new Bytes(4096);
+            // per slot of a hash: the last row with those cells, + 1
+            int[] seen = new int[Integer.highestOneBit(size) * 4];
+            long[] hashes = new long[size], cells = new long[words];
+            // the strips of one band of 64 rows, and 8 bytes more so every byte can start a long
+            byte[] strips = new byte[64 * columns + 8];
+            int copied = 0, distance = 0, end = 0;
+            for (int top = 0; top < size; top += 64) {
+                Arrays.fill(strips, (byte) 0);
+                for (int x = top; x < Math.min(top + 64, size); x++) {
+                    long[] row = rows[x + 1];
+                    for (int i = 0; i < words; i++) cells[i] = row[i + 1] >>> 1 | row[i + 2] << 63;
+                    cells[words - 1] &= last;
+                    // independent multiplies, so they run side by side
+                    long hash = 0, alive = 0;
+                    for (int i = 0; i < words; i++) {
+                        alive |= cells[i];
+                        hash += cells[i] * (0x9E3779B97F4A7C15L + 2L * i);
+                    }
+                    if (alive == 0) continue;
+                    hashes[x] = hash;
+                    int slot = (int) (hash >>> 40) & (seen.length - 1);
+                    while (seen[slot] != 0 && !sameCells(rows, seen[slot] - 1, x, hashes, words, last)) {
+                        slot = (slot + 1) & (seen.length - 1);
+                    }
+                    if (seen[slot] != 0) {
+                        // the nearest earlier row with these cells
+                        int earlier = seen[slot] - 1, further = x - earlier - distance;
+                        seen[slot] = x + 1;
+                        copies.varint(x - copied);
+                        copies.varint(further << 1 ^ further >> 31);
+                        copied = x;
+                        distance = x - earlier;
+                        continue;
+                    }
+                    seen[slot] = x + 1;
+                    // all 8 bytes of a word with live cells, without a branch per byte
+                    for (int i = 0; i < words - 1; i++) {
+                        long word = cells[i];
+                        if (word == 0) continue;
+                        int base = 8 * 64 * i + x - top;
+                        for (int k = 0; k < 8; k++) strips[base + 64 * k] = (byte) (word >>> 8 * k);
+                    }
+                    // the last word only up to the last column
+                    for (long word = cells[words - 1], c = 8L * (words - 1); word != 0; c++, word >>>= 8) {
+                        strips[(int) c * 64 + x - top] = (byte) word;
+                    }
                 }
-                if (alive == 0) continue;
-                Integer earlier = seen.put(new Row(cells), x);
-                if (earlier != null) {
-                    int further = x - earlier - distance;
-                    writeVarint(copies, x - copied);
-                    writeVarint(copies, further << 1 ^ further >> 31);
-                    copied = x;
-                    distance = x - earlier;
-                    continue;
-                }
-                int at = x / 64 * columns * 64 + x % 64;
-                for (int i = 0; i < words; i++) {
-                    long word = cells[i];
-                    for (int c = 8 * i; word != 0; c++, word >>>= 8) strips[at + 64 * c] = (byte) word;
+                int start = top / 64 * columns * 64;
+                for (int i = 0; i < 64 * columns; ) {
+                    long next = (long) LONG_LE.get(strips, i);
+                    if (next == 0) {
+                        i += 8;
+                        continue;
+                    }
+                    i += Long.numberOfTrailingZeros(next) >>> 3;
+                    if (i >= 64 * columns) break;
+                    // a run takes at most 5 + 64 + 1 bytes
+                    byte[] out = runs.room(70);
+                    int length = runs.length;
+                    for (int gap = start + i - end; ; gap >>>= 7) {
+                        if (gap >>> 7 == 0) {
+                            out[length++] = (byte) gap;
+                            break;
+                        }
+                        out[length++] = (byte) (gap | 0x80);
+                    }
+                    do out[length++] = strips[i++]; while ((i & 63) != 0 && strips[i] != 0);
+                    out[length++] = 0;
+                    runs.length = length;
+                    end = start + i;
                 }
             }
-            return strips;
+            copies.add(0);
+            byte[] full = Arrays.copyOf(copies.bytes, copies.length + runs.length);
+            System.arraycopy(runs.bytes, 0, full, copies.length, runs.length);
+            return full;
         }
 
-        // the cells of a row, equal when the cells are
-        private record Row(long[] cells) {
-            @Override
-            public boolean equals(Object other) {
-                return other instanceof Row row && Arrays.equals(cells, row.cells);
+        private static boolean sameCells(long[][] rows, int a, int b, long[] hashes, int words, long last) {
+            if (hashes[a] != hashes[b]) return false;
+            long[] rowA = rows[a + 1], rowB = rows[b + 1];
+            for (int i = 0; i < words; i++) {
+                long cellsA = rowA[i + 1] >>> 1 | rowA[i + 2] << 63, cellsB = rowB[i + 1] >>> 1 | rowB[i + 2] << 63;
+                if (((cellsA ^ cellsB) & (i < words - 1 ? -1L : last)) != 0) return false;
             }
-
-            @Override
-            public int hashCode() {
-                return Arrays.hashCode(cells);
-            }
+            return true;
         }
 
-        private static void writeVarint(ByteArrayOutputStream out, int value) {
-            for (; value >>> 7 != 0; value >>>= 7) out.write(value | 0x80);
-            out.write(value);
-        }
+        private static final class Bytes {
+            byte[] bytes;
+            int length;
 
-        // the copies and a zero, then per run of live bytes down a strip: varint the empty bytes before it, its bytes
-        // and a zero
-        private static byte[] getRuns(byte[] strips, byte[] copies) {
-            byte[] runs = Arrays.copyOf(copies, copies.length + strips.length / 8 + 71);
-            int length = copies.length + 1;
-            for (int i = 0, end = 0; i < strips.length; ) {
-                if (strips[i] == 0) {
-                    i++;
-                    continue;
-                }
-                // a run takes at most 5 + 64 + 1 bytes
-                if (length + 70 > runs.length) runs = Arrays.copyOf(runs, 2 * runs.length);
-                int gap = i - end;
-                for (; gap >= 0x80; gap >>>= 7) runs[length++] = (byte) (gap | 0x80);
-                runs[length++] = (byte) gap;
-                do runs[length++] = strips[i++]; while (i % 64 != 0 && strips[i] != 0);
-                runs[length++] = 0;
-                end = i;
+            Bytes(int capacity) {
+                bytes = new byte[capacity];
             }
-            return Arrays.copyOf(runs, length);
+
+            // the bytes, with room for at least that many more
+            byte[] room(int more) {
+                if (length + more > bytes.length) bytes = Arrays.copyOf(bytes, Math.max(2 * bytes.length, length + more));
+                return bytes;
+            }
+
+            void add(int value) {
+                if (length == bytes.length) bytes = Arrays.copyOf(bytes, 2 * length);
+                bytes[length++] = (byte) value;
+            }
+
+            void varint(int value) {
+                for (; value >>> 7 != 0; value >>>= 7) add(value | 0x80);
+                add(value);
+            }
         }
     }
 
