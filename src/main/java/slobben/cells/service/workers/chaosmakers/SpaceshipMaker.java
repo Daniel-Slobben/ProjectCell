@@ -15,6 +15,10 @@ import java.util.*;
 @Component
 public class SpaceshipMaker implements Maker {
     private static final String DIR = "spaceships/";
+    private static final int MIN_SHIPS = 3;
+    private static final int MAX_SHIPS = 10;
+    private static final int MIN_GAP = 30;
+    private static final int MAX_GAP = 100;
 
     private final Random random = new Random();
     private final RleReader rleReader;
@@ -36,17 +40,25 @@ public class SpaceshipMaker implements Maker {
     @Override
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {
         UUID chaosHitId = UUID.randomUUID();
-        String pattern = patterns.get(random.nextInt(patterns.size()));
+        List<String> fleet = new ArrayList<>();
 
-        int shipSize = 0;
-        try {
-            shipSize = rleReader.writePatternToWorld(DIR + pattern, new Coordinates(worldX, worldY), chaosHitId, (byte) random.nextInt(0, 4));
-        } catch (IOException e) {
-            log.error("Error reading .rle. continue.", e);
+        // ships are written side by side, each in its own square, so they never overlap
+        int offset = 0;
+        int tallest = 0;
+        for (int i = random.nextInt(MIN_SHIPS, MAX_SHIPS + 1); i > 0; i--) {
+            String pattern = patterns.get(random.nextInt(patterns.size()));
+            try {
+                int shipSize = rleReader.writePatternToWorld(DIR + pattern, new Coordinates(worldX + offset, worldY), chaosHitId, (byte) random.nextInt(0, 4));
+                offset += shipSize + random.nextInt(MIN_GAP, MAX_GAP + 1);
+                tallest = Math.max(tallest, shipSize);
+                fleet.add(pattern);
+            } catch (IOException e) {
+                log.error("Error reading .rle. continue.", e);
+            }
         }
 
-        // the pattern is written from its corner, the hit is tracked from its center
-        Coordinates center = new Coordinates(worldX + shipSize / 2, worldY + shipSize / 2);
-        return new ChaosHit("Spaceship " + pattern, chaosHitId, center, 100);
+        // the fleet is written from its corner, the hit is tracked from its center
+        Coordinates center = new Coordinates(worldX + offset / 2, worldY + tallest / 2);
+        return new ChaosHit("Spaceships " + String.join(", ", fleet), chaosHitId, center, 100);
     }
 }
