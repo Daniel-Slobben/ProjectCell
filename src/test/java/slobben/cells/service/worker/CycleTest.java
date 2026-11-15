@@ -1,6 +1,6 @@
 package slobben.cells.service.worker;
 
-import net.jpountz.lz4.LZ4Factory;
+import com.github.luben.zstd.Zstd;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -165,7 +165,7 @@ class CycleTest {
     private static void checkEncoding(Encoding expected) {
         EncodedBlock encoded = expected.encoding().get();
         assertThat(encoded.generation()).as(expected.what()).isEqualTo(expected.generation());
-        byte[] bits = LZ4Factory.fastestInstance().safeDecompressor().decompress(encoded.encodedCells(), expected.bits().length);
+        byte[] bits = Zstd.decompress(encoded.encodedCells(), expected.bits().length);
         assertThat(bits).as(expected.what()).isEqualTo(expected.bits());
     }
 

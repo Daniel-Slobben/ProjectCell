@@ -14,7 +14,7 @@ import java.util.List;
  *  8      u8    type (0 = FULL, 1 = BORDER)
  *  9      u32   generation
  * 13      u32   encodedCells length
- * 17      ...   encodedCells (LZ4 block, see EncodedBlock)
+ * 17      ...   encodedCells (zstd frame, see EncodedBlock)
  * </pre>
  */
 public final class BlockFrame {

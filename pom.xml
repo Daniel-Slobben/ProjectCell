@@ -17,7 +17,7 @@
 
     <properties>
         <java.version>25</java.version>
-        <lz4.version>1.8.1</lz4.version>
+        <zstd.version>1.5.7-9</zstd.version>
     </properties>
     <dependencies>
 
@@ -45,9 +45,9 @@
 
         <!-- compression -->
         <dependency>
-            <groupId>org.lz4</groupId>
-            <artifactId>lz4-java</artifactId>
-            <version>${lz4.version}</version>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <version>${zstd.version}</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

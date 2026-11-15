@@ -1,8 +1,7 @@
 package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
-import net.jpountz.lz4.LZ4Compressor;
-import net.jpountz.lz4.LZ4Factory;
+import com.github.luben.zstd.Zstd;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
@@ -21,7 +20,7 @@ import java.util.function.Supplier;
 /**
  * AI optimized on Blocksize = 2000, sector size = 50.
  * -- below passes the tests
- * Gives every block the encodings a client can ask for: the full block and its borders, as bit-packed, LZ4
+ * Gives every block the encodings a client can ask for: the full block and its borders, as bit-packed, zstd
  * compressed cells.
  * <p>
  * Encoding is expensive and most blocks are not watched by any client, so a tick only takes a {@link Snapshot} of
@@ -32,8 +31,6 @@ import java.util.function.Supplier;
 @Service
 @RequiredArgsConstructor
 public class Packer extends Worker {
-    private static final LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
-
     private static final VarHandle LONG_LE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
     private final Map<String, Block> blocks;
     private Map<Block, Snapshot> snapshots = new IdentityHashMap<>();
@@ -85,18 +82,21 @@ public class Packer extends Worker {
         @Override
         public synchronized EncodedBlock get() {
             if (encoded == null) {
+                byte[] packed;
+                int generation;
                 synchronized (snapshot) {
                     // without a tick of this worker in between, the GoL is writing into these cells again
                     if (block.getGeneration() - snapshot.generation >= 2) {
                         snapshot.take(block);
                     }
                     int size = snapshot.rows.length - 2;
-                    byte[] packed = type == EncodedBlockType.FULL
+                    packed = type == EncodedBlockType.FULL
                             ? getPacked(snapshot.rows, size)
                             : getPackedBorders(snapshot.rows, size);
-                    encoded = new EncodedBlock(block.getX(), block.getY(), snapshot.generation, type,
-                            compressor.compress(packed));
+                    generation = snapshot.generation;
                 }
+                // outside the snapshot, so the next tick of this worker does not wait for the compression
+                encoded = new EncodedBlock(block.getX(), block.getY(), generation, type, Zstd.compress(packed));
             }
             return encoded;
         }
