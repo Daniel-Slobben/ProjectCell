@@ -27,6 +27,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setHeartbeatValue(new long[]{2000, 5000})
                 .setTaskScheduler(messageBrokerTaskScheduler);
         registry.setPreservePublishOrder(true);
+        // Every client has its own destination. Once there are more clients than the broker caches (1024 by default),
+        // nearly every send looks its destination up through all subscriptions.
+        registry.setCacheLimit(100_000);
     }
 
     @Override
