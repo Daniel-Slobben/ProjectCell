@@ -2,20 +2,28 @@ package slobben.cells.service.worker;
 
 import com.github.luben.zstd.Zstd;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
 import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.service.workers.Packer;
+import slobben.cells.util.PackedRows;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static slobben.cells.service.worker.AlgorithmGolTest.drawPattern;
@@ -46,7 +54,7 @@ class PackerTest {
         assertThat(full.generation()).isEqualTo(1);
         assertThat(full.type()).isEqualTo(EncodedBlockType.FULL);
 
-        byte[] bits = decompress(full);
+        byte[] bits = decodeFull(full.encodedCells(), blockSize);
         assertThat(bits).hasSize(613); // 70 * 70 bits
         assertThat(getAliveBitIndexes(bits)).containsExactly(
                 0, 1, // [1][1], [1][2]
@@ -105,7 +113,131 @@ class PackerTest {
         // verify
         EncodedBlock full = block.getEncodedBlock();
         assertThat(full.generation()).isEqualTo(1);
-        assertThat(getAliveBitIndexes(decompress(full))).containsExactly(580, 650, 720); // the vertical blinker [9..11][21]
+        assertThat(getAliveBitIndexes(decodeFull(full.encodedCells(), blockSize))).containsExactly(580, 650, 720); // the vertical blinker [9..11][21]
+    }
+
+    @Test
+    void tickPacksTheOtherBlocksWhileOneIsBeingEncoded() throws InterruptedException {
+        // prepare: a tick, then the snapshot of one block held, as by a client encoding it
+        Block busy = new Block(0, 0, UUID.randomUUID(), blockSize), free = new Block(1, 0, UUID.randomUUID(), blockSize);
+        Map<String, Block> blocks = new LinkedHashMap<>();
+        blocks.put("0/0", busy);
+        blocks.put("1/0", free);
+        Packer packer = new Packer(blocks);
+        packer.execute();
+        Map<?, ?> snapshots = (Map<?, ?>) ReflectionTestUtils.getField(packer, "snapshots");
+        ReentrantLock lock = (ReentrantLock) ReflectionTestUtils.getField(snapshots.get(busy), "lock");
+        Object busyBefore = encoding(busy), freeBefore = encoding(free);
+        lock.lock();
+
+        // execute
+        // a daemon, so a failed check does not leave it waiting on the lock
+        Thread tick = Thread.ofPlatform().daemon().start(packer::execute);
+        for (int i = 0; i < 100 && encoding(free) == freeBefore; i++) Thread.sleep(10);
+
+        // verify: the free block is packed and the tick waits for the busy one, which it packs once released
+        assertThat(encoding(free)).isNotSameAs(freeBefore);
+        assertThat(encoding(busy)).isSameAs(busyBefore);
+        assertThat(tick.isAlive()).isTrue();
+        lock.unlock();
+        tick.join(1000);
+        assertThat(encoding(busy)).isNotSameAs(busyBefore);
+    }
+
+    private static Object encoding(Block block) {
+        return ReflectionTestUtils.getField(block, "encodedBlock");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2000, 0", "2000, 0.002", "2000, 0.03", "2000, 0.5", "2000, 1", "500, 0.1", "61, 1", "10, 0.5", "1, 1"})
+    void fullBlockDecodesToItsCells(int size, double density) {
+        // prepare: random cells, and live cells all around the block, which are not part of it
+        Random random = new Random(size + (long) (density * 1000));
+        Block block = new Block(0, 0, UUID.randomUUID(), size);
+        long[][] rows = block.getPackedCells();
+        byte[] expected = new byte[(size * size + 7) / 8];
+        for (int x = 0; x <= size + 1; x++) {
+            for (int y = 0; y <= size + 1; y++) {
+                boolean inner = x >= 1 && x <= size && y >= 1 && y <= size;
+                if (inner && random.nextDouble() >= density) continue;
+                PackedRows.set(rows[x], y);
+                if (inner) setBit(expected, (x - 1) * size + y - 1);
+            }
+        }
+
+        // execute
+        Packer.packAll(block);
+
+        // verify
+        assertThat(decodeFull(block.getEncodedBlock().encodedCells(), size)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2000, 40", "130, 7", "61, 3", "64, 1"})
+    void fullBlockWithRepeatedRowsDecodesToItsCells(int size, int differentRows) {
+        // prepare: every row is one of a few random rows, or empty
+        Random random = new Random(size);
+        boolean[][] pool = new boolean[differentRows + 1][size];
+        for (int i = 1; i <= differentRows; i++) {
+            for (int y = 0; y < size; y++) pool[i][y] = random.nextInt(4) == 0;
+        }
+        Block block = new Block(0, 0, UUID.randomUUID(), size);
+        byte[] expected = new byte[(size * size + 7) / 8];
+        for (int x = 0; x < size; x++) {
+            boolean[] row = pool[random.nextInt(pool.length)];
+            for (int y = 0; y < size; y++) {
+                if (!row[y]) continue;
+                PackedRows.set(block.getPackedCells()[x + 1], y + 1);
+                setBit(expected, x * size + y);
+            }
+        }
+
+        // execute
+        Packer.packAll(block);
+
+        // verify
+        assertThat(decodeFull(block.getEncodedBlock().encodedCells(), size)).isEqualTo(expected);
+    }
+
+    // a FULL block as the frontend reads it: the rows that copy an earlier row up to a zero, then per run a varint of
+    // the empty bytes before it and its bytes down a strip
+    static byte[] decodeFull(byte[] payload, int size) {
+        byte[] runs = Zstd.decompress(payload, (int) Zstd.getFrameContentSize(payload));
+        int columns = (size + 7) / 8;
+        byte[] bits = new byte[(size * size + 7) / 8];
+        int[] i = {0};
+        List<int[]> copies = new ArrayList<>();
+        for (int x = 0, distance = 0; runs[i[0]] != 0; ) {
+            x += readVarint(runs, i);
+            int further = readVarint(runs, i);
+            distance += further >>> 1 ^ -(further & 1);
+            copies.add(new int[]{x, x - distance});
+        }
+        i[0]++;
+        for (int position = 0; i[0] < runs.length; i[0]++) {
+            position += readVarint(runs, i);
+            int strip = position / 64, c = strip % columns;
+            for (int x = strip / columns * 64 + position % 64; runs[i[0]] != 0; i[0]++, x++, position++) {
+                for (int k = 0; k < 8; k++) {
+                    if ((runs[i[0]] >> k & 1) != 0) setBit(bits, x * size + 8 * c + k);
+                }
+            }
+        }
+        for (int[] copy : copies) {
+            for (int y = 0; y < size; y++) {
+                int from = copy[1] * size + y;
+                if ((bits[from >>> 3] >> (from & 7) & 1) != 0) setBit(bits, copy[0] * size + y);
+            }
+        }
+        return bits;
+    }
+
+    private static int readVarint(byte[] bytes, int[] i) {
+        int value = 0;
+        for (int shift = 0; ; shift += 7) {
+            value += (bytes[i[0]] & 0x7F) << shift;
+            if (bytes[i[0]++] >= 0) return value;
+        }
     }
 
     private Block getActiveBlock() {
@@ -123,6 +255,10 @@ class PackerTest {
 
     private static byte[] decompress(EncodedBlock encoded) {
         return Zstd.decompress(encoded.encodedCells(), (int) Zstd.getFrameContentSize(encoded.encodedCells()));
+    }
+
+    private static void setBit(byte[] bits, int i) {
+        bits[i >>> 3] |= (byte) (1 << (i & 7));
     }
 
     private static List<Integer> getAliveBitIndexes(byte[] bits) {
