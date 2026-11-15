@@ -1,6 +1,6 @@
 package slobben.cells.service.worker;
 
-import net.jpountz.lz4.LZ4Factory;
+import com.github.luben.zstd.Zstd;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -122,7 +122,7 @@ class PackerTest {
     }
 
     private static byte[] decompress(EncodedBlock encoded) {
-        return LZ4Factory.fastestInstance().safeDecompressor().decompress(encoded.encodedCells(), 1 << 20);
+        return Zstd.decompress(encoded.encodedCells(), (int) Zstd.getFrameContentSize(encoded.encodedCells()));
     }
 
     private static List<Integer> getAliveBitIndexes(byte[] bits) {

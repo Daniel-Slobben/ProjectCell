@@ -2,7 +2,6 @@ package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.NonNull;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -58,15 +57,19 @@ public class ClientService extends Worker {
     }
 
     public void sendClientUpdate(Client client, Set<String> blockKeys, boolean sendBorderBlocks) {
-        List<EncodedBlock> copyOfBlocks = getEncodedBlocks(blockKeys, sendBorderBlocks).stream().filter(Objects::nonNull).toList();
+        List<Block> watched = blockKeys.stream().map(blocks::get).filter(Objects::nonNull).toList();
         if (sendBorderBlocks) {
-            send(client, BlockFrame.write(copyOfBlocks));
+            send(client, BlockFrame.write(watched.stream().map(Block::getEncodedBlockBorders).filter(Objects::nonNull).toList()));
         } else {
-            // Full blocks are ~75 KB each, one message per block: on a slow connection the client sees them come in,
-            // instead of nothing until a message of megabytes has arrived and its watchdog gives up.
-            try (var virtualExector = Executors.newVirtualThreadPerTaskExecutor()) {
-                for (EncodedBlock block : copyOfBlocks) {
-                    virtualExector.execute(() -> send(client, BlockFrame.write(List.of(block))));
+            // Full blocks are ~30 KB each, one message per block: on a slow connection the client sees them come in,
+            // instead of nothing until a message of megabytes has arrived and its watchdog gives up. Each block is
+            // encoded in its own thread, so the first one goes out after one encoding instead of after all of them.
+            try (var virtualExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+                for (Block block : watched) {
+                    virtualExecutor.execute(() -> {
+                        EncodedBlock encoded = block.getEncodedBlock();
+                        if (encoded != null) send(client, BlockFrame.write(List.of(encoded)));
+                    });
                 }
             }
         }
@@ -74,16 +77,6 @@ public class ClientService extends Worker {
 
     private void send(Client client, Object payload) {
         simpMessagingTemplate.convertAndSend(DESTINATION.formatted(client.getSessionId()), payload);
-    }
-
-    private @NonNull List<EncodedBlock> getEncodedBlocks(Set<String> blockKeys, boolean sendBorderBlocks) {
-        return blockKeys.stream().map(blocks::get).filter(Objects::nonNull).map(block -> {
-            if (sendBorderBlocks) {
-                return block.getEncodedBlockBorders();
-            } else {
-                return block.getEncodedBlock();
-            }
-        }).toList();
     }
 
     public void updateClientBlocks(String sessionId, ClientUpdateRequest clientUpdateRequest) {
