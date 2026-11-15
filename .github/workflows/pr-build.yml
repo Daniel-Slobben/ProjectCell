@@ -9,6 +9,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -24,7 +26,9 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build, test and analyze with Maven
-        run: mvn clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=daniel-slobben -Dsonar.projectKey=Daniel-Slobben_ProjectCell
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Build and test with Maven
+        run: mvn clean verify
+
+      - name: Analyze with SonarCloud
+        if: env.SONAR_TOKEN != ''
+        run: mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=daniel-slobben -Dsonar.projectKey=Daniel-Slobben_ProjectCell
