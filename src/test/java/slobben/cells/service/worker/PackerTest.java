@@ -131,7 +131,8 @@ class PackerTest {
         lock.lock();
 
         // execute
-        Thread tick = Thread.ofPlatform().start(packer::execute);
+        // a daemon, so a failed check does not leave it waiting on the lock
+        Thread tick = Thread.ofPlatform().daemon().start(packer::execute);
         for (int i = 0; i < 100 && encoding(free) == freeBefore; i++) Thread.sleep(10);
 
         // verify: the free block is packed and the tick waits for the busy one, which it packs once released
