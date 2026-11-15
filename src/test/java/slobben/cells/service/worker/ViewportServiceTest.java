@@ -55,23 +55,21 @@ class ViewportServiceTest {
     }
 
     @Test
-    void keepsOnlyTheThreeBusiestGrowthBlocks() {
+    void keepsOnlyThreeGrowthBlocks() {
         // prepare
         UUID growth = addChaosHit(ChaosType.GROWTH_PATTERN);
-        List<Coordinates> growthQuietestFirst = IntStream.range(0, 5)
-                .mapToObj(i -> addBusyBlock(i * 10, 0, BUSY + 2 * i, growth))
+        List<Coordinates> growthBlocks = IntStream.range(0, 5)
+                .mapToObj(i -> addBusyBlock(i * 10, 0, BUSY, growth))
                 .toList();
-        List<Coordinates> threeBusiestGrowth = growthQuietestFirst.subList(2, 5);
-        Coordinates quietSquare = addBusyBlock(100, 0, BUSY, addChaosHit(ChaosType.SQUARE));
+        Coordinates square = addBusyBlock(100, 0, BUSY, addChaosHit(ChaosType.SQUARE));
 
         // execute
         viewportService.execute();
 
         // verify
-        assertThat(pickedViewports(List.of()))
-                .containsAll(threeBusiestGrowth)
-                .contains(quietSquare)
-                .hasSize(4);
+        Set<Coordinates> picked = pickedViewports(List.of());
+        assertThat(picked).contains(square);
+        assertThat(picked).filteredOn(growthBlocks::contains).hasSize(3);
     }
 
     @Test

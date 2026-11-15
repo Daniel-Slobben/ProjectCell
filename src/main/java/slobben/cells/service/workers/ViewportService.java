@@ -25,7 +25,7 @@ public class ViewportService extends Worker {
     private List<CoordinateEntry> interestingCoordinates = new ArrayList<>();
 
     private static final int COORDINATES_MAX = 50;
-    // isGrowthHit patterns fill many busy blocks that all look alike
+    // growth patterns fill many busy blocks that all look alike
     private static final int GROWTH_MAX = 3;
     private static final int RECENT_DISTANCE_BLOCKS = 3;
     private static final Random RANDOM = new Random();
@@ -39,22 +39,23 @@ public class ViewportService extends Worker {
                 .filter(hit -> hit.getType() == ChaosType.GROWTH_PATTERN)
                 .map(ChaosHit::getId)
                 .collect(Collectors.toSet());
-        List<CoordinateEntry> busiestFirst = blocks.values().stream()
-                .map(block -> bestSector(block, growthHits.contains(block.getResponsibleChaosHit())))
-                .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(CoordinateEntry::count).reversed())
-                .toList();
-
+        short lowestHighCount = 0;
         List<CoordinateEntry> newCoordinates = new ArrayList<>();
-        int growthCount = 0;
-        for (CoordinateEntry entry : busiestFirst) {
-            if (newCoordinates.size() == COORDINATES_MAX) {
-                break;
+
+        for (Block block : blocks.values()) {
+            CoordinateEntry best = bestSector(block, growthHits.contains(block.getResponsibleChaosHit()));
+            boolean growthFull = best != null && best.isGrowthHit()
+                    && newCoordinates.stream().filter(CoordinateEntry::isGrowthHit).count() >= GROWTH_MAX;
+
+            if (best != null && !growthFull && (newCoordinates.size() < COORDINATES_MAX || best.count() > lowestHighCount)) {
+                if (newCoordinates.size() >= COORDINATES_MAX) {
+                    newCoordinates.removeLast();
+                }
+
+                newCoordinates.add(best);
+                newCoordinates.sort(Comparator.comparing(CoordinateEntry::count).reversed());
+                lowestHighCount = newCoordinates.getLast().count();
             }
-            if (entry.isGrowthHit() && growthCount++ >= GROWTH_MAX) {
-                continue;
-            }
-            newCoordinates.add(entry);
         }
         interestingCoordinates = newCoordinates;
     }
@@ -97,11 +98,12 @@ public class ViewportService extends Worker {
         List<CoordinateEntry> farFromRecent = viewportListSnapshot.stream()
                 .filter(entry -> recentViewports.stream().noneMatch(recent -> isNear(entry.coordinates(), recent)))
                 .toList();
-        return pickRandom(farFromRecent.isEmpty() ? viewportListSnapshot : farFromRecent);
-    }
 
-    private Coordinates pickRandom(List<CoordinateEntry> entries) {
-        return entries.get(RANDOM.nextInt(0, entries.size())).coordinates();
+        List<CoordinateEntry> candidates = farFromRecent.isEmpty()
+                ? viewportListSnapshot
+                : farFromRecent;
+        return candidates.get(RANDOM.nextInt(0, candidates.size()))
+                .coordinates();
     }
 
     private boolean isNear(Coordinates a, Coordinates b) {
