@@ -1,6 +1,7 @@
 package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.dto.internal.Coordinates;
@@ -44,10 +45,14 @@ public class ViewportService extends Worker {
 
         for (Block block : blocks.values()) {
             CoordinateEntry best = bestSector(block, growthHits.contains(block.getResponsibleChaosHit()));
-            boolean growthFull = best != null && best.isGrowthHit()
+            if (best == null) {
+                continue;
+            }
+
+            boolean growthFull = best.isGrowthHit()
                     && newCoordinates.stream().filter(CoordinateEntry::isGrowthHit).count() >= GROWTH_MAX;
 
-            if (best != null && !growthFull && (newCoordinates.size() < COORDINATES_MAX || best.count() > lowestHighCount)) {
+            if (!growthFull && (newCoordinates.size() < COORDINATES_MAX || best.count() > lowestHighCount)) {
                 if (newCoordinates.size() >= COORDINATES_MAX) {
                     newCoordinates.removeLast();
                 }
@@ -60,8 +65,7 @@ public class ViewportService extends Worker {
         interestingCoordinates = newCoordinates;
     }
 
-    // a block only offers its best sector, so one busy block can't fill the whole list
-    private CoordinateEntry bestSector(Block block, boolean isGrowthHit) {
+    private @Nullable CoordinateEntry bestSector(Block block, boolean isGrowthHit) {
         short[][] sectorCount = block.getSectorCounts();
         CoordinateEntry best = null;
 
