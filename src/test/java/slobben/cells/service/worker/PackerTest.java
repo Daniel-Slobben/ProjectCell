@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
@@ -17,9 +18,12 @@ import slobben.cells.service.workers.Packer;
 import slobben.cells.util.PackedRows;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static slobben.cells.service.worker.AlgorithmGolTest.drawPattern;
@@ -110,6 +114,37 @@ class PackerTest {
         EncodedBlock full = block.getEncodedBlock();
         assertThat(full.generation()).isEqualTo(1);
         assertThat(getAliveBitIndexes(decodeFull(full.encodedCells(), blockSize))).containsExactly(580, 650, 720); // the vertical blinker [9..11][21]
+    }
+
+    @Test
+    void tickPacksTheOtherBlocksWhileOneIsBeingEncoded() throws InterruptedException {
+        // prepare: a tick, then the snapshot of one block held, as by a client encoding it
+        Block busy = new Block(0, 0, UUID.randomUUID(), blockSize), free = new Block(1, 0, UUID.randomUUID(), blockSize);
+        Map<String, Block> blocks = new LinkedHashMap<>();
+        blocks.put("0/0", busy);
+        blocks.put("1/0", free);
+        Packer packer = new Packer(blocks);
+        packer.execute();
+        Map<?, ?> snapshots = (Map<?, ?>) ReflectionTestUtils.getField(packer, "snapshots");
+        ReentrantLock lock = (ReentrantLock) ReflectionTestUtils.getField(snapshots.get(busy), "lock");
+        Object busyBefore = encoding(busy), freeBefore = encoding(free);
+        lock.lock();
+
+        // execute
+        Thread tick = Thread.ofPlatform().start(packer::execute);
+        for (int i = 0; i < 100 && encoding(free) == freeBefore; i++) Thread.sleep(10);
+
+        // verify: the free block is packed and the tick waits for the busy one, which it packs once released
+        assertThat(encoding(free)).isNotSameAs(freeBefore);
+        assertThat(encoding(busy)).isSameAs(busyBefore);
+        assertThat(tick.isAlive()).isTrue();
+        lock.unlock();
+        tick.join(1000);
+        assertThat(encoding(busy)).isNotSameAs(busyBefore);
+    }
+
+    private static Object encoding(Block block) {
+        return ReflectionTestUtils.getField(block, "encodedBlock");
     }
 
     @ParameterizedTest

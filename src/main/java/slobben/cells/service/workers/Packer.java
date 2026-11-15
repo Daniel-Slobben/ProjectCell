@@ -12,10 +12,13 @@ import slobben.cells.util.PackedRows;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
@@ -37,11 +40,13 @@ public class Packer extends Worker {
     private Map<Block, Snapshot> snapshots = new IdentityHashMap<>();
 
     public static void packAll(Block block) {
-        pack(block, new Snapshot());
+        Snapshot snapshot = new Snapshot();
+        snapshot.take(block);
+        pack(block, snapshot);
     }
 
+    // the encodings of the cells the snapshot has just taken
     private static void pack(Block block, Snapshot snapshot) {
-        snapshot.take(block);
         LazyEncodedBlock full = new LazyEncodedBlock(block, snapshot, EncodedBlockType.FULL);
         block.setEncodedBlock(full);
         block.setEncodedBlockBorders(block.getBlockState() == BlockState.NEW
@@ -59,12 +64,30 @@ public class Packer extends Worker {
      * the newer cells: an encoding that was not read yet then encodes the newer generation.
      */
     private static final class Snapshot {
+        final ReentrantLock lock = new ReentrantLock();
         long[][] rows;
         int generation;
 
-        synchronized void take(Block block) {
-            rows = block.getPackedCells();
-            generation = block.getGeneration();
+        void take(Block block) {
+            lock.lock();
+            try {
+                rows = block.getPackedCells();
+                generation = block.getGeneration();
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        // false while a client encodes from these cells
+        boolean tryTake(Block block) {
+            if (!lock.tryLock()) return false;
+            try {
+                rows = block.getPackedCells();
+                generation = block.getGeneration();
+            } finally {
+                lock.unlock();
+            }
+            return true;
         }
     }
 
@@ -85,7 +108,8 @@ public class Packer extends Worker {
             if (encoded == null) {
                 byte[] packed;
                 int generation;
-                synchronized (snapshot) {
+                snapshot.lock.lock();
+                try {
                     // without a tick of this worker in between, the GoL is writing into these cells again
                     if (block.getGeneration() - snapshot.generation >= 2) {
                         snapshot.take(block);
@@ -95,6 +119,8 @@ public class Packer extends Worker {
                             ? getFull(snapshot.rows, size)
                             : getPackedBorders(snapshot.rows, size);
                     generation = snapshot.generation;
+                } finally {
+                    snapshot.lock.unlock();
                 }
                 // outside the snapshot, so the next tick of this worker does not wait for the compression
                 encoded = new EncodedBlock(block.getX(), block.getY(), generation, type,
@@ -252,9 +278,20 @@ public class Packer extends Worker {
     @Override
     public void execute() {
         Map<Block, Snapshot> current = new IdentityHashMap<>();
+        List<Block> busy = new ArrayList<>();
         for (Block block : blocks.values()) {
             Snapshot snapshot = Objects.requireNonNullElseGet(snapshots.get(block), Snapshot::new);
             current.put(block, snapshot);
+            if (snapshot.tryTake(block)) {
+                pack(block, snapshot);
+            } else {
+                busy.add(block);
+            }
+        }
+        // a client was encoding these, which is usually done by now
+        for (Block block : busy) {
+            Snapshot snapshot = current.get(block);
+            snapshot.take(block);
             pack(block, snapshot);
         }
         snapshots = current;
