@@ -25,12 +25,12 @@ public class ViewportService extends Worker {
     private List<CoordinateEntry> interestingCoordinates = new ArrayList<>();
 
     private static final int COORDINATES_MAX = 50;
-    // growth patterns fill many busy blocks that all look alike
+    // isGrowthHit patterns fill many busy blocks that all look alike
     private static final int GROWTH_MAX = 3;
     private static final int RECENT_DISTANCE_BLOCKS = 3;
     private static final Random RANDOM = new Random();
 
-    record CoordinateEntry(short count, Coordinates coordinates, boolean growth) {
+    record CoordinateEntry(short count, Coordinates coordinates, boolean isGrowthHit) {
     }
 
     @Override
@@ -51,7 +51,7 @@ public class ViewportService extends Worker {
             if (newCoordinates.size() == COORDINATES_MAX) {
                 break;
             }
-            if (entry.growth() && growthCount++ >= GROWTH_MAX) {
+            if (entry.isGrowthHit() && growthCount++ >= GROWTH_MAX) {
                 continue;
             }
             newCoordinates.add(entry);
@@ -60,7 +60,7 @@ public class ViewportService extends Worker {
     }
 
     // a block only offers its best sector, so one busy block can't fill the whole list
-    private CoordinateEntry bestSector(Block block, boolean growth) {
+    private CoordinateEntry bestSector(Block block, boolean isGrowthHit) {
         short[][] sectorCount = block.getSectorCounts();
         CoordinateEntry best = null;
 
@@ -77,7 +77,7 @@ public class ViewportService extends Worker {
                     int worldX = block.getX() * blockSize + sx * sectorSize;
                     int worldY = block.getY() * blockSize + sy * sectorSize;
 
-                    best = new CoordinateEntry(count, new Coordinates(worldX, worldY), growth);
+                    best = new CoordinateEntry(count, new Coordinates(worldX, worldY), isGrowthHit);
                 }
             }
         }
