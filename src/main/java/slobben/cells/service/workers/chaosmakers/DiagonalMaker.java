@@ -25,7 +25,7 @@ public class DiagonalMaker implements Maker {
 
         setCells(startX, startY, size, chaosHitId);
 
-        return new ChaosHit("Diagonal cross " + size + " pixels wide", chaosHitId, new Coordinates(worldX, worldY), size / 3, size);
+        return new ChaosHit("Diagonal cross " + size + " pixels wide", chaosHitId, new Coordinates(worldX, worldY), size / 3);
     }
 
     private void setCells(int startX, int startY, int squareSize, UUID hitId) {

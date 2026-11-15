@@ -15,17 +15,15 @@ public class ChaosHit {
     @Setter
     private Coordinates currentStartingView;
     private final int maxAge;
-    private final int size;
     private int age = 0;
     @Setter
     private ChaosType type;
 
-    public ChaosHit(String name, UUID id, Coordinates currentStartingView, int maxAge, int size) {
+    public ChaosHit(String name, UUID id, Coordinates currentStartingView, int maxAge) {
         this.name = name;
         this.id = id;
         this.currentStartingView = currentStartingView;
         this.maxAge = maxAge;
-        this.size = size;
     }
 
     public boolean isActive() {

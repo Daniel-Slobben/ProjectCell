@@ -33,7 +33,7 @@ public class LettuceMaker implements Maker {
 
         setCells(startX, startY, size, amountOfLines, chaosHitId);
 
-        return new ChaosHit("Lettuce grid of " + amountOfLines + " lines " + size + " pixels wide", chaosHitId, new Coordinates(worldX, worldY), size / 2 + 1000, size);
+        return new ChaosHit("Lettuce grid of " + amountOfLines + " lines " + size + " pixels wide", chaosHitId, new Coordinates(worldX, worldY), size / 2 + 1000);
     }
 
     private void setCells(int startX, int startY, int size, int amountOfLines, UUID hitId) {

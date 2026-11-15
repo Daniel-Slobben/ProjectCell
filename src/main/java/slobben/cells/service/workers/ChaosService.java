@@ -12,6 +12,7 @@ import slobben.cells.entities.Block;
 import slobben.cells.entities.ChaosHit;
 import slobben.cells.enums.ChaosType;
 import slobben.cells.service.workers.chaosmakers.Maker;
+import slobben.cells.util.BlockUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -128,13 +129,14 @@ public class ChaosService extends Worker {
         }
     }
 
+    // a spot is free when no live block lies within the hit or one block around it
     private boolean isFree(int x, int y, int size) {
-        for (ChaosHit hit : chaosHits) {
-            Coordinates c = hit.getCurrentStartingView();
-            int minDistTimesTwo = hit.getSize() + size + blockSize * 2;
-            if (2 * Math.abs(x - c.x()) < minDistTimesTwo
-                    && 2 * Math.abs(y - c.y()) < minDistTimesTwo) {
-                return false;
+        int half = size / 2;
+        for (int blockX = Math.floorDiv(x - half, blockSize) - 1; blockX <= Math.floorDiv(x + half, blockSize) + 1; blockX++) {
+            for (int blockY = Math.floorDiv(y - half, blockSize) - 1; blockY <= Math.floorDiv(y + half, blockSize) + 1; blockY++) {
+                if (blocks.containsKey(BlockUtils.getKey(blockX, blockY))) {
+                    return false;
+                }
             }
         }
         return true;

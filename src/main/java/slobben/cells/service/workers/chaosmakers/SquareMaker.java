@@ -25,7 +25,7 @@ public class SquareMaker implements Maker {
 
         setCells(startX, startY, chaosHitId, size);
 
-        return new ChaosHit("2 pixels thick square " + size + " pixels wide", chaosHitId, new Coordinates(worldX, worldY), size / 2 + 1000, size);
+        return new ChaosHit("2 pixels thick square " + size + " pixels wide", chaosHitId, new Coordinates(worldX, worldY), size / 2 + 1000);
     }
 
     private void setCells(int startX, int startY, UUID hitId, int size) {
