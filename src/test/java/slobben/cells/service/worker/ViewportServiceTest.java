@@ -16,6 +16,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 // without Spring the service uses its defaults: blocks of 500 cells and sectors of 40
 class ViewportServiceTest {
 
+    // above the minimum of two sector sizes, and not a multiple of 40, which counts as pure lines
+    private static final int BUSY = 101;
+
     private final Map<String, Block> blocks = new HashMap<>();
     private final List<ChaosHit> chaosHits = new ArrayList<>();
     private final ViewportService viewportService = new ViewportService(blocks, chaosHits);
@@ -23,129 +26,81 @@ class ViewportServiceTest {
     @Test
     void aBlockOffersOnlyItsBestSector() {
         // prepare
-        Block busy = getTestBlock(0, 0);
-        busy.getSectorCounts()[1][2] = 101;
-        busy.getSectorCounts()[3][0] = 201;
-        getTestBlock(1, 0).getSectorCounts()[0][1] = 101;
+        Block block = addBlock(0, 0, UUID.randomUUID());
+        block.getSectorCounts()[1][2] = BUSY;
+        block.getSectorCounts()[3][0] = BUSY + 100;
+        Coordinates bestSector = new Coordinates(3 * 40, 0);
+        Coordinates otherBlock = addBusyBlock(1, 0);
 
         // execute
         viewportService.execute();
 
         // verify
-        assertThat(collectPickedViewports(List.of())).containsExactlyInAnyOrder(new Coordinates(120, 0), new Coordinates(500, 40));
+        assertThat(pickedViewports(List.of())).containsExactlyInAnyOrder(bestSector, otherBlock);
     }
 
     @Test
     void keepsTheFiftyBusiestBlocks() {
         // prepare
-        for (int i = 0; i < 55; i++) {
-            // odd counts, so no sector is filtered as a pure line
-            getTestBlock(i, 0).getSectorCounts()[0][0] = (short) (101 + 2 * i);
-        }
+        List<Coordinates> quietestFirst = IntStream.range(0, 55)
+                .mapToObj(i -> addBusyBlock(i, 0, BUSY + 2 * i, UUID.randomUUID()))
+                .toList();
+        List<Coordinates> fiftyBusiest = quietestFirst.subList(5, 55);
 
         // execute
         viewportService.execute();
 
         // verify
-        assertThat(collectPickedViewports(List.of())).containsExactlyInAnyOrderElementsOf(
-                IntStream.range(5, 55).mapToObj(i -> new Coordinates(i * 500, 0)).toList());
+        assertThat(pickedViewports(List.of())).containsExactlyInAnyOrderElementsOf(fiftyBusiest);
+    }
+
+    @Test
+    void keepsOnlyThreeGrowthBlocks() {
+        // prepare
+        UUID growth = addChaosHit(ChaosType.GROWTH_PATTERN);
+        List<Coordinates> growthBlocks = IntStream.range(0, 5)
+                .mapToObj(i -> addBusyBlock(i * 10, 0, BUSY, growth))
+                .toList();
+        Coordinates square = addBusyBlock(100, 0, BUSY, addChaosHit(ChaosType.SQUARE));
+
+        // execute
+        viewportService.execute();
+
+        // verify
+        Set<Coordinates> picked = pickedViewports(List.of());
+        assertThat(picked).contains(square);
+        assertThat(picked).filteredOn(growthBlocks::contains).hasSize(3);
     }
 
     @Test
     void skipsViewportsWithinThreeBlocksOfRecentOnes() {
         // prepare
-        getTestBlock(0, 0).getSectorCounts()[0][0] = 101;
-        getTestBlock(10, 0).getSectorCounts()[0][0] = 101;
-        getTestBlock(20, 0).getSectorCounts()[0][0] = 101;
-        // 3 blocks away (1500 cells) is still near, one cell further is not
-        List<Coordinates> recent = List.of(new Coordinates(1500, -1500), new Coordinates(5000 + 1501, 0));
+        Coordinates recent = new Coordinates(0, 0);
+        addBusyBlock(3, -3);
+        Coordinates fourBlocksAway = addBusyBlock(4, 0);
 
         // execute
         viewportService.execute();
 
         // verify
-        assertThat(collectPickedViewports(recent)).containsExactlyInAnyOrder(new Coordinates(5000, 0), new Coordinates(10000, 0));
-    }
-
-    @Test
-    void skipsViewportsOfTheSameChaosHitAsRecentOnes() {
-        // prepare
-        UUID hit = UUID.randomUUID();
-        getTestBlock(0, 0, hit).getSectorCounts()[0][0] = 101;
-        getTestBlock(10, 0, hit).getSectorCounts()[0][0] = 101;
-        getTestBlock(20, 0).getSectorCounts()[0][0] = 101;
-
-        // execute
-        viewportService.execute();
-
-        // verify
-        assertThat(collectPickedViewports(List.of(new Coordinates(0, 0)))).containsExactly(new Coordinates(10000, 0));
-    }
-
-    @Test
-    void skipsChaosTypesOfTheLatestThreeRecentViewports() {
-        // prepare
-        getTestBlock(0, 0, addChaosHit(ChaosType.SQUARE));
-        getTestBlock(10, 0, addChaosHit(ChaosType.LETTUCE));
-        getTestBlock(20, 0, addChaosHit(ChaosType.SPACESHIP));
-        getTestBlock(30, 0, addChaosHit(ChaosType.GROWTH_PATTERN));
-        getTestBlock(40, 0, addChaosHit(ChaosType.SQUARE)).getSectorCounts()[0][0] = 101;
-        getTestBlock(50, 0, addChaosHit(ChaosType.LETTUCE)).getSectorCounts()[0][0] = 101;
-        getTestBlock(60, 0, addChaosHit(ChaosType.DIAGONAL_LINES)).getSectorCounts()[0][0] = 101;
-        // the square is the oldest of four recent viewports, so only lettuce, spaceship and growth are skipped
-        List<Coordinates> recent = List.of(new Coordinates(0, 0), new Coordinates(5000, 0),
-                new Coordinates(10000, 0), new Coordinates(15000, 0));
-
-        // execute
-        viewportService.execute();
-
-        // verify
-        assertThat(collectPickedViewports(recent)).containsExactlyInAnyOrder(new Coordinates(20000, 0), new Coordinates(30000, 0));
-    }
-
-    @Test
-    void picksTheSameChaosTypeWhenNothingElseIsLeft() {
-        // prepare
-        getTestBlock(0, 0, addChaosHit(ChaosType.SQUARE));
-        getTestBlock(10, 0, addChaosHit(ChaosType.SQUARE)).getSectorCounts()[0][0] = 101;
-
-        // execute
-        viewportService.execute();
-
-        // verify
-        assertThat(collectPickedViewports(List.of(new Coordinates(0, 0)))).containsExactly(new Coordinates(5000, 0));
-    }
-
-    @Test
-    void prefersANearbyOtherChaosTypeOverAFarSameType() {
-        // prepare
-        getTestBlock(0, 0, addChaosHit(ChaosType.GROWTH_PATTERN));
-        getTestBlock(2, 0, addChaosHit(ChaosType.LETTUCE)).getSectorCounts()[0][0] = 101;
-        getTestBlock(20, 0, addChaosHit(ChaosType.GROWTH_PATTERN)).getSectorCounts()[0][0] = 101;
-
-        // execute
-        viewportService.execute();
-
-        // verify
-        assertThat(collectPickedViewports(List.of(new Coordinates(0, 0)))).containsExactly(new Coordinates(1000, 0));
+        assertThat(pickedViewports(List.of(recent))).containsExactly(fourBlocksAway);
     }
 
     @Test
     void picksAnyViewportWhenAllAreNearRecentOnes() {
         // prepare
-        getTestBlock(0, 0).getSectorCounts()[0][0] = 101;
-        getTestBlock(10, 0).getSectorCounts()[0][0] = 101;
-        List<Coordinates> recent = List.of(new Coordinates(0, 0), new Coordinates(5000, 0));
+        Coordinates first = addBusyBlock(0, 0);
+        Coordinates second = addBusyBlock(10, 0);
 
         // execute
         viewportService.execute();
 
         // verify
-        assertThat(collectPickedViewports(recent)).containsExactlyInAnyOrder(new Coordinates(0, 0), new Coordinates(5000, 0));
+        assertThat(pickedViewports(List.of(first, second))).containsExactlyInAnyOrder(first, second);
     }
 
     // the pick is random, so ask often enough to see every candidate
-    private Set<Coordinates> collectPickedViewports(List<Coordinates> recent) {
+    private Set<Coordinates> pickedViewports(List<Coordinates> recent) {
         return IntStream.range(0, 1000)
                 .mapToObj(i -> viewportService.getInterestingViewport(recent))
                 .collect(Collectors.toSet());
@@ -158,12 +113,18 @@ class ViewportServiceTest {
         return hit.getId();
     }
 
-    // the service only reads the sector counts, so the block itself can be small
-    private Block getTestBlock(int x, int y) {
-        return getTestBlock(x, y, UUID.randomUUID());
+    private Coordinates addBusyBlock(int x, int y) {
+        return addBusyBlock(x, y, BUSY, UUID.randomUUID());
     }
 
-    private Block getTestBlock(int x, int y, UUID chaosHit) {
+    // returns the viewport the block offers: its top left sector
+    private Coordinates addBusyBlock(int x, int y, int count, UUID chaosHit) {
+        addBlock(x, y, chaosHit).getSectorCounts()[0][0] = (short) count;
+        return new Coordinates(x * 500, y * 500);
+    }
+
+    // the service only reads the sector counts, so the block itself can be small
+    private Block addBlock(int x, int y, UUID chaosHit) {
         Block block = new Block(x, y, chaosHit, 20);
         block.setSectorCounts(new short[4][4]);
         blocks.put(block.getKey(), block);
