@@ -136,24 +136,72 @@ class PackerTest {
         assertThat(decodeFull(block.getEncodedBlock().encodedCells(), size)).isEqualTo(expected);
     }
 
-    // a FULL block as the frontend reads it: per run, a varint of the empty bytes before it, then its bytes down a strip
+    @ParameterizedTest
+    @CsvSource({"2000, 40", "130, 7", "61, 3", "64, 1"})
+    void fullBlockWithRepeatedRowsDecodesToItsCells(int size, int differentRows) {
+        // prepare: every row is one of a few random rows, or empty
+        Random random = new Random(size);
+        boolean[][] pool = new boolean[differentRows + 1][size];
+        for (int i = 1; i <= differentRows; i++) {
+            for (int y = 0; y < size; y++) pool[i][y] = random.nextInt(4) == 0;
+        }
+        Block block = new Block(0, 0, UUID.randomUUID(), size);
+        byte[] expected = new byte[(size * size + 7) / 8];
+        for (int x = 0; x < size; x++) {
+            boolean[] row = pool[random.nextInt(pool.length)];
+            for (int y = 0; y < size; y++) {
+                if (!row[y]) continue;
+                PackedRows.set(block.getPackedCells()[x + 1], y + 1);
+                setBit(expected, x * size + y);
+            }
+        }
+
+        // execute
+        Packer.packAll(block);
+
+        // verify
+        assertThat(decodeFull(block.getEncodedBlock().encodedCells(), size)).isEqualTo(expected);
+    }
+
+    // a FULL block as the frontend reads it: the rows that copy an earlier row up to a zero, then per run a varint of
+    // the empty bytes before it and its bytes down a strip
     static byte[] decodeFull(byte[] payload, int size) {
         byte[] runs = Zstd.decompress(payload, (int) Zstd.getFrameContentSize(payload));
         int columns = (size + 7) / 8;
         byte[] bits = new byte[(size * size + 7) / 8];
-        for (int i = 0, position = 0; i < runs.length; i++) {
-            for (int shift = 0; ; shift += 7) {
-                position += (runs[i] & 0x7F) << shift;
-                if (runs[i++] >= 0) break;
-            }
+        int[] i = {0};
+        List<int[]> copies = new ArrayList<>();
+        for (int x = 0, distance = 0; runs[i[0]] != 0; ) {
+            x += readVarint(runs, i);
+            int further = readVarint(runs, i);
+            distance += further >>> 1 ^ -(further & 1);
+            copies.add(new int[]{x, x - distance});
+        }
+        i[0]++;
+        for (int position = 0; i[0] < runs.length; i[0]++) {
+            position += readVarint(runs, i);
             int strip = position / 64, c = strip % columns;
-            for (int x = strip / columns * 64 + position % 64; runs[i] != 0; i++, x++, position++) {
+            for (int x = strip / columns * 64 + position % 64; runs[i[0]] != 0; i[0]++, x++, position++) {
                 for (int k = 0; k < 8; k++) {
-                    if ((runs[i] >> k & 1) != 0) setBit(bits, x * size + 8 * c + k);
+                    if ((runs[i[0]] >> k & 1) != 0) setBit(bits, x * size + 8 * c + k);
                 }
             }
         }
+        for (int[] copy : copies) {
+            for (int y = 0; y < size; y++) {
+                int from = copy[1] * size + y;
+                if ((bits[from >>> 3] >> (from & 7) & 1) != 0) setBit(bits, copy[0] * size + y);
+            }
+        }
         return bits;
+    }
+
+    private static int readVarint(byte[] bytes, int[] i) {
+        int value = 0;
+        for (int shift = 0; ; shift += 7) {
+            value += (bytes[i[0]] & 0x7F) << shift;
+            if (bytes[i[0]++] >= 0) return value;
+        }
     }
 
     private Block getActiveBlock() {
