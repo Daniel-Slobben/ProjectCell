@@ -10,8 +10,7 @@ public enum ChaosType {
     LETTUCE(LettuceMaker.class, 3),
     GROWTH_PATTERN(GrowthMaker.class, 2),
     SPACESHIP(SpaceshipMaker.class, 8),
-    DIAGONAL_LINES(DiagonalMaker.class, 3),
-    NOISE(NoiseMaker.class, 0);
+    DIAGONAL_LINES(DiagonalMaker.class, 3);
 
     private static final Random random = new Random();
     private static final int TOTAL_WEIGHT = Arrays.stream(values()).mapToInt(type -> type.weight).sum();
