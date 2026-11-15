@@ -27,6 +27,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setHeartbeatValue(new long[]{2000, 5000})
                 .setTaskScheduler(messageBrokerTaskScheduler);
         registry.setPreservePublishOrder(true);
+        registry.setCacheLimit(100_000);
     }
 
     @Override
