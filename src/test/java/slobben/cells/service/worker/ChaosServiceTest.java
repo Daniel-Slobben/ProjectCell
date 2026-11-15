@@ -31,7 +31,7 @@ class ChaosServiceTest {
 
     @BeforeEach
     void setUp() {
-        Maker maker = (x, y, size) -> new ChaosHit("test", UUID.randomUUID(), new Coordinates(x, y), hitAge, size);
+        Maker maker = (x, y, size) -> new ChaosHit("test", UUID.randomUUID(), new Coordinates(x, y), hitAge);
         when(beanFactory.getBean(any(Class.class))).thenReturn(maker);
         ReflectionTestUtils.setField(chaosService, "preferredType", "ANY");
         ReflectionTestUtils.setField(chaosService, "blockSize", 20);
@@ -133,6 +133,22 @@ class ChaosServiceTest {
 
         // verify
         assertThat(blocks).hasSize(addedBlocks);
+    }
+
+    @Test
+    void findsASpotAwayFromLiveBlocks() {
+        // prepare
+        final int size = 2000;
+        addBlocks(1);
+
+        // execute
+        List<Coordinates> spots = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            spots.add(chaosService.findFreeSpot(size));
+        }
+
+        // verify
+        assertThat(spots).allMatch(c -> Math.abs(c.x()) > size / 2 || Math.abs(c.y()) > size / 2);
     }
 
     private void tick(int ticks) {

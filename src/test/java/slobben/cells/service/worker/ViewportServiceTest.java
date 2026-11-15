@@ -152,7 +152,7 @@ class ViewportServiceTest {
     }
 
     private UUID addChaosHit(ChaosType type) {
-        ChaosHit hit = new ChaosHit(type.name(), UUID.randomUUID(), new Coordinates(0, 0), 100, 100);
+        ChaosHit hit = new ChaosHit(type.name(), UUID.randomUUID(), new Coordinates(0, 0), 100);
         hit.setType(type);
         chaosHits.add(hit);
         return hit.getId();
