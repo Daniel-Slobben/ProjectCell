@@ -82,8 +82,7 @@ public class Packer extends Worker {
         boolean tryTake(Block block) {
             if (!lock.tryLock()) return false;
             try {
-                rows = block.getPackedCells();
-                generation = block.getGeneration();
+                take(block);
             } finally {
                 lock.unlock();
             }

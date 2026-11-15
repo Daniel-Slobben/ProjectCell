@@ -22,11 +22,11 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * FULL blocks of real chaos hits as the Packer sends them, runs of strips, against zstd 3 of the rows as it sent them
- * before, as the hits age. ChaosService runs as in production: a random hit every 100 ticks. The blocks of each hit
- * are encoded both ways when the hit is 0, 1, 2, 4 ... 2048 ticks old, and all blocks every 100 ticks. Every payload
- * is decoded and checked against the rows. The first 200 ticks only warm up: they encode every block both ways, so the
- * JIT compiles both on real blocks, as in production.
+ * FULL blocks of real chaos hits as the Packer sends them, copied rows and runs of strips, against zstd 3 of the rows
+ * as it sent them before, as the hits age. ChaosService runs as in production: a random hit every 100 ticks. The
+ * blocks of each hit are encoded both ways when the hit is 0, 1, 2, 4 ... 2048 ticks old, and all blocks every 100
+ * ticks. Every payload is decoded and checked against the rows. The first 200 ticks only warm up: they encode every
+ * block both ways, so the JIT compiles both on real blocks, as in production.
  * <p>
  * mvn test -Dtest=FullBlockChaosTest -Djunit.jupiter.conditions.deactivate='org.junit.*DisabledCondition' -DargLine=-Xmx8g
  * with -Dchaos.ticks=4000 for the length of the run, and -Dchaos.write=dir to write up to 30 blocks per age as
