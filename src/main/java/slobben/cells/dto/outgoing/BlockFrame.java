@@ -11,7 +11,7 @@ import java.util.List;
  * offset  type  field
  *  0      i32   x
  *  4      i32   y
- *  8      u8    type (0 = FULL, 1 = BORDER)
+ *  8      u8    type (0 = FULL, 1 = BORDER, 2 = SECTOR)
  *  9      u32   generation
  * 13      u32   encodedCells length
  * 17      ...   encodedCells (zstd frame, see EncodedBlock)

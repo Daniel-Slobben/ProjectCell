@@ -17,6 +17,9 @@ import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.service.workers.Packer;
 import slobben.cells.util.PackedRows;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -86,6 +89,28 @@ class PackerTest {
     }
 
     @Test
+    void packsTheSectors() {
+        // prepare
+        Block block = getActiveBlock();
+
+        // execute
+        Packer.packAll(block);
+
+        // verify
+        EncodedBlock sectors = block.getEncodedBlockSectors();
+        assertThat(sectors.generation()).isEqualTo(1);
+        assertThat(sectors.type()).isEqualTo(EncodedBlockType.SECTOR);
+        ShortBuffer counts = ByteBuffer.wrap(decompress(sectors)).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+        short[] actual = new short[counts.remaining()];
+        counts.get(actual);
+        short[] expected = new short[7 * 7]; // 70 / 10 sectors per band, 70 / 10 bands
+        expected[0] = 4;          // the block at [1..2][1..2]: band 0, sector 0
+        expected[6] = 4;          // [1..2][63..64]: band 0, sector 6
+        expected[6 * 7 + 6] = 4;  // [69..70][69..70]: band 6, sector 6
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
     void newBlockIsSentInFull() {
         // prepare
         Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
@@ -96,6 +121,8 @@ class PackerTest {
         // verify
         assertThat(block.getEncodedBlockBorders()).isSameAs(block.getEncodedBlock());
         assertThat(block.getEncodedBlock().type()).isEqualTo(EncodedBlockType.FULL);
+        // no sector counts before its first GoL step
+        assertThat(block.getEncodedBlockSectors()).isNull();
     }
 
     @Test
