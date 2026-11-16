@@ -1,10 +1,12 @@
 package slobben.cells.service.worker;
 
 import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.ChaosHit;
 import slobben.cells.service.RleReader;
 import slobben.cells.service.workers.chaosmakers.SpaceshipMaker;
+import slobben.cells.service.workers.chaosmakers.SpaceshipMaker.Direction;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,14 +26,9 @@ class SpaceshipMakerTest {
     @RepeatedTest(20)
     void writesAVOfShipsThatDoNotOverlap() throws IOException {
         // prepare
-        RleReader rleReader = mock(RleReader.class);
         List<String> patterns = new ArrayList<>();
         List<Coordinates> corners = new ArrayList<>();
-        when(rleReader.writePatternToWorld(anyString(), any(Coordinates.class), any(UUID.class), anyByte())).thenAnswer(invocation -> {
-            patterns.add(invocation.getArgument(0));
-            corners.add(invocation.getArgument(1));
-            return SHIP_SIZE;
-        });
+        RleReader rleReader = recordingReader(patterns, corners);
 
         // execute
         ChaosHit hit = new SpaceshipMaker(rleReader).getChaosHit(100, 200, HIT_SIZE);
@@ -49,5 +46,44 @@ class SpaceshipMakerTest {
                 assertThat(Math.abs(a.x() - b.x()) > SHIP_SIZE || Math.abs(a.y() - b.y()) > SHIP_SIZE).as("ships %s and %s overlap", a, b).isTrue();
             }
         }
+    }
+
+    @Test
+    void capsTheFleetAtFiveThousandCells() throws IOException {
+        // prepare
+        List<Coordinates> corners = new ArrayList<>();
+        RleReader rleReader = recordingReader(new ArrayList<>(), corners);
+
+        // execute
+        new SpaceshipMaker(rleReader).getChaosHit(0, 0, 16_000);
+
+        // verify
+        assertThat(corners).allSatisfy(corner -> {
+            assertThat(Math.abs(corner.x())).isLessThanOrEqualTo(2500);
+            assertThat(Math.abs(corner.y())).isLessThanOrEqualTo(2500);
+        });
+    }
+
+    @RepeatedTest(20)
+    void aimsAtTheMiddleOfTheMap() throws IOException {
+        // prepare
+        RleReader rleReader = recordingReader(new ArrayList<>(), new ArrayList<>());
+
+        // execute
+        ChaosHit hit = new SpaceshipMaker(rleReader).getChaosHit(-50_000, 10, HIT_SIZE);
+
+        // verify
+        String heading = hit.getName().substring(hit.getName().lastIndexOf(' ') + 1);
+        assertThat(Direction.valueOf(heading).dx).as(hit.getName()).isEqualTo(1);
+    }
+
+    private static RleReader recordingReader(List<String> patterns, List<Coordinates> corners) throws IOException {
+        RleReader rleReader = mock(RleReader.class);
+        when(rleReader.writePatternToWorld(anyString(), any(Coordinates.class), any(UUID.class), anyByte())).thenAnswer(invocation -> {
+            patterns.add(invocation.getArgument(0));
+            corners.add(invocation.getArgument(1));
+            return SHIP_SIZE;
+        });
+        return rleReader;
     }
 }

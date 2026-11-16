@@ -20,6 +20,7 @@ public class SpaceshipMaker implements Maker {
     public static final String DIR = "spaceships/";
     private static final int MIN_GAP = 30;
     private static final int MAX_GAP = 100;
+    private static final int MAX_FLEET_SIZE = 5000;
 
     private final Random random = new Random();
     private final RleReader rleReader;
@@ -63,7 +64,7 @@ public class SpaceshipMaker implements Maker {
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {
         UUID chaosHitId = UUID.randomUUID();
         String pattern = patterns.get(random.nextInt(patterns.size()));
-        byte rotation = (byte) random.nextInt(4);
+        byte rotation = aimAtMiddle(directions.get(pattern), worldX, worldY);
         Direction heading = directions.get(pattern).rotated(rotation);
 
         // the leader goes in the middle of the hit, the rest fall in behind it in a V, as far as the hit's size allows
@@ -71,7 +72,7 @@ public class SpaceshipMaker implements Maker {
         try {
             int slot = write(pattern, worldX, worldY, chaosHitId, rotation) + random.nextInt(MIN_GAP, MAX_GAP + 1);
             shipCount++;
-            int reach = size / 2 - slot;
+            int reach = Math.min(size, MAX_FLEET_SIZE) / 2 - slot;
             for (int rank = 1; ; rank++) {
                 List<Coordinates> spots = vSpots(heading, rank);
                 if (spots.stream().anyMatch(spot -> Math.abs(spot.x()) * slot > reach || Math.abs(spot.y()) * slot > reach)) {
@@ -88,6 +89,21 @@ public class SpaceshipMaker implements Maker {
 
         String name = "Spaceships, %s %s heading %s".formatted(shipCount, pattern, heading);
         return new ChaosHit(name, chaosHitId, new Coordinates(worldX, worldY), 100);
+    }
+
+    // the rotation whose heading points closest to the middle of the map, (0, 0)
+    private static byte aimAtMiddle(Direction direction, int worldX, int worldY) {
+        byte best = 0;
+        double bestScore = -Double.MAX_VALUE;
+        for (byte rotation = 0; rotation < 4; rotation++) {
+            Direction heading = direction.rotated(rotation);
+            double score = -(worldX * heading.dx + worldY * heading.dy) / Math.hypot(heading.dx, heading.dy);
+            if (score > bestScore) {
+                best = rotation;
+                bestScore = score;
+            }
+        }
+        return best;
     }
 
     private int write(String pattern, int x, int y, UUID chaosHitId, byte rotation) throws IOException {
