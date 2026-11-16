@@ -23,6 +23,7 @@ import java.util.Random;
 @Slf4j
 public class ChaosService extends Worker {
     private final Map<String, Block> blocks;
+    private final Map<String, Block> newBlocks;
     private final BeanFactory beanFactory;
     private final List<ChaosHit> chaosHits;
 
@@ -42,13 +43,14 @@ public class ChaosService extends Worker {
     @Value("${cells.chaos.max-cycle-share:0}")
     private double maxCycleShare;
 
-    private static final int TICKS_BETWEEN_NEW_HITS = 100;
+    private static final int HITS_AT_START = 10;
+    private static final int TICKS_BETWEEN_NEW_HITS = 500;
     private static final int OVERLOADED_CYCLES_BEFORE_RESET = 20;
     private int tickCounter = 0;
 
     @PostConstruct
     void init() {
-        createChaosHit();
+        kickstart();
     }
 
     public String getName() {
@@ -84,7 +86,15 @@ public class ChaosService extends Worker {
     private void reset() {
         blocks.clear();
         chaosHits.clear();
-        tickCounter = TICKS_BETWEEN_NEW_HITS;
+        kickstart();
+    }
+
+    // an empty world gets a burst of hits, after that they come slowly
+    private void kickstart() {
+        for (int i = 0; i < HITS_AT_START; i++) {
+            createChaosHit();
+        }
+        tickCounter = 0;
     }
 
     private void createChaosHit() {
@@ -129,12 +139,13 @@ public class ChaosService extends Worker {
         }
     }
 
-    // a spot is free when no live block lies within the hit or one block around it
+    // a spot is free when no block lies within the hit or one block around it, counting the blocks hits wrote this tick
     private boolean isFree(int x, int y, int size) {
         int half = size / 2;
         for (int blockX = Math.floorDiv(x - half, blockSize) - 1; blockX <= Math.floorDiv(x + half, blockSize) + 1; blockX++) {
             for (int blockY = Math.floorDiv(y - half, blockSize) - 1; blockY <= Math.floorDiv(y + half, blockSize) + 1; blockY++) {
-                if (blocks.containsKey(BlockUtils.getKey(blockX, blockY))) {
+                String key = BlockUtils.getKey(blockX, blockY);
+                if (blocks.containsKey(key) || newBlocks.containsKey(key)) {
                     return false;
                 }
             }

@@ -21,11 +21,13 @@ import static org.mockito.Mockito.when;
 // every maker is replaced by one that writes no cells, so the tests fill the world with blocks by hand
 class ChaosServiceTest {
     private static final int MAX_BLOCKS = 3;
+    private static final int HITS_AT_START = 10;
 
     private final Map<String, Block> blocks = new HashMap<>();
+    private final Map<String, Block> newBlocks = new HashMap<>();
     private final List<ChaosHit> chaosHits = new ArrayList<>();
     private final BeanFactory beanFactory = mock(BeanFactory.class);
-    private final ChaosService chaosService = new ChaosService(blocks, beanFactory, chaosHits);
+    private final ChaosService chaosService = new ChaosService(blocks, newBlocks, beanFactory, chaosHits);
     private final ServerInfoService serverInfoService = new ServerInfoService();
     private int hitAge = 10_000;
 
@@ -41,15 +43,18 @@ class ChaosServiceTest {
     }
 
     @Test
-    void spawnsAHitEveryHundredTicks() {
+    void startsWithABurstOfHitsThenSpawnsOneEveryFiveHundredTicks() {
         // execute
-        tick(100);
-        int hitsAfterHundredTicks = chaosHits.size();
+        tick(1);
+        int hitsAtStart = chaosHits.size();
+        tick(499);
+        int hitsBeforeTheNextOne = chaosHits.size();
         tick(1);
 
         // verify
-        assertThat(hitsAfterHundredTicks).isEqualTo(1);
-        assertThat(chaosHits).hasSize(2);
+        assertThat(hitsAtStart).isEqualTo(HITS_AT_START);
+        assertThat(hitsBeforeTheNextOne).isEqualTo(HITS_AT_START);
+        assertThat(chaosHits).hasSize(HITS_AT_START + 1);
     }
 
     @Test
@@ -62,7 +67,7 @@ class ChaosServiceTest {
         tick(1000);
 
         // verify
-        assertThat(chaosHits).hasSize(1);
+        assertThat(chaosHits).hasSize(HITS_AT_START);
     }
 
     @Test
@@ -81,7 +86,7 @@ class ChaosServiceTest {
         // verify
         assertThat(blocksAtMaxAge).isEqualTo(addedBlocks);
         assertThat(blocks).isEmpty();
-        assertThat(chaosHits).singleElement().extracting(ChaosHit::getAge).isEqualTo(0);
+        assertThat(chaosHits).hasSize(HITS_AT_START).extracting(ChaosHit::getAge).containsOnly(0);
     }
 
     @Test
@@ -140,6 +145,23 @@ class ChaosServiceTest {
         // prepare
         final int size = 2000;
         addBlocks(1);
+
+        // execute
+        List<Coordinates> spots = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            spots.add(chaosService.findFreeSpot(size));
+        }
+
+        // verify
+        assertThat(spots).allMatch(c -> Math.abs(c.x()) > size / 2 || Math.abs(c.y()) > size / 2);
+    }
+
+    @Test
+    void findsASpotAwayFromBlocksWrittenThisTick() {
+        // prepare
+        final int size = 2000;
+        Block block = new Block(0, 0, UUID.randomUUID(), 20);
+        newBlocks.put(block.getKey(), block);
 
         // execute
         List<Coordinates> spots = new ArrayList<>();

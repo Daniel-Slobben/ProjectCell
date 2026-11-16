@@ -19,8 +19,8 @@ import java.util.*;
 @Component
 public class SpaceshipMaker implements Maker {
     public static final String DIR = "spaceships/";
-    private static final int MIN_GAP = 30;
-    private static final int MAX_GAP = 100;
+    private static final int MIN_GAP = 10;
+    private static final int MAX_GAP = 30;
     private static final int MAX_FLEET_SIZE = 5000;
 
     private final Random random = new Random();
