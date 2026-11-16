@@ -224,6 +224,25 @@ class ClientServiceTest {
     }
 
     @Test
+    void sendsBordersOnTheFirstTickAfterTheFullBlocks() {
+        // prepare
+        Block block = getTestBlock(2, 3);
+        nextState(algorithmGol, block);
+        Packer.packAll(block);
+        blocks.put(block.getKey(), block);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
+        sent.clear();
+
+        // execute
+        clientService.execute();
+
+        // verify: the client-update already sent the full block
+        assertThat(sent).hasSize(1);
+        assertThat(BlockFrameReader.read((byte[]) sent.getFirst().getPayload())).containsExactly(block.getEncodedBlockBorders());
+    }
+
+    @Test
     void forgetsAClientWhenItsSessionCloses() {
         // prepare
         Block block = getTestBlock(2, 3);

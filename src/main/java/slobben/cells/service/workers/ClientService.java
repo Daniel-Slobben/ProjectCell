@@ -45,7 +45,7 @@ public class ClientService extends Worker {
         boolean sectorTick = ticks++ % SECTOR_TICKS == 0;
         Set<Runnable> tasks = clients.values().stream()
                 .filter(client -> sectorTick || !client.isSectors())
-                .map(client -> (Runnable) () -> sendClientUpdate(client, client.getActiveBlocks(), !client.isInError()))
+                .map(client -> (Runnable) () -> sendClientUpdate(client, client.getActiveBlocks(), true))
                 .collect(Collectors.toSet());
 
         executorService.executeTasksParallel(tasks, getName());
