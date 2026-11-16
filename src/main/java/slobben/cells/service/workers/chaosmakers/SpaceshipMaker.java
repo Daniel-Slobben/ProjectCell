@@ -5,6 +5,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.ChaosHit;
+import slobben.cells.enums.Direction;
 import slobben.cells.service.RleReader;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -24,25 +25,9 @@ public class SpaceshipMaker implements Maker {
 
     private final Random random = new Random();
     private final RleReader rleReader;
+    // where each ship heads on screen when written at rotation 0
     private final Map<String, Direction> directions;
     private final List<String> patterns;
-
-    // where a ship heads on screen when written at rotation 0; every rotation turns it 90° counterclockwise
-    public enum Direction {
-        N(0, -1), NE(1, -1), E(1, 0), SE(1, 1), S(0, 1), SW(-1, 1), W(-1, 0), NW(-1, -1);
-
-        public final int dx;
-        public final int dy;
-
-        Direction(int dx, int dy) {
-            this.dx = dx;
-            this.dy = dy;
-        }
-
-        public Direction rotated(int rotation) {
-            return values()[Math.floorMod(ordinal() - 2 * rotation, 8)];
-        }
-    }
 
     public SpaceshipMaker(RleReader rleReader) {
         this.rleReader = rleReader;
@@ -97,7 +82,7 @@ public class SpaceshipMaker implements Maker {
         double bestScore = -Double.MAX_VALUE;
         for (byte rotation = 0; rotation < 4; rotation++) {
             Direction heading = direction.rotated(rotation);
-            double score = -(worldX * heading.dx + worldY * heading.dy) / Math.hypot(heading.dx, heading.dy);
+            double score = -(worldX * heading.getDx() + worldY * heading.getDy()) / Math.hypot(heading.getDx(), heading.getDy());
             if (score > bestScore) {
                 best = rotation;
                 bestScore = score;
@@ -112,8 +97,8 @@ public class SpaceshipMaker implements Maker {
 
     // one rank behind the leader per rank, out to both sides like birds
     private static List<Coordinates> vSpots(Direction heading, int rank) {
-        int backX = -heading.dx * rank;
-        int backY = -heading.dy * rank;
-        return List.of(new Coordinates(backX - heading.dy * rank, backY + heading.dx * rank), new Coordinates(backX + heading.dy * rank, backY - heading.dx * rank));
+        int backX = -heading.getDx() * rank;
+        int backY = -heading.getDy() * rank;
+        return List.of(new Coordinates(backX - heading.getDy() * rank, backY + heading.getDx() * rank), new Coordinates(backX + heading.getDy() * rank, backY - heading.getDx() * rank));
     }
 }

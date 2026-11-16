@@ -6,7 +6,7 @@ import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.ChaosHit;
 import slobben.cells.service.RleReader;
 import slobben.cells.service.workers.chaosmakers.SpaceshipMaker;
-import slobben.cells.service.workers.chaosmakers.SpaceshipMaker.Direction;
+import slobben.cells.enums.Direction;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -74,7 +74,7 @@ class SpaceshipMakerTest {
 
         // verify
         String heading = hit.getName().substring(hit.getName().lastIndexOf(' ') + 1);
-        assertThat(Direction.valueOf(heading).dx).as(hit.getName()).isEqualTo(1);
+        assertThat(Direction.valueOf(heading).getDx()).as(hit.getName()).isEqualTo(1);
     }
 
     private static RleReader recordingReader(List<String> patterns, List<Coordinates> corners) throws IOException {

@@ -10,7 +10,7 @@ import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.service.RleReader;
 import slobben.cells.service.WorldEditor;
 import slobben.cells.service.workers.chaosmakers.SpaceshipMaker;
-import slobben.cells.service.workers.chaosmakers.SpaceshipMaker.Direction;
+import slobben.cells.enums.Direction;
 
 import java.io.IOException;
 import java.util.*;
@@ -86,7 +86,7 @@ class SpaceshipDirectionsTest {
         int main = Math.max(Math.abs(dx), Math.abs(dy));
         int sx = Math.abs(dx) * 2 >= main ? Integer.signum(dx) : 0;
         int sy = Math.abs(dy) * 2 >= main ? Integer.signum(dy) : 0;
-        return Arrays.stream(Direction.values()).filter(d -> d.dx == sx && d.dy == sy).findFirst().orElseThrow();
+        return Direction.of(sx, sy);
     }
 
     private static int[] bounds(Set<Long> cells) {

@@ -2,6 +2,8 @@ package slobben.cells.enums;
 
 import lombok.Getter;
 
+import java.util.Arrays;
+
 @Getter
 public enum Direction {
     LOW_X_LOW_Y(-1, -1),
@@ -19,5 +21,18 @@ public enum Direction {
     Direction(int dx, int dy) {
         this.dx = dx;
         this.dy = dy;
+    }
+
+    public static Direction of(int dx, int dy) {
+        return Arrays.stream(values()).filter(d -> d.dx == dx && d.dy == dy).findFirst().orElseThrow();
+    }
+
+    // a quarter turn counterclockwise on screen per rotation, the way RleReader rotates patterns
+    public Direction rotated(int rotation) {
+        Direction direction = this;
+        for (int i = 0; i < Math.floorMod(rotation, 4); i++) {
+            direction = of(direction.dy, -direction.dx);
+        }
+        return direction;
     }
 }
