@@ -8,6 +8,8 @@ import slobben.cells.service.workers.Packer;
 
 import java.util.UUID;
 
+import static slobben.cells.TestUtils.createAlgorithmGol;
+import static slobben.cells.TestUtils.nextState;
 import static slobben.cells.util.BlockUtils.setBlockToRandom;
 
 class PackerLoadTest {
@@ -20,7 +22,7 @@ class PackerLoadTest {
     void profilePacker(int blockSize) {
         Block block = new Block(0, 0, UUID.randomUUID(), blockSize);
         setBlockToRandom(block, 6, blockSize);
-        AlgorithmGolTest.nextState(AlgorithmGolLoadTest.createAlgorithmGol(blockSize, 50), block);
+        nextState(createAlgorithmGol(blockSize, 50), block);
 
         for (int i = 0; i < CELL_PACKS / ((long) blockSize * blockSize); i++) {
             Packer.packAll(block);

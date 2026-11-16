@@ -4,6 +4,7 @@ import com.github.luben.zstd.Zstd;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.test.util.ReflectionTestUtils;
+import slobben.cells.TestUtils.Cell;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
@@ -19,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static slobben.cells.TestUtils.*;
 
 // the cycle of RunnerService on random cells, against a plain Game of Life on an unbounded grid
 class CycleTest {
@@ -35,9 +37,6 @@ class CycleTest {
     private final Pruning pruning = new Pruning(blocks);
     private final WorldEditor worldEditor = new WorldEditor(newBlocks);
     private int size;
-
-    record Cell(int x, int y) {
-    }
 
     record Encoding(String what, Supplier<EncodedBlock> encoding, int generation, byte[] bits) {
     }
@@ -67,7 +66,7 @@ class CycleTest {
 
             // verify
             // the random cells come in with the first tick, the GoL steps them from the second
-            if (generation > 1) expected = referenceNextGeneration(expected);
+            if (generation > 1) expected = nextGeneration(expected);
             if (!hit.isEmpty()) expected = applyChaosHit(expected, hit);
             assertThat(findDifferences(readActualCells(), expected)).as("generation %d", generation).isEmpty();
             encodings = getExpectedEncodings(generation);
@@ -97,23 +96,6 @@ class CycleTest {
             }
         }
         return cells;
-    }
-
-    // the reference: a plain Game of Life on the set of alive cells
-    private static Set<Cell> referenceNextGeneration(Set<Cell> alive) {
-        Map<Cell, Integer> neighbours = new HashMap<>();
-        for (Cell cell : alive) {
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    if (dx != 0 || dy != 0) neighbours.merge(new Cell(cell.x() + dx, cell.y() + dy), 1, Integer::sum);
-                }
-            }
-        }
-        Set<Cell> next = new HashSet<>();
-        neighbours.forEach((cell, count) -> {
-            if (count == 3 || (count == 2 && alive.contains(cell))) next.add(cell);
-        });
-        return next;
     }
 
     // the hit blocks hold only the cells of the hit
@@ -167,7 +149,7 @@ class CycleTest {
         EncodedBlock encoded = expected.encoding().get();
         assertThat(encoded.generation()).as(expected.what()).isEqualTo(expected.generation());
         byte[] bits = encoded.type() == EncodedBlockType.FULL
-                ? PackerTest.decodeFull(encoded.encodedCells(), size)
+                ? decodeFull(encoded.encodedCells(), size)
                 : Zstd.decompress(encoded.encodedCells(), expected.bits().length);
         assertThat(bits).as(expected.what()).isEqualTo(expected.bits());
     }
@@ -192,7 +174,4 @@ class CycleTest {
         return bits;
     }
 
-    private static void setBit(byte[] bits, int i) {
-        bits[i >>> 3] |= (byte) (1 << (i & 7));
-    }
 }

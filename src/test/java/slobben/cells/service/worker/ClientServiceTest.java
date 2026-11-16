@@ -32,14 +32,15 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static slobben.cells.service.worker.AlgorithmGolTest.nextState;
+import static slobben.cells.TestUtils.createAlgorithmGol;
+import static slobben.cells.TestUtils.nextState;
 
 class ClientServiceTest {
 
     private final List<Message<?>> sent = new CopyOnWriteArrayList<>(); // full blocks are sent from parallel threads
     private final Map<String, Block> blocks = new HashMap<>();
     private final ClientService clientService;
-    private final AlgorithmGol algorithmGol = AlgorithmGolLoadTest.createAlgorithmGol(20, 5);
+    private final AlgorithmGol algorithmGol = createAlgorithmGol(20, 5);
 
     ClientServiceTest() {
         MessageChannel channel = (message, timeout) -> sent.add(message);

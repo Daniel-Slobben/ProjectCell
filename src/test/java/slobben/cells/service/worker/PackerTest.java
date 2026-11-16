@@ -26,8 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static slobben.cells.service.worker.AlgorithmGolTest.drawPattern;
-import static slobben.cells.service.worker.AlgorithmGolTest.nextState;
+import static slobben.cells.TestUtils.*;
 
 @SpringBootTest(properties = {"cells.size.blockSize=70", "cells.size.sectorSize=10"})
 @ComponentScan("slobben.cells.service")
@@ -199,47 +198,6 @@ class PackerTest {
         assertThat(decodeFull(block.getEncodedBlock().encodedCells(), size)).isEqualTo(expected);
     }
 
-    // a FULL block as the frontend reads it: the rows that copy an earlier row up to a zero, then per run a varint of
-    // the empty bytes before it and its bytes down a strip
-    static byte[] decodeFull(byte[] payload, int size) {
-        byte[] runs = Zstd.decompress(payload, (int) Zstd.getFrameContentSize(payload));
-        int columns = (size + 7) / 8;
-        byte[] bits = new byte[(size * size + 7) / 8];
-        int[] i = {0};
-        List<int[]> copies = new ArrayList<>();
-        for (int x = 0, distance = 0; runs[i[0]] != 0; ) {
-            x += readVarint(runs, i);
-            int further = readVarint(runs, i);
-            distance += further >>> 1 ^ -(further & 1);
-            copies.add(new int[]{x, x - distance});
-        }
-        i[0]++;
-        for (int position = 0; i[0] < runs.length; i[0]++) {
-            position += readVarint(runs, i);
-            int strip = position / 64, c = strip % columns;
-            for (int x = strip / columns * 64 + position % 64; runs[i[0]] != 0; i[0]++, x++, position++) {
-                for (int k = 0; k < 8; k++) {
-                    if ((runs[i[0]] >> k & 1) != 0) setBit(bits, x * size + 8 * c + k);
-                }
-            }
-        }
-        for (int[] copy : copies) {
-            for (int y = 0; y < size; y++) {
-                int from = copy[1] * size + y;
-                if ((bits[from >>> 3] >> (from & 7) & 1) != 0) setBit(bits, copy[0] * size + y);
-            }
-        }
-        return bits;
-    }
-
-    private static int readVarint(byte[] bytes, int[] i) {
-        int value = 0;
-        for (int shift = 0; ; shift += 7) {
-            value += (bytes[i[0]] & 0x7F) << shift;
-            if (bytes[i[0]++] >= 0) return value;
-        }
-    }
-
     private Block getActiveBlock() {
         Block block = new Block(3, -2, UUID.randomUUID(), blockSize);
         drawPattern(block, 1, 1, "##\n##");
@@ -255,10 +213,6 @@ class PackerTest {
 
     private static byte[] decompress(EncodedBlock encoded) {
         return Zstd.decompress(encoded.encodedCells(), (int) Zstd.getFrameContentSize(encoded.encodedCells()));
-    }
-
-    private static void setBit(byte[] bits, int i) {
-        bits[i >>> 3] |= (byte) (1 << (i & 7));
     }
 
     private static List<Integer> getAliveBitIndexes(byte[] bits) {

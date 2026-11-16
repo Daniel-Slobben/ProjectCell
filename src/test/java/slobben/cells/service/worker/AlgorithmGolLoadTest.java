@@ -3,14 +3,13 @@ package slobben.cells.service.worker;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.entities.Block;
-import slobben.cells.service.ExecutorService;
 import slobben.cells.service.workers.AlgorithmGol;
 
-import java.util.HashMap;
 import java.util.UUID;
 
+import static slobben.cells.TestUtils.createAlgorithmGol;
+import static slobben.cells.TestUtils.nextState;
 import static slobben.cells.util.BlockUtils.setBlockToRandom;
 
 class AlgorithmGolLoadTest {
@@ -39,15 +38,7 @@ class AlgorithmGolLoadTest {
                 block = new Block(0, 0, UUID.randomUUID(), blockSize);
                 setBlockToRandom(block, 6, blockSize);
             }
-            AlgorithmGolTest.nextState(algorithmGol, block);
+            nextState(algorithmGol, block);
         }
-    }
-
-    static AlgorithmGol createAlgorithmGol(int blockSize, int sectorSize) {
-        AlgorithmGol algorithmGol = new AlgorithmGol(new ExecutorService(), new HashMap<>());
-        ReflectionTestUtils.setField(algorithmGol, "blockSize", blockSize);
-        ReflectionTestUtils.setField(algorithmGol, "sectorSize", sectorSize);
-        ReflectionTestUtils.invokeMethod(algorithmGol, "init");
-        return algorithmGol;
     }
 }

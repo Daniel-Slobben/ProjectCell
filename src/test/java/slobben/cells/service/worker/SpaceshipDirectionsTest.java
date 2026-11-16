@@ -6,6 +6,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import slobben.cells.TestUtils.Cell;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.service.RleReader;
 import slobben.cells.service.WorldEditor;
@@ -20,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static slobben.cells.TestUtils.nextGeneration;
 
 // every ship is written by the real RleReader and run long enough to see where it goes on screen
 class SpaceshipDirectionsTest {
@@ -51,17 +53,17 @@ class SpaceshipDirectionsTest {
 
     private static void assertHeading(String pattern, int rotation) throws IOException {
         // prepare
-        Set<Long> cells = new HashSet<>();
+        Set<Cell> cells = new HashSet<>();
         WorldEditor worldEditor = mock(WorldEditor.class);
-        doAnswer(invocation -> cells.add(key(invocation.getArgument(0), invocation.getArgument(1))))
+        doAnswer(invocation -> cells.add(new Cell(invocation.getArgument(0), invocation.getArgument(1))))
                 .when(worldEditor).setCell(anyInt(), anyInt(), any());
         new RleReader(worldEditor).writePatternToWorld(SpaceshipMaker.DIR + pattern, new Coordinates(0, 0), UUID.randomUUID(), (byte) rotation);
         int[] start = bounds(cells);
 
         // execute
-        Set<Long> end = cells;
+        Set<Cell> end = cells;
         for (int i = 0; i < GENERATIONS; i++) {
-            end = step(end);
+            end = nextGeneration(end);
         }
 
         // verify
@@ -89,46 +91,14 @@ class SpaceshipDirectionsTest {
         return Direction.of(sx, sy);
     }
 
-    private static int[] bounds(Set<Long> cells) {
+    private static int[] bounds(Set<Cell> cells) {
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
-        for (long cell : cells) {
-            minX = Math.min(minX, x(cell));
-            maxX = Math.max(maxX, x(cell));
-            minY = Math.min(minY, y(cell));
-            maxY = Math.max(maxY, y(cell));
+        for (Cell cell : cells) {
+            minX = Math.min(minX, cell.x());
+            maxX = Math.max(maxX, cell.x());
+            minY = Math.min(minY, cell.y());
+            maxY = Math.max(maxY, cell.y());
         }
         return new int[]{minX, maxX, minY, maxY};
-    }
-
-    private static Set<Long> step(Set<Long> cells) {
-        Map<Long, Integer> neighbours = new HashMap<>();
-        for (long cell : cells) {
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    if (dx != 0 || dy != 0) {
-                        neighbours.merge(key(x(cell) + dx, y(cell) + dy), 1, Integer::sum);
-                    }
-                }
-            }
-        }
-        Set<Long> next = new HashSet<>();
-        neighbours.forEach((cell, n) -> {
-            if (n == 3 || (n == 2 && cells.contains(cell))) {
-                next.add(cell);
-            }
-        });
-        return next;
-    }
-
-    private static long key(int x, int y) {
-        return ((long) x << 32) | (y & 0xffffffffL);
-    }
-
-    private static int x(long key) {
-        return (int) (key >> 32);
-    }
-
-    private static int y(long key) {
-        return (int) key;
     }
 }
