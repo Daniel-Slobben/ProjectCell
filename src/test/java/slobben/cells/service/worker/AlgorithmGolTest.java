@@ -11,10 +11,10 @@ import slobben.cells.enums.BlockState;
 import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.util.PackedRows;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static slobben.cells.TestUtils.*;
 
 @SpringBootTest(properties = {"cells.size.blockSize=70", "cells.size.sectorSize=10"})
 @ComponentScan("slobben.cells.service")
@@ -145,25 +145,8 @@ class AlgorithmGolTest {
                 """);
     }
 
-    // Stitching packs NEW blocks and writes the borders before the GoL runs, here the drawn borders come along
-    static void nextState(AlgorithmGol algorithmGol, Block block) {
-        if (block.getBlockState() == BlockState.NEW) {
-            block.setPackedCells(PackedRows.pack(block.getCells()));
-        }
-        algorithmGol.setNextState(block);
-    }
-
     private Block getTestBlock() {
         return new Block(0, 0, UUID.randomUUID(), blockSize);
-    }
-
-    static void drawPattern(Block block, int x, int y, String pattern) {
-        List<String> lines = pattern.lines().toList();
-        for (int i = 0; i < lines.size(); i++) {
-            for (int j = 0; j < lines.get(i).length(); j++) {
-                block.getCells()[x + i][y + j] = lines.get(i).charAt(j) == '#';
-            }
-        }
     }
 
     private static String readWindow(Block block, int x, int y, int height, int width) {

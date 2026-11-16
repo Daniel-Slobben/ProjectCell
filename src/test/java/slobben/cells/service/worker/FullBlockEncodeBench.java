@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static slobben.cells.TestUtils.decodeFull;
 
 /**
  * Times the Packer's FULL encoding on saved blocks of real chaos hits, single threaded, after a warm-up on the same
@@ -47,7 +48,7 @@ class FullBlockEncodeBench {
         String write = System.getProperty("bench.write");
         for (int i = 0; i < saved.size(); i++) {
             byte[] payload = encode(saved.get(i).rows());
-            assertThat(PackerTest.decodeFull(payload, SIZE)).as(saved.get(i).group()).isEqualTo(saved.get(i).bits());
+            assertThat(decodeFull(payload, SIZE)).as(saved.get(i).group()).isEqualTo(saved.get(i).bits());
             if (write != null) Files.write(Files.createDirectories(Path.of(write)).resolve(i + ".full"), payload);
         }
 

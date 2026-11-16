@@ -20,6 +20,7 @@ import java.util.*;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static slobben.cells.TestUtils.decodeFull;
 
 /**
  * FULL blocks of real chaos hits as the Packer sends them, copied rows and runs of strips, against zstd 3 of the rows
@@ -96,7 +97,7 @@ class FullBlockChaosTest {
                 long t2 = System.nanoTime();
                 if (strips == null) strips = block.getEncodedBlock().encodedCells();
                 long t3 = System.nanoTime();
-                if (!Arrays.equals(PackerTest.decodeFull(strips, SIZE), bits)) wrong++;
+                if (!Arrays.equals(decodeFull(strips, SIZE), bits)) wrong++;
 
                 Sample sample = new Sample(hit == null ? null : hit.getType(), hit == null ? -1 : hit.getAge(), tick,
                         zstd.length, strips.length, t2 - t1, (t1 - t0) + (t3 - t2));
