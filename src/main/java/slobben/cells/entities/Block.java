@@ -38,6 +38,8 @@ public class Block {
     private Supplier<EncodedBlock> encodedBlock;
     @Getter(AccessLevel.NONE)
     private Supplier<EncodedBlock> encodedBlockBorders;
+    @Getter(AccessLevel.NONE)
+    private Supplier<EncodedBlock> encodedBlockSectors;
 
     private List<long[][]> recordings = new ArrayList<>();
     private int recordingIndex = 0;
@@ -72,6 +74,10 @@ public class Block {
 
     public EncodedBlock getEncodedBlockBorders() {
         return encodedBlockBorders == null ? null : encodedBlockBorders.get();
+    }
+
+    public EncodedBlock getEncodedBlockSectors() {
+        return encodedBlockSectors == null ? null : encodedBlockSectors.get();
     }
 
     public String getKey() {

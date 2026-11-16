@@ -16,6 +16,9 @@ public class Client {
     private boolean inError = true;
     @Setter
     private int blockLevel = 0;
+    // set by the client's socket, read by the tick
+    @Setter
+    private volatile boolean sectors;
 
     public boolean isInError() {
         boolean toReturn = inError;

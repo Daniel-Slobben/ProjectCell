@@ -117,12 +117,88 @@ class ClientServiceTest {
     }
 
     @Test
+    void sendsSectorsToAClientThatWatchesThem() {
+        // prepare
+        Block active = getTestBlock(0, 0);
+        nextState(algorithmGol, active);
+        Packer.packAll(active);
+        Block fresh = getTestBlock(-1, 0);
+        Packer.packAll(fresh);
+        blocks.put(active.getKey(), active);
+        blocks.put(fresh.getKey(), fresh);
+        Client client = new Client("s1");
+        client.setSectors(true);
+
+        // execute
+        clientService.sendClientUpdate(client, Set.of(active.getKey(), fresh.getKey()), false);
+
+        // verify: a NEW block has no sectors yet
+        assertThat(sent).hasSize(1);
+        assertThat(BlockFrameReader.read((byte[]) sent.getFirst().getPayload())).containsExactly(active.getEncodedBlockSectors());
+        assertThat(active.getEncodedBlockSectors().type()).isEqualTo(EncodedBlockType.SECTOR);
+    }
+
+    @Test
+    void sendsSectorsEveryFourTicks() {
+        // prepare
+        Block block = getActiveTestBlock(2, 3);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, true));
+        assertThat(sent).hasSize(1);
+        sent.clear();
+
+        // execute
+        for (int tick = 0; tick < 8; tick++) clientService.execute();
+
+        // verify
+        assertThat(sent).hasSize(2);
+        assertThat(sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())))
+                .containsOnly(List.of(block.getEncodedBlockSectors()));
+    }
+
+    @Test
+    void sendsAllBlocksAgainWhenSwitchingBetweenCellsAndSectors() {
+        // prepare
+        Block first = getActiveTestBlock(2, 3);
+        Block second = getActiveTestBlock(3, 3);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{first.getKey(), second.getKey()}, false));
+        sent.clear();
+
+        // execute
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[0], true));
+        List<List<EncodedBlock>> toSectors = sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())).toList();
+        sent.clear();
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[0], false));
+        List<List<EncodedBlock>> toCells = sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())).toList();
+
+        // verify
+        assertThat(toSectors).hasSize(1);
+        assertThat(toSectors.getFirst()).containsExactlyInAnyOrder(first.getEncodedBlockSectors(), second.getEncodedBlockSectors());
+        assertThat(toCells).containsExactlyInAnyOrder(List.of(first.getEncodedBlock()), List.of(second.getEncodedBlock()));
+    }
+
+    @Test
+    void readsAnUpdateWithoutSectorsAsCells() {
+        // prepare: a frontend from before sectors
+        Message<byte[]> message = MessageBuilder.withPayload("{\"blocksToRemove\":[],\"blocksToAdd\":[\"1/2\"]}".getBytes())
+                .setHeader("contentType", MimeTypeUtils.APPLICATION_JSON).build();
+
+        // execute
+        ClientUpdateRequest request = (ClientUpdateRequest) new JacksonJsonMessageConverter().fromMessage(message, ClientUpdateRequest.class);
+
+        // verify
+        assertThat(request.blocksToAdd()).containsExactly("1/2");
+        assertThat(request.watchesSectors()).isFalse();
+    }
+
+    @Test
     void sendsNoBlocksWhenTheFirstUpdateFindsNothing() {
         // prepare
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
 
         // execute
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{"7/7", "7/8"}));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{"7/7", "7/8"}, false));
 
         // verify
         assertThat(sent).hasSize(1);
@@ -137,11 +213,11 @@ class ClientServiceTest {
         Packer.packAll(block);
         blocks.put(block.getKey(), block);
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
         sent.clear();
 
         // execute: panning to where there are no blocks
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[]{block.getKey()}, new String[]{"7/7"}));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[]{block.getKey()}, new String[]{"7/7"}, false));
 
         // verify
         assertThat(sent).isEmpty();
@@ -155,13 +231,13 @@ class ClientServiceTest {
         Packer.packAll(block);
         blocks.put(block.getKey(), block);
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
         sent.clear();
 
         // execute
         clientService.onDisconnect(new SessionDisconnectEvent(this, stompMessage("s1"), "s1", CloseStatus.NORMAL));
         clientService.execute();
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
 
         // verify
         assertThat(sent).isEmpty();
@@ -171,6 +247,14 @@ class ClientServiceTest {
         SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.create(SimpMessageType.CONNECT);
         accessor.setSessionId(sessionId);
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
+    private Block getActiveTestBlock(int x, int y) {
+        Block block = getTestBlock(x, y);
+        nextState(algorithmGol, block);
+        Packer.packAll(block);
+        blocks.put(block.getKey(), block);
+        return block;
     }
 
     // packed like Stitching does for NEW blocks

@@ -11,6 +11,7 @@ import slobben.cells.util.PackedRows;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,12 +26,12 @@ import java.util.function.Supplier;
  * AI optimized on Blocksize = 2000, sector size = 50.
  * -- below passes the tests
  * Gives every block the encodings a client can ask for, zstd compressed: the full block, as its repeated rows and the
- * runs of its strips (see getFull), and its borders, as bit-packed cells.
+ * runs of its strips (see getFull), its borders, as bit-packed cells, and its sectors, as the alive cells per sector.
  * <p>
  * Encoding is expensive and most blocks are not watched by any client, so a tick only takes a {@link Snapshot} of
  * each block and a client compresses it on first use. The snapshot is the cell array of the block itself: the GoL
  * writes the next generation into the other array of the block and comes back to this one a tick later, after
- * this worker has moved the snapshot on.
+ * this worker has moved the snapshot on. The same goes for the sector counts the GoL keeps with each array.
  */
 @Service
 @RequiredArgsConstructor
@@ -52,6 +53,10 @@ public class Packer extends Worker {
         block.setEncodedBlockBorders(block.getBlockState() == BlockState.NEW
                 ? full
                 : new LazyEncodedBlock(block, snapshot, EncodedBlockType.BORDER));
+        // a NEW block has no sector counts until its first GoL step
+        block.setEncodedBlockSectors(snapshot.sectorCounts == null
+                ? null
+                : new LazyEncodedBlock(block, snapshot, EncodedBlockType.SECTOR));
     }
 
     @Override
@@ -66,12 +71,14 @@ public class Packer extends Worker {
     private static final class Snapshot {
         final ReentrantLock lock = new ReentrantLock();
         long[][] rows;
+        short[][] sectorCounts;
         int generation;
 
         void take(Block block) {
             lock.lock();
             try {
                 rows = block.getPackedCells();
+                sectorCounts = block.getSectorCounts();
                 generation = block.getGeneration();
             } finally {
                 lock.unlock();
@@ -114,9 +121,11 @@ public class Packer extends Worker {
                         snapshot.take(block);
                     }
                     int size = snapshot.rows.length - 2;
-                    packed = type == EncodedBlockType.FULL
-                            ? getFull(snapshot.rows, size)
-                            : getPackedBorders(snapshot.rows, size);
+                    packed = switch (type) {
+                        case FULL -> getFull(snapshot.rows, size);
+                        case BORDER -> getPackedBorders(snapshot.rows, size);
+                        case SECTOR -> getSectors(snapshot.sectorCounts);
+                    };
                     generation = snapshot.generation;
                 } finally {
                     snapshot.lock.unlock();
@@ -137,6 +146,15 @@ public class Packer extends Worker {
             for (int i = 2; i < size; i++) index = append(packed, index, PackedRows.get(rows[1], i));
             for (int i = 2; i < size; i++) index = append(packed, index, PackedRows.get(rows[size], i));
             return packed;
+        }
+
+        // per band of sectors down the rows, its sectors along the row: the alive cells as u16 little-endian
+        private static byte[] getSectors(short[][] sectorCounts) {
+            ByteBuffer packed = ByteBuffer.allocate(2 * sectorCounts.length * sectorCounts.length).order(ByteOrder.LITTLE_ENDIAN);
+            for (short[] band : sectorCounts) {
+                for (short count : band) packed.putShort(count);
+            }
+            return packed.array();
         }
 
         private static int append(byte[] packed, int index, boolean alive) {

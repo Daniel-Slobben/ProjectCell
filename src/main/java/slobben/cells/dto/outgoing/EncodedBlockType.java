@@ -7,7 +7,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum EncodedBlockType {
     FULL(0),
-    BORDER(1);
+    BORDER(1),
+    SECTOR(2);
 
     // the type byte in a BlockFrame
     private final int code;

@@ -81,7 +81,7 @@ class ClientUpdateBench {
             broker.handleMessage(stompMessage(SimpMessageType.SUBSCRIBE, sessionId));
             int x = random.nextInt(WORLD_BLOCKS - 1), y = random.nextInt(WORLD_BLOCKS - 1);
             String[] watched = {x + "/" + y, (x + 1) + "/" + y, x + "/" + (y + 1), (x + 1) + "/" + (y + 1)};
-            clientService.updateClientBlocks(sessionId, new ClientUpdateRequest(new String[0], watched));
+            clientService.updateClientBlocks(sessionId, new ClientUpdateRequest(new String[0], watched, false));
         }
         clientService.execute(); // the first tick of a client sends full blocks, which these blocks don't have
 
