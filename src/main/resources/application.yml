@@ -20,7 +20,7 @@ cells:
     sectorSize: '50'
 
   runmode: AUTO
-  targetspeed: '250'
+  targetspeed: '500'
 
   recording:
     max-recording-depth: 4

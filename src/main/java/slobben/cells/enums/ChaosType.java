@@ -9,7 +9,7 @@ public enum ChaosType {
     SQUARE(SquareMaker.class, 3),
     LETTUCE(LettuceMaker.class, 3),
     GROWTH_PATTERN(GrowthMaker.class, 2),
-    SPACESHIP(SpaceshipMaker.class, 8),
+    SPACESHIP(SpaceshipMaker.class, 3),
     DIAGONAL_LINES(DiagonalMaker.class, 3);
 
     private static final Random random = new Random();
