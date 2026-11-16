@@ -139,7 +139,7 @@ class ClientServiceTest {
     }
 
     @Test
-    void sendsSectorsEveryTenTicks() {
+    void sendsSectorsEveryFourTicks() {
         // prepare
         Block block = getActiveTestBlock(2, 3);
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
@@ -148,7 +148,7 @@ class ClientServiceTest {
         sent.clear();
 
         // execute
-        for (int tick = 0; tick < 20; tick++) clientService.execute();
+        for (int tick = 0; tick < 8; tick++) clientService.execute();
 
         // verify
         assertThat(sent).hasSize(2);

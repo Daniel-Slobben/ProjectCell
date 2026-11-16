@@ -29,7 +29,7 @@ import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 public class ClientService extends Worker {
     private static final String DESTINATION = "/queue/blocks-user%s";
     // clients that watch sectors get them every this many ticks, all on the same tick
-    private static final int SECTOR_TICKS = 10;
+    private static final int SECTOR_TICKS = 4;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
