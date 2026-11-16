@@ -35,9 +35,8 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "/home/runner/work/ProjectCell/ProjectCell/target/CellService.jar"
-          target: ${{ secrets.TARGET }}
-          strip_components: 1
+          source: "target/CellService.jar"
+          target: ${{ secrets.TARGET }}/workspace
 
       - name: Restart service
         uses: appleboy/ssh-action@v1.2.5
