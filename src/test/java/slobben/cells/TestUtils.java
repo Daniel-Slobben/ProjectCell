@@ -10,7 +10,6 @@ import slobben.cells.util.PackedRows;
 
 import java.util.*;
 
-// helpers that more than one test uses
 public final class TestUtils {
 
     public record Cell(int x, int y) {
@@ -19,7 +18,12 @@ public final class TestUtils {
     private TestUtils() {
     }
 
-    // the reference: a plain Game of Life on the set of alive cells
+    /**
+     * Reference game of life imp for testing
+     *
+     * @param alive set of live Cells
+     * @return returns next state
+     */
     public static Set<Cell> nextGeneration(Set<Cell> alive) {
         Map<Cell, Integer> neighbours = new HashMap<>();
         for (Cell cell : alive) {
