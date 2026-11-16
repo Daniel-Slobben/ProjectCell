@@ -18,8 +18,6 @@ import java.util.*;
 @Component
 public class SpaceshipMaker implements Maker {
     public static final String DIR = "spaceships/";
-    private static final int MIN_SHIPS = 30;
-    private static final int MAX_SHIPS = 100;
     private static final int MIN_GAP = 30;
     private static final int MAX_GAP = 100;
 
@@ -43,10 +41,7 @@ public class SpaceshipMaker implements Maker {
         public Direction rotated(int rotation) {
             return values()[Math.floorMod(ordinal() - 2 * rotation, 8)];
         }
-
     }
-
-    private enum Formation {LINE, V}
 
     public SpaceshipMaker(RleReader rleReader) {
         this.rleReader = rleReader;
@@ -70,17 +65,15 @@ public class SpaceshipMaker implements Maker {
         String pattern = patterns.get(random.nextInt(patterns.size()));
         byte rotation = (byte) random.nextInt(4);
         Direction heading = directions.get(pattern).rotated(rotation);
-        Formation formation = Formation.values()[random.nextInt(Formation.values().length)];
-        int maxShips = random.nextInt(MIN_SHIPS, MAX_SHIPS + 1);
 
-        // the leader goes in the middle of the hit, the rest fall in by rank, as far as the hit's size allows
+        // the leader goes in the middle of the hit, the rest fall in behind it in a V, as far as the hit's size allows
         int shipCount = 0;
         try {
             int slot = write(pattern, worldX, worldY, chaosHitId, rotation) + random.nextInt(MIN_GAP, MAX_GAP + 1);
             shipCount++;
             int reach = size / 2 - slot;
-            for (int rank = 1; shipCount < maxShips; rank++) {
-                List<Coordinates> spots = formation == Formation.LINE ? lineSpots(heading, rank) : vSpots(heading, rank);
+            for (int rank = 1; ; rank++) {
+                List<Coordinates> spots = vSpots(heading, rank);
                 if (spots.stream().anyMatch(spot -> Math.abs(spot.x()) * slot > reach || Math.abs(spot.y()) * slot > reach)) {
                     break;
                 }
@@ -93,17 +86,12 @@ public class SpaceshipMaker implements Maker {
             log.error("Error reading .rle. continue.", e);
         }
 
-        String name = "Spaceships, %s %s in a %s heading %s".formatted(shipCount, pattern, formation, heading);
+        String name = "Spaceships, %s %s heading %s".formatted(shipCount, pattern, heading);
         return new ChaosHit(name, chaosHitId, new Coordinates(worldX, worldY), 100);
     }
 
     private int write(String pattern, int x, int y, UUID chaosHitId, byte rotation) throws IOException {
         return rleReader.writePatternToWorld(DIR + pattern, new Coordinates(x, y), chaosHitId, rotation);
-    }
-
-    // side by side, square to the heading, in slots from the leader
-    private static List<Coordinates> lineSpots(Direction heading, int rank) {
-        return List.of(new Coordinates(-heading.dy * rank, heading.dx * rank), new Coordinates(heading.dy * rank, -heading.dx * rank));
     }
 
     // one rank behind the leader per rank, out to both sides like birds

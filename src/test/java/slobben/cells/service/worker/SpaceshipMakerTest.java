@@ -22,7 +22,7 @@ class SpaceshipMakerTest {
     private static final int HIT_SIZE = 4000;
 
     @RepeatedTest(20)
-    void writesAFormationOfShipsThatDoNotOverlap() throws IOException {
+    void writesAVOfShipsThatDoNotOverlap() throws IOException {
         // prepare
         RleReader rleReader = mock(RleReader.class);
         List<String> patterns = new ArrayList<>();
@@ -37,7 +37,7 @@ class SpaceshipMakerTest {
         ChaosHit hit = new SpaceshipMaker(rleReader).getChaosHit(100, 200, HIT_SIZE);
 
         // verify
-        assertThat(corners).hasSizeBetween(3, 100);
+        assertThat(corners).hasSizeGreaterThan(1);
         assertThat(patterns).containsOnly(patterns.getFirst());
         assertThat(hit.getCurrentStartingView()).isEqualTo(new Coordinates(100, 200));
         for (int i = 0; i < corners.size(); i++) {
