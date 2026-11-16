@@ -19,26 +19,35 @@ import static org.mockito.Mockito.when;
 // the reader is mocked so every ship is a square of SHIP_SIZE written from its corner
 class SpaceshipMakerTest {
     private static final int SHIP_SIZE = 50;
+    private static final int HIT_SIZE = 4000;
 
     @RepeatedTest(20)
-    void writesThreeToTenShipsThatDoNotOverlap() throws IOException {
+    void writesAFormationOfShipsThatDoNotOverlap() throws IOException {
         // prepare
         RleReader rleReader = mock(RleReader.class);
+        List<String> patterns = new ArrayList<>();
         List<Coordinates> corners = new ArrayList<>();
         when(rleReader.writePatternToWorld(anyString(), any(Coordinates.class), any(UUID.class), anyByte())).thenAnswer(invocation -> {
+            patterns.add(invocation.getArgument(0));
             corners.add(invocation.getArgument(1));
             return SHIP_SIZE;
         });
 
         // execute
-        ChaosHit hit = new SpaceshipMaker(rleReader).getChaosHit(100, 200, 2000);
+        ChaosHit hit = new SpaceshipMaker(rleReader).getChaosHit(100, 200, HIT_SIZE);
 
         // verify
-        assertThat(corners).hasSizeBetween(3, 10);
-        for (int i = 1; i < corners.size(); i++) {
-            assertThat(corners.get(i).x()).isGreaterThan(corners.get(i - 1).x() + SHIP_SIZE);
-            assertThat(corners.get(i).y()).isEqualTo(200);
+        assertThat(corners).hasSizeBetween(3, 100);
+        assertThat(patterns).containsOnly(patterns.getFirst());
+        assertThat(hit.getCurrentStartingView()).isEqualTo(new Coordinates(100, 200));
+        for (int i = 0; i < corners.size(); i++) {
+            Coordinates a = corners.get(i);
+            assertThat(Math.abs(a.x() - 100)).isLessThanOrEqualTo(HIT_SIZE / 2);
+            assertThat(Math.abs(a.y() - 200)).isLessThanOrEqualTo(HIT_SIZE / 2);
+            for (int j = i + 1; j < corners.size(); j++) {
+                Coordinates b = corners.get(j);
+                assertThat(Math.abs(a.x() - b.x()) > SHIP_SIZE || Math.abs(a.y() - b.y()) > SHIP_SIZE).as("ships %s and %s overlap", a, b).isTrue();
+            }
         }
-        assertThat(hit.getCurrentStartingView().y()).isEqualTo(200 + SHIP_SIZE / 2);
     }
 }

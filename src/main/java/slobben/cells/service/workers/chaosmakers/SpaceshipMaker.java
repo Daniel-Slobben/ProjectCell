@@ -18,8 +18,8 @@ import java.util.*;
 @Component
 public class SpaceshipMaker implements Maker {
     public static final String DIR = "spaceships/";
-    private static final int MIN_SHIPS = 3;
-    private static final int MAX_SHIPS = 10;
+    private static final int MIN_SHIPS = 30;
+    private static final int MAX_SHIPS = 100;
     private static final int MIN_GAP = 30;
     private static final int MAX_GAP = 100;
 
@@ -44,15 +44,9 @@ public class SpaceshipMaker implements Maker {
             return values()[Math.floorMod(ordinal() - 2 * rotation, 8)];
         }
 
-        boolean isDiagonal() {
-            return dx != 0 && dy != 0;
-        }
     }
 
-    private enum FleetKind {SAME_SHIP, MIXED, ONE_DIRECTION}
-
-    private record Ship(String pattern, int rotation) {
-    }
+    private enum Formation {LINE, V}
 
     public SpaceshipMaker(RleReader rleReader) {
         this.rleReader = rleReader;
@@ -73,56 +67,49 @@ public class SpaceshipMaker implements Maker {
     @Override
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {
         UUID chaosHitId = UUID.randomUUID();
-        int count = random.nextInt(MIN_SHIPS, MAX_SHIPS + 1);
-        FleetKind kind = FleetKind.values()[random.nextInt(FleetKind.values().length)];
+        String pattern = patterns.get(random.nextInt(patterns.size()));
+        byte rotation = (byte) random.nextInt(4);
+        Direction heading = directions.get(pattern).rotated(rotation);
+        Formation formation = Formation.values()[random.nextInt(Formation.values().length)];
+        int maxShips = random.nextInt(MIN_SHIPS, MAX_SHIPS + 1);
 
-        List<Ship> fleet = new ArrayList<>();
-        String label;
-        switch (kind) {
-            case SAME_SHIP -> {
-                fleet.addAll(Collections.nCopies(count, new Ship(randomPattern(patterns), random.nextInt(4))));
-                label = "same ship";
-            }
-            case MIXED -> {
-                for (int i = 0; i < count; i++) {
-                    fleet.add(new Ship(randomPattern(patterns), random.nextInt(4)));
+        // the leader goes in the middle of the hit, the rest fall in by rank, as far as the hit's size allows
+        int shipCount = 0;
+        try {
+            int slot = write(pattern, worldX, worldY, chaosHitId, rotation) + random.nextInt(MIN_GAP, MAX_GAP + 1);
+            shipCount++;
+            int reach = size / 2 - slot;
+            for (int rank = 1; shipCount < maxShips; rank++) {
+                List<Coordinates> spots = formation == Formation.LINE ? lineSpots(heading, rank) : vSpots(heading, rank);
+                if (spots.stream().anyMatch(spot -> Math.abs(spot.x()) * slot > reach || Math.abs(spot.y()) * slot > reach)) {
+                    break;
                 }
-                label = "mixed";
-            }
-            case ONE_DIRECTION -> {
-                Direction heading = Direction.values()[random.nextInt(8)];
-                List<String> candidates = patterns.stream().filter(p -> directions.get(p).isDiagonal() == heading.isDiagonal()).toList();
-                for (int i = 0; i < count; i++) {
-                    String pattern = randomPattern(candidates);
-                    fleet.add(new Ship(pattern, Math.floorMod(directions.get(pattern).ordinal() - heading.ordinal(), 8) / 2));
+                for (Coordinates spot : spots) {
+                    write(pattern, worldX + spot.x() * slot, worldY + spot.y() * slot, chaosHitId, rotation);
+                    shipCount++;
                 }
-                label = "heading " + heading;
             }
-            default -> throw new IllegalStateException("Unknown fleet kind " + kind);
+        } catch (IOException e) {
+            log.error("Error reading .rle. continue.", e);
         }
 
-        // ships are written side by side, each in its own square, so they never overlap
-        int offset = 0;
-        int width = 0;
-        int tallest = 0;
-        for (Ship ship : fleet) {
-            try {
-                int shipSize = rleReader.writePatternToWorld(DIR + ship.pattern(), new Coordinates(worldX + offset, worldY), chaosHitId, (byte) ship.rotation());
-                width = offset + shipSize;
-                offset = width + random.nextInt(MIN_GAP, MAX_GAP + 1);
-                tallest = Math.max(tallest, shipSize);
-            } catch (IOException e) {
-                log.error("Error reading .rle. continue.", e);
-            }
-        }
-
-        // the fleet is written from its corner, the hit is tracked from its center
-        Coordinates center = new Coordinates(worldX + width / 2, worldY + tallest / 2);
-        String names = String.join(", ", fleet.stream().map(Ship::pattern).toList());
-        return new ChaosHit("Spaceships, %s: %s".formatted(label, names), chaosHitId, center, 100);
+        String name = "Spaceships, %s %s in a %s heading %s".formatted(shipCount, pattern, formation, heading);
+        return new ChaosHit(name, chaosHitId, new Coordinates(worldX, worldY), 100);
     }
 
-    private String randomPattern(List<String> from) {
-        return from.get(random.nextInt(from.size()));
+    private int write(String pattern, int x, int y, UUID chaosHitId, byte rotation) throws IOException {
+        return rleReader.writePatternToWorld(DIR + pattern, new Coordinates(x, y), chaosHitId, rotation);
+    }
+
+    // side by side, square to the heading, in slots from the leader
+    private static List<Coordinates> lineSpots(Direction heading, int rank) {
+        return List.of(new Coordinates(-heading.dy * rank, heading.dx * rank), new Coordinates(heading.dy * rank, -heading.dx * rank));
+    }
+
+    // one rank behind the leader per rank, out to both sides like birds
+    private static List<Coordinates> vSpots(Direction heading, int rank) {
+        int backX = -heading.dx * rank;
+        int backY = -heading.dy * rank;
+        return List.of(new Coordinates(backX - heading.dy * rank, backY + heading.dx * rank), new Coordinates(backX + heading.dy * rank, backY - heading.dx * rank));
     }
 }
