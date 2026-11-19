@@ -29,6 +29,7 @@ public class ViewportService extends Worker {
     // growth patterns fill many busy blocks that all look alike
     private static final int GROWTH_MAX = 3;
     private static final int RECENT_DISTANCE_BLOCKS = 3;
+    private static final int RECENT_MAX = 10;
     private static final Random RANDOM = new Random();
 
     record CoordinateEntry(short count, Coordinates coordinates, boolean isGrowthHit) {
@@ -99,8 +100,9 @@ public class ViewportService extends Worker {
         if (viewportListSnapshot.isEmpty()) {
             return new Coordinates(0, 0);
         }
+        List<Coordinates> recent = recentViewports.subList(Math.max(0, recentViewports.size() - RECENT_MAX), recentViewports.size());
         List<CoordinateEntry> farFromRecent = viewportListSnapshot.stream()
-                .filter(entry -> recentViewports.stream().noneMatch(recent -> isNear(entry.coordinates(), recent)))
+                .filter(entry -> recent.stream().noneMatch(viewport -> viewport != null && isNear(entry.coordinates(), viewport)))
                 .toList();
 
         List<CoordinateEntry> candidates = farFromRecent.isEmpty()

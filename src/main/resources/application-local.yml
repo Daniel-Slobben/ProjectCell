@@ -1,5 +1,6 @@
 cells:
   targetspeed: '250'
+  allowed-origins: '*'
 
   chaos:
     # ANY, or one of ChaosType: SQUARE, LETTUCE, GROWTH_PATTERN, SPACESHIP, DIAGONAL_LINES

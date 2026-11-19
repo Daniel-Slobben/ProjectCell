@@ -2,6 +2,7 @@ package slobben.cells.service.worker;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.converter.JacksonJsonMessageConverter;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
@@ -33,14 +34,15 @@ class ClientUpdateRequestBench {
 
     private final JacksonJsonMessageConverter converter = new JacksonJsonMessageConverter();
     private final Map<String, Block> blocks = new HashMap<>();
-    private final ClientService clientService =
-            new ClientService(new SimpMessagingTemplate((message, timeout) -> true), new ExecutorService(), blocks);
+    private final MessageChannel channel = (message, timeout) -> true;
+    private final ClientService clientService = new ClientService(new SimpMessagingTemplate(channel), channel, new ExecutorService(), blocks);
     private int sessions = 0;
 
     {
         ReflectionTestUtils.setField(clientService, "sectorPeriodMs", 10000);
         ReflectionTestUtils.setField(clientService, "tileSize", 16);
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 2000);
+        ReflectionTestUtils.setField(clientService, "blocksPerSecond", Integer.MAX_VALUE);
     }
 
     @Test

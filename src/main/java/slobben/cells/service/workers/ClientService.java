@@ -4,8 +4,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
@@ -35,7 +39,9 @@ public class ClientService extends Worker {
     private static final String DESTINATION = "/queue/blocks-user%s";
     private static final int SECTOR_BLOCKS_PER_MESSAGE = 250;
     private static final int MAX_VIEW_BLOCKS = 1_000_000;
+    private static final int SECTORS_PER_BLOCK = 100;
     private final SimpMessagingTemplate simpMessagingTemplate;
+    private final MessageChannel clientOutboundChannel;
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
     private final Map<String, Client> clients = new ConcurrentHashMap<>();
@@ -47,6 +53,8 @@ public class ClientService extends Worker {
     private int tileSize;
     @Value("${cells.max-cell-blocks}")
     private int maxCellBlocks;
+    @Value("${cells.client-blocks-per-second}")
+    private int blocksPerSecond;
     private int ticks = 0;
     private final AtomicInteger connections = new AtomicInteger();
     private volatile Map<Coordinates, byte[]> tiles = Map.of();
@@ -174,6 +182,7 @@ public class ClientService extends Worker {
             log.debug("Update for a closed session {}", sessionId);
             return;
         }
+        if (overBudget(client, 1)) return;
         long blockCount = view.blockCount();
         if (blockCount > (view.watchesSectors() ? MAX_VIEW_BLOCKS : maxCellBlocks)) {
             log.debug("Session {} asks for {} blocks, sectors {}", sessionId, blockCount, view.watchesSectors());
@@ -194,7 +203,9 @@ public class ClientService extends Worker {
         ClientUpdateRequest kept = switched ? null : oldView;
         if (client.isSectors()) {
             client.getActiveBlocks().clear();
-            sendSectors(client, blocksIn(view, kept));
+            List<Block> watched = blocksIn(view, kept);
+            if (overBudget(client, watched.size() / SECTORS_PER_BLOCK)) return;
+            sendSectors(client, watched);
             return;
         }
         Set<String> clientBlocks = client.getActiveBlocks();
@@ -202,6 +213,25 @@ public class ClientService extends Worker {
         Set<String> added = new HashSet<>(keysIn(view, kept));
         clientBlocks.addAll(added);
         Arrays.stream(view.resendKeys()).filter(clientBlocks::contains).forEach(added::add);
+        if (overBudget(client, added.size())) return;
         sendClientUpdate(client, added, false);
+    }
+
+    private boolean overBudget(Client client, int blocks) {
+        long now = System.nanoTime();
+        double budget = Math.min(2.0 * maxCellBlocks, client.getBudget() + (now - client.getBudgetNanos()) / 1e9 * blocksPerSecond);
+        client.setBudget(budget - blocks);
+        client.setBudgetNanos(now);
+        if (client.getBudget() >= 0) return false;
+        log.debug("Session {} is over its budget with {} blocks", client.getSessionId(), blocks);
+        close(client.getSessionId(), "Too many blocks");
+        return true;
+    }
+
+    public void close(String sessionId, String reason) {
+        StompHeaderAccessor error = StompHeaderAccessor.create(StompCommand.ERROR);
+        error.setSessionId(sessionId);
+        error.setMessage(reason);
+        clientOutboundChannel.send(MessageBuilder.createMessage(new byte[0], error.getMessageHeaders()));
     }
 }

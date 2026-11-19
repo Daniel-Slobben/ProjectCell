@@ -10,6 +10,8 @@ import org.springframework.messaging.converter.StringMessageConverter;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.MimeTypeUtils;
@@ -50,7 +52,7 @@ class ClientServiceTest {
         // same converters as Spring's websocket broker configuration
         template.setMessageConverter(new CompositeMessageConverter(List.of(
                 new StringMessageConverter(), new ByteArrayMessageConverter(), new JacksonJsonMessageConverter())));
-        clientService = new ClientService(template, new ExecutorService(), blocks);
+        clientService = new ClientService(template, channel, new ExecutorService(), blocks);
         ReflectionTestUtils.setField(clientService, "sectorPeriodMs", 10000);
         ReflectionTestUtils.setField(clientService, "tileSize", 16);
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 2000);
@@ -403,6 +405,79 @@ class ClientServiceTest {
 
         // verify
         assertThat(sent).isEmpty();
+    }
+
+    @Test
+    void closesASessionThatAsksForMoreBlocksThanItsBudget() {
+        // prepare
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
+        getActiveTestBlock(0, 0);
+        getActiveTestBlock(20, 0);
+        connect("s1", view(0, 2, 0, 2, false));
+        clientService.updateClientBlocks("s1", view(10, 12, 0, 2, false));
+        sent.clear();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(20, 22, 0, 2, false));
+
+        // verify
+        assertThat(sent).singleElement().satisfies(message -> {
+            StompHeaderAccessor error = StompHeaderAccessor.wrap(message);
+            assertThat(error.getCommand()).isEqualTo(StompCommand.ERROR);
+            assertThat(error.getSessionId()).isEqualTo("s1");
+        });
+    }
+
+    @Test
+    void chargesUpdatesThatSendNothing() {
+        // prepare
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        for (int i = 0; i < 20; i++) clientService.updateClientBlocks("s1", view(0, 0, 0, 0, false));
+        assertThat(closed("s1")).isFalse();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(0, 0, 0, 0, false));
+
+        // verify
+        assertThat(closed("s1")).isTrue();
+    }
+
+    @Test
+    void chargesSectorsAsAHundredthOfABlock() {
+        // prepare
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
+        for (int x = 0; x < 1900; x++) blocks.put(BlockUtils.getKey(x, 0), getTestBlock(x, 0));
+        connect("s1", view(0, 1899, 0, 0, true));
+        assertThat(closed("s1")).isFalse();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(0, 1899, 0, 0, true));
+
+        // verify
+        assertThat(closed("s1")).isTrue();
+    }
+
+    @Test
+    void chargesResentBlocks() {
+        // prepare
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
+        getActiveTestBlock(0, 0);
+        connect("s1", view(0, 2, 0, 2, false));
+        String[] inView = {"0/0", "0/1", "0/2", "1/0", "1/1", "1/2", "2/0", "2/1", "2/2"};
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(0, 2, 0, 2, false, inView));
+        assertThat(closed("s1")).isFalse();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(0, 2, 0, 2, false));
+
+        // verify
+        assertThat(closed("s1")).isTrue();
+    }
+
+    private boolean closed(String sessionId) {
+        return sent.stream().map(StompHeaderAccessor::wrap)
+                .anyMatch(accessor -> accessor.getCommand() == StompCommand.ERROR && sessionId.equals(accessor.getSessionId()));
     }
 
     private void connect(String sessionId, ClientUpdateRequest view) {
