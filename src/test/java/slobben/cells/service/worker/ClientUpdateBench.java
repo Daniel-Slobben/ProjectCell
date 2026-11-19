@@ -35,9 +35,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * mvn test -Dtest=ClientUpdateBench -Djunit.jupiter.conditions.deactivate='org.junit.*DisabledCondition',
  * with -Dbench.clients=2500 -Dbench.ticks=200
  * <p>
- * sectorMapTick: the same in a world of 64 x 64 blocks that each have sectors, ticks of 500 ms, where
- * -Dbench.sectorClients=500 of the clients watch sectors: every 20th tick sends them the sector map. Run it on its own:
- * -Dtest=ClientUpdateBench#sectorMapTick
+ * sectorTick: the same in a world of 64 x 64 blocks that each have sectors, ticks of 500 ms, where
+ * -Dbench.sectorClients=500 of the clients watch sectors zoomed all the way out, the whole world in view: every 20th
+ * tick sends them the sectors of all blocks. Run it on its own: -Dtest=ClientUpdateBench#sectorTick
  */
 @SpringBootTest(properties = {"cells.runmode=MANUAL", "spring.threads.virtual.enabled=true", "logging.level.slobben=WARN"})
 class ClientUpdateBench {
@@ -91,21 +91,21 @@ class ClientUpdateBench {
 
     @Test
     @Disabled("Benchmark")
-    void sectorMapTick() {
+    void sectorTick() {
         ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
-        int mapTicks = 20, mapMessages = (MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS + 249) / 250;
+        int sectorTicks = 20, sectorMessages = (MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS + 249) / 250;
         AtomicInteger delivered = setUp(new Random(1), MAP_WORLD_BLOCKS, SECTOR_BYTES);
         for (int i = 0; i < SECTOR_CLIENTS; i++) {
-            clientService.updateClientBlocks(Long.toHexString(i), new ClientUpdateRequest(new String[0], new String[0], true));
+            clientService.updateClientBlocks(Long.toHexString(i), new ClientUpdateRequest(0, MAP_WORLD_BLOCKS - 1, 0, MAP_WORLD_BLOCKS - 1, true, null));
         }
         LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
         delivered.set(0);
 
         List<Long> tickNanos = new ArrayList<>(), drainedNanos = new ArrayList<>();
-        List<Long> mapTickNanos = new ArrayList<>(), mapDrainedNanos = new ArrayList<>();
-        for (int tick = 1; tick <= (WARMUP_TICKS + TICKS) / mapTicks * mapTicks; tick++) {
-            boolean mapTick = tick % mapTicks == 0;
-            int expected = delivered.get() + CLIENTS - SECTOR_CLIENTS + (mapTick ? SECTOR_CLIENTS * mapMessages : 0);
+        List<Long> sectorTickNanos = new ArrayList<>(), sectorDrainedNanos = new ArrayList<>();
+        for (int tick = 1; tick <= (WARMUP_TICKS + TICKS) / sectorTicks * sectorTicks; tick++) {
+            boolean sectorTick = tick % sectorTicks == 0;
+            int expected = delivered.get() + CLIENTS - SECTOR_CLIENTS + (sectorTick ? SECTOR_CLIENTS * sectorMessages : 0);
             long start = System.nanoTime();
             clientService.execute();
             long executed = System.nanoTime();
@@ -115,14 +115,14 @@ class ClientUpdateBench {
                 LockSupport.parkNanos(50_000);
             }
             if (tick > WARMUP_TICKS) {
-                (mapTick ? mapTickNanos : tickNanos).add(executed - start);
-                (mapTick ? mapDrainedNanos : drainedNanos).add(System.nanoTime() - start);
+                (sectorTick ? sectorTickNanos : tickNanos).add(executed - start);
+                (sectorTick ? sectorDrainedNanos : drainedNanos).add(System.nanoTime() - start);
             }
         }
 
-        System.out.printf("%nRESULT %d clients of which %d watch sectors, %d blocks, %d map messages each: tick %s, drained %s%n",
-                CLIENTS, SECTOR_CLIENTS, MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS, mapMessages, stats(tickNanos), stats(drainedNanos));
-        System.out.printf("RESULT map ticks (n=%d): tick %s, drained %s%n", mapTickNanos.size(), stats(mapTickNanos), stats(mapDrainedNanos));
+        System.out.printf("%nRESULT %d clients of which %d watch sectors, %d blocks, %d sector messages each: tick %s, drained %s%n",
+                CLIENTS, SECTOR_CLIENTS, MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS, sectorMessages, stats(tickNanos), stats(drainedNanos));
+        System.out.printf("RESULT sector ticks (n=%d): tick %s, drained %s%n", sectorTickNanos.size(), stats(sectorTickNanos), stats(sectorDrainedNanos));
     }
 
     // A world of side x side blocks with borders, and sectors if sectorBytes > 0, and the clients, each watching 2 x 2
@@ -158,8 +158,7 @@ class ClientUpdateBench {
             clientService.onConnect(new SessionConnectEvent(this, connect));
             broker.handleMessage(stompMessage(SimpMessageType.SUBSCRIBE, sessionId));
             int x = random.nextInt(side - 1), y = random.nextInt(side - 1);
-            String[] watched = {x + "/" + y, (x + 1) + "/" + y, x + "/" + (y + 1), (x + 1) + "/" + (y + 1)};
-            clientService.updateClientBlocks(sessionId, new ClientUpdateRequest(new String[0], watched, false));
+            clientService.updateClientBlocks(sessionId, new ClientUpdateRequest(x, x + 1, y, y + 1, false, null));
         }
         // the first update of a client sends full blocks, which these blocks don't have
         LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));

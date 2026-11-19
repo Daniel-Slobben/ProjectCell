@@ -118,59 +118,92 @@ class ClientServiceTest {
     }
 
     @Test
-    void sendsTheSectorMapEveryTenSecondsToSectorsOnly() {
+    void sendsTheSectorsInViewEveryTenSecondsToSectorsOnly() {
         // prepare: ticks of 500 ms
         ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
         Block block = getActiveTestBlock(2, 3);
+        getActiveTestBlock(5, 5); // out of view
         getTestBlock(3, 3); // NEW: no sectors yet
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("cells")));
-        clientService.updateClientBlocks("cells", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("sectors")));
-        clientService.updateClientBlocks("sectors", new ClientUpdateRequest(new String[0], new String[0], true));
+        connect("cells", view(2, 3, 3, 3, false));
+        connect("sectors", view(2, 3, 3, 3, true));
+        sent.clear();
 
         // execute
         for (int tick = 0; tick < 41; tick++) clientService.execute();
 
-        // verify: sectors on ticks 0, 20 and 40 and nothing else; cells their full block and borders, no sectors
+        // verify: sectors on ticks 0, 20 and 40 and nothing else; cells their borders, no sectors
         assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usersectors")).map(ClientServiceTest::blocksOf))
                 .containsExactly(List.of(block.getEncodedBlockSectors()), List.of(block.getEncodedBlockSectors()), List.of(block.getEncodedBlockSectors()));
         assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usercells")).map(ClientServiceTest::blocksOf))
-                .hasSize(42).noneMatch(frame -> frame.stream().anyMatch(encoded -> encoded.type() == EncodedBlockType.SECTOR));
+                .hasSize(41).noneMatch(frame -> frame.stream().anyMatch(encoded -> encoded.type() == EncodedBlockType.SECTOR));
     }
 
     @Test
-    void sendsOnlyTheSectorMapWhenSwitchingToSectorsAndTheFullBlocksWhenSwitchingBack() {
+    void sendsTheFullBlocksNewInViewWhenPanning() {
         // prepare
-        Block first = getActiveTestBlock(2, 3);
-        Block second = getActiveTestBlock(3, 3);
-        clientService.execute();
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{first.getKey(), second.getKey()}, false));
+        Block left = getActiveTestBlock(2, 3);
+        Block right = getActiveTestBlock(3, 3);
+        connect("s1", view(1, 2, 3, 3, false));
+        List<List<EncodedBlock>> first = sent.stream().map(ClientServiceTest::blocksOf).toList();
         sent.clear();
 
         // execute
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[]{first.getKey(), second.getKey()}, new String[0], true));
-        List<List<EncodedBlock>> toSectors = sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())).toList();
+        clientService.updateClientBlocks("s1", view(2, 3, 3, 3, false));
+
+        // verify
+        assertThat(first).containsExactly(List.of(left.getEncodedBlock()));
+        assertThat(sent.stream().map(ClientServiceTest::blocksOf)).containsExactly(List.of(right.getEncodedBlock()));
+    }
+
+    @Test
+    void sendsTheSectorsNewInViewWhenPanningOverSectors() {
+        // prepare
+        Block left = getActiveTestBlock(2, 3);
+        Block right = getActiveTestBlock(3, 3);
+        connect("s1", view(1, 2, 3, 3, true));
+        List<List<EncodedBlock>> first = sent.stream().map(ClientServiceTest::blocksOf).toList();
+        sent.clear();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(2, 3, 3, 3, true));
+
+        // verify
+        assertThat(first).containsExactly(List.of(left.getEncodedBlockSectors()));
+        assertThat(sent.stream().map(ClientServiceTest::blocksOf)).containsExactly(List.of(right.getEncodedBlockSectors()));
+    }
+
+    @Test
+    void sendsAllBlocksInViewWhenSwitchingBetweenCellsAndSectors() {
+        // prepare
+        Block first = getActiveTestBlock(2, 3);
+        Block second = getActiveTestBlock(3, 3);
+        connect("s1", view(2, 3, 3, 3, false));
+        sent.clear();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(2, 3, 3, 3, true));
+        List<List<EncodedBlock>> toSectors = sent.stream().map(ClientServiceTest::blocksOf).toList();
         sent.clear();
         clientService.execute();
-        List<Message<?>> sectorTick = List.copyOf(sent);
+        clientService.execute();
+        List<Message<?>> sectorTicks = List.copyOf(sent);
         sent.clear();
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{first.getKey()}, false));
-        List<List<EncodedBlock>> toCells = sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())).toList();
+        clientService.updateClientBlocks("s1", view(2, 2, 3, 3, false));
+        List<List<EncodedBlock>> toCells = sent.stream().map(ClientServiceTest::blocksOf).toList();
 
-        // verify: watching sectors, no borders either
+        // verify: watching sectors, no borders either; with ticks of 0 ms only tick 0 sends sectors
         assertThat(toSectors).hasSize(1);
         assertThat(toSectors.getFirst()).containsExactlyInAnyOrder(first.getEncodedBlockSectors(), second.getEncodedBlockSectors());
-        assertThat(sectorTick).isEmpty();
+        assertThat(sectorTicks).hasSize(1);
         assertThat(toCells).containsExactly(List.of(first.getEncodedBlock()));
     }
 
     @Test
-    void sendsTheSectorMapInMessagesOf250Blocks() {
+    void sendsTheSectorsInMessagesOf250Blocks() {
         // prepare
         for (int x = 0; x < 251; x++) getActiveTestBlock(x, 0);
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[0], true));
+        connect("s1", view(0, 250, 0, 0, true));
+        sent.clear();
 
         // execute
         clientService.execute();
@@ -180,26 +213,55 @@ class ClientServiceTest {
     }
 
     @Test
-    void readsAnUpdateWithoutSectorsAsCells() {
-        // prepare: a frontend from before sectors
-        Message<byte[]> message = MessageBuilder.withPayload("{\"blocksToRemove\":[],\"blocksToAdd\":[\"1/2\"]}".getBytes())
+    void sendsTheFullBlocksAskedForAgainInView() {
+        // prepare
+        Block block = getActiveTestBlock(2, 3);
+        getActiveTestBlock(3, 3);
+        connect("s1", view(2, 3, 3, 3, false));
+        sent.clear();
+
+        // execute
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(2, 3, 3, 3, false, new String[]{"2/3", "9/9"}));
+
+        // verify
+        assertThat(sent.stream().map(ClientServiceTest::blocksOf)).containsExactly(List.of(block.getEncodedBlock()));
+    }
+
+    @Test
+    void ignoresAViewOfMoreThan2000BlocksAsCells() {
+        // prepare
+        getActiveTestBlock(2, 3);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+
+        // execute
+        clientService.updateClientBlocks("s1", view(0, 50, 0, 50, false));
+
+        // verify
+        assertThat(sent).isEmpty();
+    }
+
+    @Test
+    void readsAnUpdateWithoutSectorsOrResend() {
+        // prepare
+        Message<byte[]> message = MessageBuilder.withPayload("{\"minX\":1,\"maxX\":2,\"minY\":3,\"maxY\":4}".getBytes())
                 .setHeader("contentType", MimeTypeUtils.APPLICATION_JSON).build();
 
         // execute
         ClientUpdateRequest request = (ClientUpdateRequest) new JacksonJsonMessageConverter().fromMessage(message, ClientUpdateRequest.class);
 
         // verify
-        assertThat(request.blocksToAdd()).containsExactly("1/2");
+        assertThat(request.blockCount()).isEqualTo(4);
         assertThat(request.watchesSectors()).isFalse();
+        assertThat(request.resendKeys()).isEmpty();
     }
 
     @Test
     void sendsNoBlocksWhenTheFirstUpdateFindsNothing() {
         // prepare
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        getActiveTestBlock(2, 3);
 
         // execute
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{"7/7", "7/8"}, false));
+        connect("s1", view(7, 7, 7, 8, false));
 
         // verify
         assertThat(sent).hasSize(1);
@@ -209,16 +271,12 @@ class ClientServiceTest {
     @Test
     void sendsNoBlocksOnlyForTheFirstUpdate() {
         // prepare
-        Block block = getTestBlock(2, 3);
-        nextState(algorithmGol, block);
-        Packer.packAll(block);
-        blocks.put(block.getKey(), block);
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
+        getActiveTestBlock(2, 3);
+        connect("s1", view(2, 2, 3, 3, false));
         sent.clear();
 
         // execute: panning to where there are no blocks
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[]{block.getKey()}, new String[]{"7/7"}, false));
+        clientService.updateClientBlocks("s1", view(7, 7, 7, 7, false));
 
         // verify
         assertThat(sent).isEmpty();
@@ -227,13 +285,8 @@ class ClientServiceTest {
     @Test
     void sendsBordersOnTheFirstTickAfterTheFullBlocks() {
         // prepare
-        Block block = getTestBlock(2, 3);
-        nextState(algorithmGol, block);
-        Packer.packAll(block);
-        blocks.put(block.getKey(), block);
-        clientService.execute(); // the first tick sends the sector map
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
+        Block block = getActiveTestBlock(2, 3);
+        connect("s1", view(2, 2, 3, 3, false));
         sent.clear();
 
         // execute
@@ -247,21 +300,26 @@ class ClientServiceTest {
     @Test
     void forgetsAClientWhenItsSessionCloses() {
         // prepare
-        Block block = getTestBlock(2, 3);
-        nextState(algorithmGol, block);
-        Packer.packAll(block);
-        blocks.put(block.getKey(), block);
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
+        getActiveTestBlock(2, 3);
+        connect("s1", view(2, 2, 3, 3, false));
         sent.clear();
 
         // execute
         clientService.onDisconnect(new SessionDisconnectEvent(this, stompMessage("s1"), "s1", CloseStatus.NORMAL));
         clientService.execute();
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
+        clientService.updateClientBlocks("s1", view(2, 2, 3, 3, false));
 
         // verify
         assertThat(sent).isEmpty();
+    }
+
+    private void connect(String sessionId, ClientUpdateRequest view) {
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage(sessionId)));
+        clientService.updateClientBlocks(sessionId, view);
+    }
+
+    private static ClientUpdateRequest view(int minX, int maxX, int minY, int maxY, boolean sectors) {
+        return new ClientUpdateRequest(minX, maxX, minY, maxY, sectors, null);
     }
 
     private static List<EncodedBlock> blocksOf(Message<?> message) {

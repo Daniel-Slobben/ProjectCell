@@ -16,6 +16,7 @@ import slobben.cells.dto.outgoing.StatusResponse;
 import slobben.cells.entities.Block;
 import slobben.cells.entities.Client;
 import slobben.cells.service.ExecutorService;
+import slobben.cells.util.BlockUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,10 +30,12 @@ import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 @Slf4j
 public class ClientService extends Worker {
     private static final String DESTINATION = "/queue/blocks-user%s";
-    // Clients that watch sectors ask for no blocks: they get the sectors of every block this often.
-    private static final int SECTOR_MAP_MS = 10000;
-    // ~120 bytes a block: a message of ~30 KB, like a full block, so a slow connection sees the map come in
-    private static final int SECTOR_MAP_BLOCKS_PER_MESSAGE = 250;
+    // clients that watch sectors get the sectors of the blocks in view this often, all on the same tick
+    private static final int SECTORS_MS = 10000;
+    // ~120 bytes a block: a message of ~30 KB, like a full block, so a slow connection sees the sectors come in
+    private static final int SECTOR_BLOCKS_PER_MESSAGE = 250;
+    // the frontend watches sectors long before this many blocks are in view; more full blocks would only be a burden
+    private static final int MAX_CELL_BLOCKS = 2000;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
@@ -40,7 +43,6 @@ public class ClientService extends Worker {
     @Value("${cells.targetspeed}")
     private int targetSpeed;
     private int ticks = 0;
-    private volatile List<byte[]> sectorMap = List.of();
 
     @Override
     public String getName() {
@@ -49,12 +51,11 @@ public class ClientService extends Worker {
 
     public void execute() {
         int tick = ticks++;
-        boolean sectorMapTick = tick % ticksPer(SECTOR_MAP_MS) == 0;
-        if (sectorMapTick) sectorMap = writeSectorMap();
+        boolean sectorTick = tick % ticksPer(SECTORS_MS) == 0;
         Set<Runnable> tasks = clients.values().stream()
-                .filter(client -> sectorMapTick || !client.isSectors())
+                .filter(client -> sectorTick || !client.isSectors())
                 .map(client -> (Runnable) () -> {
-                    if (client.isSectors()) sendSectorMap(client);
+                    if (client.isSectors()) sendSectors(client, client.getView(), null);
                     else sendClientUpdate(client, client.getActiveBlocks(), true);
                 })
                 .collect(Collectors.toSet());
@@ -66,17 +67,18 @@ public class ClientService extends Worker {
         return Math.max(1, ms / Math.max(1, targetSpeed));
     }
 
-    private List<byte[]> writeSectorMap() {
-        List<EncodedBlock> sectors = blocks.values().stream().map(Block::getEncodedBlockSectors).filter(Objects::nonNull).toList();
-        List<byte[]> messages = new ArrayList<>();
-        for (int i = 0; i < sectors.size(); i += SECTOR_MAP_BLOCKS_PER_MESSAGE) {
-            messages.add(BlockFrame.write(sectors.subList(i, Math.min(i + SECTOR_MAP_BLOCKS_PER_MESSAGE, sectors.size()))));
+    // the sectors of the blocks in view, but not in the old view if there is one
+    private void sendSectors(Client client, ClientUpdateRequest view, ClientUpdateRequest oldView) {
+        List<EncodedBlock> sectors = blocks.values().stream()
+                .filter(block -> inView(view, block) && (oldView == null || !inView(oldView, block)))
+                .map(Block::getEncodedBlockSectors).filter(Objects::nonNull).toList();
+        for (int i = 0; i < sectors.size(); i += SECTOR_BLOCKS_PER_MESSAGE) {
+            send(client, BlockFrame.write(sectors.subList(i, Math.min(i + SECTOR_BLOCKS_PER_MESSAGE, sectors.size()))));
         }
-        return messages;
     }
 
-    private void sendSectorMap(Client client) {
-        for (byte[] message : sectorMap) send(client, message);
+    private static boolean inView(ClientUpdateRequest view, Block block) {
+        return block.getX() >= view.minX() && block.getX() <= view.maxX() && block.getY() >= view.minY() && block.getY() <= view.maxY();
     }
 
     @EventListener
@@ -114,30 +116,41 @@ public class ClientService extends Worker {
         simpMessagingTemplate.convertAndSend(DESTINATION.formatted(client.getSessionId()), payload);
     }
 
-    public void updateClientBlocks(String sessionId, ClientUpdateRequest clientUpdateRequest) {
+    public void updateClientBlocks(String sessionId, ClientUpdateRequest view) {
         Client client = clients.get(sessionId);
         if (client == null) {
             log.debug("Update for a closed session {}", sessionId);
             return;
         }
-        Set<String> clientBlocks = client.getActiveBlocks();
-        boolean switched = client.isSectors() != clientUpdateRequest.watchesSectors();
-        boolean firstUpdate = clientBlocks.isEmpty() && !switched;
-        client.setSectors(clientUpdateRequest.watchesSectors());
-
-        if (client.isSectors()) {
-            clientBlocks.clear();
-            if (switched) sendSectorMap(client);
+        if (!view.watchesSectors() && view.blockCount() > MAX_CELL_BLOCKS) {
+            log.debug("Session {} asks for {} blocks as cells", sessionId, view.blockCount());
             return;
         }
-        Arrays.asList(clientUpdateRequest.blocksToRemove()).forEach(clientBlocks::remove);
-        clientBlocks.addAll(Arrays.asList(clientUpdateRequest.blocksToAdd()));
+        ClientUpdateRequest oldView = client.getView();
+        boolean switched = client.isSectors() != view.watchesSectors();
+        client.setView(view);
+        client.setSectors(view.watchesSectors());
 
         // A client that comes back to a part of the world that was pruned in the meantime finds nothing there.
-        if (firstUpdate && Arrays.stream(clientUpdateRequest.blocksToAdd()).noneMatch(blocks::containsKey)) {
+        if (oldView == null && blocks.values().stream().noneMatch(block -> inView(view, block))) {
             send(client, new StatusResponse(NO_BLOCKS));
             return;
         }
-        sendClientUpdate(client, Set.of(clientUpdateRequest.blocksToAdd()), false);
+        if (client.isSectors()) {
+            client.getActiveBlocks().clear();
+            sendSectors(client, view, switched ? null : oldView);
+            return;
+        }
+        Set<String> inView = new HashSet<>();
+        for (int x = view.minX(); x <= view.maxX(); x++) {
+            for (int y = view.minY(); y <= view.maxY(); y++) inView.add(BlockUtils.getKey(x, y));
+        }
+        Set<String> clientBlocks = client.getActiveBlocks();
+        Set<String> added = new HashSet<>(inView);
+        added.removeAll(clientBlocks);
+        Arrays.stream(view.resendKeys()).filter(inView::contains).forEach(added::add);
+        clientBlocks.retainAll(inView);
+        clientBlocks.addAll(inView);
+        sendClientUpdate(client, added, false);
     }
 }
