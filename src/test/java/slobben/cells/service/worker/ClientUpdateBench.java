@@ -93,7 +93,7 @@ class ClientUpdateBench {
     @Disabled("Benchmark")
     void sectorTick() {
         ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
-        int sectorTicks = 20, sectorMessages = (MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS + 249) / 250;
+        int sectorTicks = 20, sectorMessages = (MAP_WORLD_BLOCKS / 16) * (MAP_WORLD_BLOCKS / 16); // a message per tile of 16 x 16
         AtomicInteger delivered = setUp(new Random(1), MAP_WORLD_BLOCKS, SECTOR_BYTES);
         for (int i = 0; i < SECTOR_CLIENTS; i++) {
             clientService.updateClientBlocks(Long.toHexString(i), new ClientUpdateRequest(0, MAP_WORLD_BLOCKS - 1, 0, MAP_WORLD_BLOCKS - 1, true, null));

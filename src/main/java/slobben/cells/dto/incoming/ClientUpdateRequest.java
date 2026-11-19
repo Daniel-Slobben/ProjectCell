@@ -14,7 +14,8 @@ public record ClientUpdateRequest(int minX, int maxX, int minY, int maxY, Boolea
         return resend == null ? new String[0] : resend;
     }
 
+    // 0 for a range that is upside down
     public long blockCount() {
-        return (maxX - minX + 1L) * (maxY - minY + 1L);
+        return Math.max(0, (long) maxX - minX + 1) * Math.max(0, (long) maxY - minY + 1);
     }
 }

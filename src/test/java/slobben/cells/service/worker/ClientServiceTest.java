@@ -122,7 +122,7 @@ class ClientServiceTest {
         // prepare: ticks of 500 ms
         ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
         Block block = getActiveTestBlock(2, 3);
-        getActiveTestBlock(5, 5); // out of view
+        getActiveTestBlock(20, 20); // in another tile
         getTestBlock(3, 3); // NEW: no sectors yet
         connect("cells", view(2, 3, 3, 3, false));
         connect("sectors", view(2, 3, 3, 3, true));
@@ -199,17 +199,37 @@ class ClientServiceTest {
     }
 
     @Test
-    void sendsTheSectorsInMessagesOf250Blocks() {
+    void sendsTheSectorsNewInViewInMessagesOf250Blocks() {
         // prepare
         for (int x = 0; x < 251; x++) getActiveTestBlock(x, 0);
+
+        // execute
         connect("s1", view(0, 250, 0, 0, true));
+
+        // verify
+        assertThat(sent.stream().map(message -> blocksOf(message).size())).containsExactly(250, 1);
+    }
+
+    @Test
+    void sendsTheSectorsPerTileWithTheSameBytesForEveryClient() {
+        // prepare: tile 0/0 has 0/0 and 15/15, tile 1/0 has 16/0; the view only touches 15/15 and 16/0
+        Block first = getActiveTestBlock(0, 0);
+        Block second = getActiveTestBlock(15, 15);
+        Block third = getActiveTestBlock(16, 0);
+        connect("s1", view(15, 16, 0, 15, true));
+        connect("s2", view(15, 16, 0, 15, true));
         sent.clear();
 
         // execute
         clientService.execute();
 
         // verify
-        assertThat(sent.stream().map(message -> blocksOf(message).size())).containsExactly(250, 1);
+        List<Message<?>> s1 = sent.stream().filter(message -> destination(message).equals("/queue/blocks-users1")).toList();
+        List<Message<?>> s2 = sent.stream().filter(message -> destination(message).equals("/queue/blocks-users2")).toList();
+        assertThat(s1.stream().map(ClientServiceTest::blocksOf)).containsExactlyInAnyOrder(
+                List.of(first.getEncodedBlockSectors(), second.getEncodedBlockSectors()), List.of(third.getEncodedBlockSectors()));
+        assertThat(s1.stream().map(Message::getPayload).toList()).hasSize(2)
+                .allMatch(payload -> s2.stream().anyMatch(message -> message.getPayload() == payload));
     }
 
     @Test
@@ -241,6 +261,33 @@ class ClientServiceTest {
     }
 
     @Test
+    void ignoresViewsThatAreUpsideDownOrTooBig() {
+        // prepare
+        getActiveTestBlock(2, 3);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+
+        // execute: an int subtraction would wrap these to small counts
+        clientService.updateClientBlocks("s1", view(Integer.MIN_VALUE, Integer.MAX_VALUE, 0, 0, false));
+        clientService.updateClientBlocks("s1", view(Integer.MIN_VALUE, Integer.MAX_VALUE, 0, 0, true));
+        clientService.updateClientBlocks("s1", view(3, 2, 3, 3, false));
+
+        // verify
+        assertThat(sent).isEmpty();
+    }
+
+    @Test
+    void endsAViewAtTheEdgeOfTheInts() {
+        // prepare
+        getActiveTestBlock(Integer.MAX_VALUE, 0);
+
+        // execute
+        connect("s1", view(Integer.MAX_VALUE - 1, Integer.MAX_VALUE, 0, 0, false));
+
+        // verify
+        assertThat(sent).hasSize(1);
+    }
+
+    @Test
     void readsAnUpdateWithoutSectorsOrResend() {
         // prepare
         Message<byte[]> message = MessageBuilder.withPayload("{\"minX\":1,\"maxX\":2,\"minY\":3,\"maxY\":4}".getBytes())
@@ -266,6 +313,20 @@ class ClientServiceTest {
         // verify
         assertThat(sent).hasSize(1);
         assertThat(new String((byte[]) sent.getFirst().getPayload())).isEqualTo("{\"type\":\"NO_BLOCKS\"}");
+    }
+
+    @Test
+    void startsOverAfterNoBlocks() {
+        // prepare: nothing at 2/3 yet
+        connect("s1", view(1, 2, 3, 3, false));
+        Block block = getActiveTestBlock(2, 3);
+        sent.clear();
+
+        // execute: a view that overlaps the first one
+        clientService.updateClientBlocks("s1", view(2, 3, 3, 3, false));
+
+        // verify: 2/3 counts as new in view
+        assertThat(sent.stream().map(ClientServiceTest::blocksOf)).containsExactly(List.of(block.getEncodedBlock()));
     }
 
     @Test
