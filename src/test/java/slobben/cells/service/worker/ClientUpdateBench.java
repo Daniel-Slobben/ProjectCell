@@ -12,6 +12,7 @@ import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry;
 import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.outgoing.EncodedBlock;
@@ -33,6 +34,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * mvn test -Dtest=ClientUpdateBench -Djunit.jupiter.conditions.deactivate='org.junit.*DisabledCondition',
  * with -Dbench.clients=2500 -Dbench.ticks=200
+ * <p>
+ * sectorMapTick: the same in a world of 64 x 64 blocks that each have sectors, ticks of 500 ms, so every 20th tick
+ * sends every client the sector map. Run it on its own: -Dtest=ClientUpdateBench#sectorMapTick
  */
 @SpringBootTest(properties = {"cells.runmode=MANUAL", "spring.threads.virtual.enabled=true", "logging.level.slobben=WARN"})
 class ClientUpdateBench {
@@ -42,6 +46,8 @@ class ClientUpdateBench {
     private static final int WARMUP_TICKS = 50;
     private static final int WORLD_BLOCKS = 40; // 40 x 40 blocks, every client watches 2 x 2 of them
     private static final int BORDER_BYTES = 800;
+    private static final int MAP_WORLD_BLOCKS = 64;
+    private static final int SECTOR_BYTES = 124; // the mean zstd SECTOR frame of SectorFrameSizeTest
 
     @Autowired
     private ClientService clientService;
@@ -57,33 +63,7 @@ class ClientUpdateBench {
     @Disabled("Benchmark")
     void clientUpdateTick() {
         Random random = new Random(1);
-        for (int x = 0; x < WORLD_BLOCKS; x++) {
-            for (int y = 0; y < WORLD_BLOCKS; y++) {
-                Block block = new Block(x, y, UUID.randomUUID(), 8);
-                byte[] cells = new byte[BORDER_BYTES];
-                random.nextBytes(cells);
-                EncodedBlock borders = new EncodedBlock(x, y, 1, EncodedBlockType.BORDER, cells);
-                block.setEncodedBlockBorders(() -> borders);
-                blocks.put(block.getKey(), block);
-            }
-        }
-        AtomicInteger delivered = new AtomicInteger();
-        clientOutboundChannel.subscribe(message -> {
-            if (SimpMessageHeaderAccessor.getMessageType(message.getHeaders()) == SimpMessageType.MESSAGE) {
-                delivered.incrementAndGet();
-            }
-        });
-        for (int i = 0; i < CLIENTS; i++) {
-            String sessionId = Long.toHexString(i); // as Tomcat numbers its websocket sessions
-            Message<byte[]> connect = stompMessage(SimpMessageType.CONNECT, sessionId);
-            broker.handleMessage(connect);
-            clientService.onConnect(new SessionConnectEvent(this, connect));
-            broker.handleMessage(stompMessage(SimpMessageType.SUBSCRIBE, sessionId));
-            int x = random.nextInt(WORLD_BLOCKS - 1), y = random.nextInt(WORLD_BLOCKS - 1);
-            String[] watched = {x + "/" + y, (x + 1) + "/" + y, x + "/" + (y + 1), (x + 1) + "/" + (y + 1)};
-            clientService.updateClientBlocks(sessionId, new ClientUpdateRequest(new String[0], watched, false));
-        }
-        clientService.execute(); // the first tick of a client sends full blocks, which these blocks don't have
+        AtomicInteger delivered = setUp(random, WORLD_BLOCKS, 0);
 
         List<Long> tickNanos = new ArrayList<>(), drainedNanos = new ArrayList<>();
         for (int tick = 0; tick < WARMUP_TICKS + TICKS; tick++) {
@@ -105,6 +85,79 @@ class ClientUpdateBench {
 
         System.out.printf("%nRESULT %d clients, %d ticks, destination cache limit %d: tick %s, drained %s%n", CLIENTS, TICKS,
                 ((DefaultSubscriptionRegistry) broker.getSubscriptionRegistry()).getCacheLimit(), stats(tickNanos), stats(drainedNanos));
+    }
+
+    @Test
+    @Disabled("Benchmark")
+    void sectorMapTick() {
+        ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
+        int mapTicks = 20, mapMessages = (MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS + 249) / 250;
+        AtomicInteger delivered = setUp(new Random(1), MAP_WORLD_BLOCKS, SECTOR_BYTES);
+
+        List<Long> tickNanos = new ArrayList<>(), drainedNanos = new ArrayList<>();
+        List<Long> mapTickNanos = new ArrayList<>(), mapDrainedNanos = new ArrayList<>();
+        for (int tick = 1; tick <= (WARMUP_TICKS + TICKS) / mapTicks * mapTicks; tick++) {
+            boolean mapTick = tick % mapTicks == 0;
+            int expected = delivered.get() + CLIENTS * (mapTick ? 1 + mapMessages : 1);
+            long start = System.nanoTime();
+            clientService.execute();
+            long executed = System.nanoTime();
+            long deadline = executed + TimeUnit.SECONDS.toNanos(30);
+            while (delivered.get() < expected) {
+                assertThat(System.nanoTime()).as("all messages delivered").isLessThan(deadline);
+                LockSupport.parkNanos(50_000);
+            }
+            if (tick > WARMUP_TICKS) {
+                (mapTick ? mapTickNanos : tickNanos).add(executed - start);
+                (mapTick ? mapDrainedNanos : drainedNanos).add(System.nanoTime() - start);
+            }
+        }
+
+        System.out.printf("%nRESULT %d clients, %d blocks, %d map messages each: tick %s, drained %s%n", CLIENTS,
+                MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS, mapMessages, stats(tickNanos), stats(drainedNanos));
+        System.out.printf("RESULT map ticks (n=%d): tick %s, drained %s%n", mapTickNanos.size(), stats(mapTickNanos), stats(mapDrainedNanos));
+    }
+
+    // A world of side x side blocks with borders, and sectors if sectorBytes > 0, and the clients, each watching 2 x 2
+    // blocks. Returns the count of messages delivered to the sessions.
+    private AtomicInteger setUp(Random random, int side, int sectorBytes) {
+        for (int x = 0; x < side; x++) {
+            for (int y = 0; y < side; y++) {
+                Block block = new Block(x, y, UUID.randomUUID(), 8);
+                byte[] cells = new byte[BORDER_BYTES];
+                random.nextBytes(cells);
+                EncodedBlock borders = new EncodedBlock(x, y, 1, EncodedBlockType.BORDER, cells);
+                block.setEncodedBlockBorders(() -> borders);
+                if (sectorBytes > 0) {
+                    byte[] sectorCells = new byte[sectorBytes];
+                    random.nextBytes(sectorCells);
+                    EncodedBlock sectors = new EncodedBlock(x, y, 1, EncodedBlockType.SECTOR, sectorCells);
+                    block.setEncodedBlockSectors(() -> sectors);
+                }
+                blocks.put(block.getKey(), block);
+            }
+        }
+        AtomicInteger delivered = new AtomicInteger();
+        clientOutboundChannel.subscribe(message -> {
+            if (SimpMessageHeaderAccessor.getMessageType(message.getHeaders()) == SimpMessageType.MESSAGE) {
+                delivered.incrementAndGet();
+            }
+        });
+        clientService.execute(); // builds the sector map, before any client
+        for (int i = 0; i < CLIENTS; i++) {
+            String sessionId = Long.toHexString(i); // as Tomcat numbers its websocket sessions
+            Message<byte[]> connect = stompMessage(SimpMessageType.CONNECT, sessionId);
+            broker.handleMessage(connect);
+            clientService.onConnect(new SessionConnectEvent(this, connect));
+            broker.handleMessage(stompMessage(SimpMessageType.SUBSCRIBE, sessionId));
+            int x = random.nextInt(side - 1), y = random.nextInt(side - 1);
+            String[] watched = {x + "/" + y, (x + 1) + "/" + y, x + "/" + (y + 1), (x + 1) + "/" + (y + 1)};
+            clientService.updateClientBlocks(sessionId, new ClientUpdateRequest(new String[0], watched, false));
+        }
+        // the first update of a client sends the sector map and full blocks, which these blocks don't have
+        LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
+        delivered.set(0);
+        return delivered;
     }
 
     private static Message<byte[]> stompMessage(SimpMessageType type, String sessionId) {
