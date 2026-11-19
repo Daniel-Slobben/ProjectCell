@@ -11,7 +11,6 @@ import slobben.cells.util.PackedRows;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -124,7 +123,7 @@ public class Packer extends Worker {
                     packed = switch (type) {
                         case FULL -> getFull(snapshot.rows, size);
                         case BORDER -> getPackedBorders(snapshot.rows, size);
-                        case SECTOR -> getSectors(snapshot.sectorCounts);
+                        case SECTOR -> getSectors(snapshot.sectorCounts, size);
                     };
                     generation = snapshot.generation;
                 } finally {
@@ -148,13 +147,16 @@ public class Packer extends Worker {
             return packed;
         }
 
-        // per band of sectors down the rows, its sectors along the row: the alive cells as u16 little-endian
-        private static byte[] getSectors(short[][] sectorCounts) {
-            ByteBuffer packed = ByteBuffer.allocate(2 * sectorCounts.length * sectorCounts.length).order(ByteOrder.LITTLE_ENDIAN);
+        // per band of sectors down the rows, its sectors along the row: the share of alive cells as a u8 of 0-255,
+        // rounded up so a sector with any alive cell is above 0
+        private static byte[] getSectors(short[][] sectorCounts, int size) {
+            int cells = (size / sectorCounts.length) * (size / sectorCounts.length);
+            byte[] packed = new byte[sectorCounts.length * sectorCounts.length];
+            int i = 0;
             for (short[] band : sectorCounts) {
-                for (short count : band) packed.putShort(count);
+                for (short count : band) packed[i++] = (byte) ((count * 255 + cells - 1) / cells);
             }
-            return packed.array();
+            return packed;
         }
 
         private static int append(byte[] packed, int index, boolean alive) {
