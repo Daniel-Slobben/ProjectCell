@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
+import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.dto.outgoing.BlockFrame;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.StatusResponse;
@@ -48,7 +49,7 @@ public class ClientService extends Worker {
     private int maxCellBlocks;
     private int ticks = 0;
     private final AtomicInteger connections = new AtomicInteger();
-    private volatile Map<Long, byte[]> tiles = Map.of();
+    private volatile Map<Coordinates, byte[]> tiles = Map.of();
     private int tilesTick = Integer.MIN_VALUE;
 
     @Override
@@ -76,33 +77,29 @@ public class ClientService extends Worker {
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    private Map<Long, byte[]> writeTiles() {
-        Map<Long, List<EncodedBlock>> sectorsPerTile = new HashMap<>();
+    private Map<Coordinates, byte[]> writeTiles() {
+        Map<Coordinates, List<EncodedBlock>> sectorsPerTile = new HashMap<>();
         for (Block block : blocks.values()) {
             EncodedBlock sectors = block.getEncodedBlockSectors();
             if (sectors != null) {
-                long tile = tile(Math.floorDiv(block.getX(), tileSize), Math.floorDiv(block.getY(), tileSize));
+                Coordinates tile = new Coordinates(Math.floorDiv(block.getX(), tileSize), Math.floorDiv(block.getY(), tileSize));
                 sectorsPerTile.computeIfAbsent(tile, key -> new ArrayList<>()).add(sectors);
             }
         }
-        Map<Long, byte[]> newTiles = new HashMap<>();
+        Map<Coordinates, byte[]> newTiles = new HashMap<>();
         sectorsPerTile.forEach((tile, sectors) -> newTiles.put(tile, BlockFrame.write(sectors)));
         return newTiles;
     }
 
     // every tile with a block in view, so also blocks around the view
-    private void sendTiles(Client client, Map<Long, byte[]> tiles) {
+    private void sendTiles(Client client, Map<Coordinates, byte[]> tiles) {
         ClientUpdateRequest view = client.getLastUpdateRequest();
         for (int tileX = Math.floorDiv(view.minX(), tileSize); tileX <= Math.floorDiv(view.maxX(), tileSize); tileX++) {
             for (int tileY = Math.floorDiv(view.minY(), tileSize); tileY <= Math.floorDiv(view.maxY(), tileSize); tileY++) {
-                byte[] tile = tiles.get(tile(tileX, tileY));
+                byte[] tile = tiles.get(new Coordinates(tileX, tileY));
                 if (tile != null) send(client, tile);
             }
         }
-    }
-
-    private static long tile(int tileX, int tileY) {
-        return (long) tileX << 32 | (tileY & 0xffffffffL);
     }
 
     private void sendSectors(Client client, List<Block> watched) {
