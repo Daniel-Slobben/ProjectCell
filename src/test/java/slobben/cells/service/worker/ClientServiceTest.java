@@ -118,37 +118,24 @@ class ClientServiceTest {
     }
 
     @Test
-    void sendsTheSectorMapEveryThreeSecondsToSectorsAndEveryTenToCells() {
+    void sendsTheSectorMapEveryTenSecondsToSectorsOnly() {
         // prepare: ticks of 500 ms
         ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
         Block block = getActiveTestBlock(2, 3);
         getTestBlock(3, 3); // NEW: no sectors yet
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("cells")));
+        clientService.updateClientBlocks("cells", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("sectors")));
         clientService.updateClientBlocks("sectors", new ClientUpdateRequest(new String[0], new String[0], true));
 
         // execute
-        for (int tick = 0; tick < 21; tick++) clientService.execute();
+        for (int tick = 0; tick < 41; tick++) clientService.execute();
 
-        // verify: sectors on ticks 0, 6, 12 and 18, cells on 0 and 20, beside their borders
-        assertThat(sectorMaps("/queue/blocks-usersectors")).hasSize(4).containsOnly(List.of(block.getEncodedBlockSectors()));
-        assertThat(sectorMaps("/queue/blocks-usercells")).hasSize(2).containsOnly(List.of(block.getEncodedBlockSectors()));
-        assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usersectors"))).hasSize(4);
-    }
-
-    @Test
-    void sendsTheSectorMapWithTheFirstFullBlocks() {
-        // prepare
-        Block block = getActiveTestBlock(2, 3);
-        clientService.execute();
-        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-
-        // execute
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
-
-        // verify
-        assertThat(sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())))
-                .containsExactly(List.of(block.getEncodedBlockSectors()), List.of(block.getEncodedBlock()));
+        // verify: sectors on ticks 0, 20 and 40 and nothing else; cells their full block and borders, no sectors
+        assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usersectors")).map(ClientServiceTest::blocksOf))
+                .containsExactly(List.of(block.getEncodedBlockSectors()), List.of(block.getEncodedBlockSectors()), List.of(block.getEncodedBlockSectors()));
+        assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usercells")).map(ClientServiceTest::blocksOf))
+                .hasSize(42).noneMatch(frame -> frame.stream().anyMatch(encoded -> encoded.type() == EncodedBlockType.SECTOR));
     }
 
     @Test
@@ -189,7 +176,7 @@ class ClientServiceTest {
         clientService.execute();
 
         // verify
-        assertThat(sectorMaps("/queue/blocks-users1").stream().map(List::size)).containsExactly(250, 1);
+        assertThat(sent.stream().map(message -> blocksOf(message).size())).containsExactly(250, 1);
     }
 
     @Test
@@ -277,10 +264,8 @@ class ClientServiceTest {
         assertThat(sent).isEmpty();
     }
 
-    private List<List<EncodedBlock>> sectorMaps(String destination) {
-        return sent.stream().filter(message -> destination(message).equals(destination))
-                .map(message -> BlockFrameReader.read((byte[]) message.getPayload()))
-                .filter(frame -> !frame.isEmpty() && frame.getFirst().type() == EncodedBlockType.SECTOR).toList();
+    private static List<EncodedBlock> blocksOf(Message<?> message) {
+        return BlockFrameReader.read((byte[]) message.getPayload());
     }
 
     private static String destination(Message<?> message) {

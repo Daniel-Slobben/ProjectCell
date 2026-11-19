@@ -35,14 +35,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * mvn test -Dtest=ClientUpdateBench -Djunit.jupiter.conditions.deactivate='org.junit.*DisabledCondition',
  * with -Dbench.clients=2500 -Dbench.ticks=200
  * <p>
- * sectorMapTick: the same in a world of 64 x 64 blocks that each have sectors, ticks of 500 ms, so every 20th tick
- * sends every client the sector map. Run it on its own: -Dtest=ClientUpdateBench#sectorMapTick
+ * sectorMapTick: the same in a world of 64 x 64 blocks that each have sectors, ticks of 500 ms, where
+ * -Dbench.sectorClients=500 of the clients watch sectors: every 20th tick sends them the sector map. Run it on its own:
+ * -Dtest=ClientUpdateBench#sectorMapTick
  */
 @SpringBootTest(properties = {"cells.runmode=MANUAL", "spring.threads.virtual.enabled=true", "logging.level.slobben=WARN"})
 class ClientUpdateBench {
 
     private static final int CLIENTS = Integer.getInteger("bench.clients", 2500);
     private static final int TICKS = Integer.getInteger("bench.ticks", 200);
+    private static final int SECTOR_CLIENTS = Integer.getInteger("bench.sectorClients", 500);
     private static final int WARMUP_TICKS = 50;
     private static final int WORLD_BLOCKS = 40; // 40 x 40 blocks, every client watches 2 x 2 of them
     private static final int BORDER_BYTES = 800;
@@ -93,12 +95,17 @@ class ClientUpdateBench {
         ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
         int mapTicks = 20, mapMessages = (MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS + 249) / 250;
         AtomicInteger delivered = setUp(new Random(1), MAP_WORLD_BLOCKS, SECTOR_BYTES);
+        for (int i = 0; i < SECTOR_CLIENTS; i++) {
+            clientService.updateClientBlocks(Long.toHexString(i), new ClientUpdateRequest(new String[0], new String[0], true));
+        }
+        LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
+        delivered.set(0);
 
         List<Long> tickNanos = new ArrayList<>(), drainedNanos = new ArrayList<>();
         List<Long> mapTickNanos = new ArrayList<>(), mapDrainedNanos = new ArrayList<>();
         for (int tick = 1; tick <= (WARMUP_TICKS + TICKS) / mapTicks * mapTicks; tick++) {
             boolean mapTick = tick % mapTicks == 0;
-            int expected = delivered.get() + CLIENTS * (mapTick ? 1 + mapMessages : 1);
+            int expected = delivered.get() + CLIENTS - SECTOR_CLIENTS + (mapTick ? SECTOR_CLIENTS * mapMessages : 0);
             long start = System.nanoTime();
             clientService.execute();
             long executed = System.nanoTime();
@@ -113,8 +120,8 @@ class ClientUpdateBench {
             }
         }
 
-        System.out.printf("%nRESULT %d clients, %d blocks, %d map messages each: tick %s, drained %s%n", CLIENTS,
-                MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS, mapMessages, stats(tickNanos), stats(drainedNanos));
+        System.out.printf("%nRESULT %d clients of which %d watch sectors, %d blocks, %d map messages each: tick %s, drained %s%n",
+                CLIENTS, SECTOR_CLIENTS, MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS, mapMessages, stats(tickNanos), stats(drainedNanos));
         System.out.printf("RESULT map ticks (n=%d): tick %s, drained %s%n", mapTickNanos.size(), stats(mapTickNanos), stats(mapDrainedNanos));
     }
 
@@ -154,7 +161,7 @@ class ClientUpdateBench {
             String[] watched = {x + "/" + y, (x + 1) + "/" + y, x + "/" + (y + 1), (x + 1) + "/" + (y + 1)};
             clientService.updateClientBlocks(sessionId, new ClientUpdateRequest(new String[0], watched, false));
         }
-        // the first update of a client sends the sector map and full blocks, which these blocks don't have
+        // the first update of a client sends full blocks, which these blocks don't have
         LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
         delivered.set(0);
         return delivered;

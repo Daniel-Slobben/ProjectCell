@@ -29,9 +29,8 @@ import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 @Slf4j
 public class ClientService extends Worker {
     private static final String DESTINATION = "/queue/blocks-user%s";
-    // Every client gets the sectors of every block, those that watch sectors more often: they ask for no blocks.
-    private static final int SECTOR_MAP_MS = 3000;
-    private static final int CELLS_MAP_MS = 10000;
+    // Clients that watch sectors ask for no blocks: they get the sectors of every block this often.
+    private static final int SECTOR_MAP_MS = 10000;
     // ~120 bytes a block: a message of ~30 KB, like a full block, so a slow connection sees the map come in
     private static final int SECTOR_MAP_BLOCKS_PER_MESSAGE = 250;
     private final SimpMessagingTemplate simpMessagingTemplate;
@@ -51,13 +50,12 @@ public class ClientService extends Worker {
     public void execute() {
         int tick = ticks++;
         boolean sectorMapTick = tick % ticksPer(SECTOR_MAP_MS) == 0;
-        boolean cellsMapTick = tick % ticksPer(CELLS_MAP_MS) == 0;
-        if (sectorMapTick || cellsMapTick) sectorMap = writeSectorMap();
+        if (sectorMapTick) sectorMap = writeSectorMap();
         Set<Runnable> tasks = clients.values().stream()
                 .filter(client -> sectorMapTick || !client.isSectors())
                 .map(client -> (Runnable) () -> {
-                    if (!client.isSectors()) sendClientUpdate(client, client.getActiveBlocks(), true);
-                    if (client.isSectors() ? sectorMapTick : cellsMapTick) sendSectorMap(client);
+                    if (client.isSectors()) sendSectorMap(client);
+                    else sendClientUpdate(client, client.getActiveBlocks(), true);
                 })
                 .collect(Collectors.toSet());
 
@@ -140,8 +138,6 @@ public class ClientService extends Worker {
             send(client, new StatusResponse(NO_BLOCKS));
             return;
         }
-        // the sectors show until the full blocks come
-        if (firstUpdate) sendSectorMap(client);
         sendClientUpdate(client, Set.of(clientUpdateRequest.blocksToAdd()), false);
     }
 }
