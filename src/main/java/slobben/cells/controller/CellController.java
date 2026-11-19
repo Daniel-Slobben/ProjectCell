@@ -59,7 +59,6 @@ public class CellController {
         clientService.updateClientBlocks(sessionId, message);
     }
 
-    // Broken JSON or an upside-down view: one line instead of Spring's stack trace, and the session is closed.
     @MessageExceptionHandler
     public void onUnreadableUpdate(MessageConversionException exception, @Header("simpSessionId") String sessionId) {
         log.debug("Unreadable update from session {}: {}", sessionId, exception.getMessage());

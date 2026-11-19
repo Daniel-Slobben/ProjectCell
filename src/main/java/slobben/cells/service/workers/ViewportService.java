@@ -29,7 +29,6 @@ public class ViewportService extends Worker {
     // growth patterns fill many busy blocks that all look alike
     private static final int GROWTH_MAX = 3;
     private static final int RECENT_DISTANCE_BLOCKS = 3;
-    // the frontend sends its last 5
     private static final int RECENT_MAX = 10;
     private static final Random RANDOM = new Random();
 

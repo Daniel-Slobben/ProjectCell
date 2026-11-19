@@ -23,11 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-/**
- * The /ws endpoint as a browser or an attacker sees it: raw STOMP frames over a real websocket, so the interceptor, the
- * message handlers and the closing of sessions are tested as Spring wires them. The world is empty, so every update
- * gets NO_BLOCKS and costs 1 of a budget of 20 that doesn't refill.
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"cells.runmode=MANUAL",
         "cells.max-cell-blocks=10", "cells.client-blocks-per-second=0", "cells.allowed-origins=https://world-of-cells.net"})
 class StompEndpointTest {
@@ -115,7 +110,6 @@ class StompEndpointTest {
         return command + "\n" + headers + "\n\n" + body + "\0";
     }
 
-    // the text frames a connection got, and how it was closed
     private static final class Connection extends AbstractWebSocketHandler {
         private final BlockingQueue<String> frames = new LinkedBlockingQueue<>();
         private final CompletableFuture<CloseStatus> closed = new CompletableFuture<>();

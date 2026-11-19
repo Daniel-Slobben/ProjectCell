@@ -64,13 +64,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer, Channe
         registration.interceptors(this);
     }
 
-    // A client may only connect with heartbeats, subscribe once to its own queue and send view updates. Anything
-    // else is dropped and the session closed. Without this a client could subscribe to every other session's queue
-    // and send frames into it. Not by throwing: with ordered receives that only logs a stack trace.
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor stomp = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-        // heartbeats have no command
         if (stomp == null || stomp.getCommand() == null) return message;
         boolean allowed = switch (stomp.getCommand()) {
             case CONNECT, STOMP -> stomp.getHeartbeat()[0] > 0 && stomp.getHeartbeat()[0] <= HEARTBEAT[1];

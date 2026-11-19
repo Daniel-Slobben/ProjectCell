@@ -42,7 +42,6 @@ class ClientUpdateRequestBench {
         ReflectionTestUtils.setField(clientService, "sectorPeriodMs", 10000);
         ReflectionTestUtils.setField(clientService, "tileSize", 16);
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 2000);
-        // the sweep would run out of budget
         ReflectionTestUtils.setField(clientService, "blocksPerSecond", Integer.MAX_VALUE);
     }
 

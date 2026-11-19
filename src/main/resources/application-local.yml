@@ -1,6 +1,5 @@
 cells:
   targetspeed: '250'
-  # npm start on localhost, or a phone on the LAN
   allowed-origins: '*'
 
   chaos:

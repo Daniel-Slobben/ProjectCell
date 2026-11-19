@@ -22,11 +22,8 @@ cells:
 
   runmode: AUTO
   targetspeed: '500'
-  # the frontend switches to sectors at 250 blocks in view, about 320 with the ring around it
   max-cell-blocks: 500
-  # what a client's block budget refills by; see ClientService.overBudget
   client-blocks-per-second: 100
-  # browsers only; the load test sends no Origin
   allowed-origins: https://world-of-cells.net, https://www.world-of-cells.net, https://dewereldvancellen.nl, https://www.dewereldvancellen.nl
 
   sectors:

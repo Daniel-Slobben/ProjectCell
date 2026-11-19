@@ -23,7 +23,6 @@ public class Client {
     // the tick of the sector period on which it gets its sectors
     @Setter
     private int sectorPhase;
-    // blocks it may still ask for, as of budgetNanos; starts full
     @Setter
     private double budget = Double.POSITIVE_INFINITY;
     @Setter

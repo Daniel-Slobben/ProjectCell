@@ -409,7 +409,7 @@ class ClientServiceTest {
 
     @Test
     void closesASessionThatAsksForMoreBlocksThanItsBudget() {
-        // prepare: a budget of 20 blocks that doesn't refill, each view costs 1 + 9
+        // prepare
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
         getActiveTestBlock(0, 0);
         getActiveTestBlock(20, 0);
@@ -420,7 +420,7 @@ class ClientServiceTest {
         // execute
         clientService.updateClientBlocks("s1", view(20, 22, 0, 2, false));
 
-        // verify: no blocks, only the ERROR that closes the session
+        // verify
         assertThat(sent).singleElement().satisfies(message -> {
             StompHeaderAccessor error = StompHeaderAccessor.wrap(message);
             assertThat(error.getCommand()).isEqualTo(StompCommand.ERROR);
@@ -430,7 +430,7 @@ class ClientServiceTest {
 
     @Test
     void chargesUpdatesThatSendNothing() {
-        // prepare: a budget of 20 that doesn't refill, an empty world
+        // prepare
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
         for (int i = 0; i < 20; i++) clientService.updateClientBlocks("s1", view(0, 0, 0, 0, false));
@@ -445,13 +445,13 @@ class ClientServiceTest {
 
     @Test
     void chargesSectorsAsAHundredthOfABlock() {
-        // prepare: as full blocks these 1900 would be far over the budget of 20; as sectors they cost 1 + 19
+        // prepare
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
         for (int x = 0; x < 1900; x++) blocks.put(BlockUtils.getKey(x, 0), getTestBlock(x, 0));
         connect("s1", view(0, 1899, 0, 0, true));
         assertThat(closed("s1")).isFalse();
 
-        // execute: the budget is spent, so the next update is one too many
+        // execute
         clientService.updateClientBlocks("s1", view(0, 1899, 0, 0, true));
 
         // verify
@@ -460,7 +460,7 @@ class ClientServiceTest {
 
     @Test
     void chargesResentBlocks() {
-        // prepare: a budget of 20, of which the first view costs 1 + 9 and resending its 9 blocks another 1 + 9
+        // prepare
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
         getActiveTestBlock(0, 0);
         connect("s1", view(0, 2, 0, 2, false));

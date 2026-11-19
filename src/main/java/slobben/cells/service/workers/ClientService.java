@@ -39,10 +39,8 @@ public class ClientService extends Worker {
     private static final String DESTINATION = "/queue/blocks-user%s";
     private static final int SECTOR_BLOCKS_PER_MESSAGE = 250;
     private static final int MAX_VIEW_BLOCKS = 1_000_000;
-    // a sector costs about a hundredth of a full block to encode and send
     private static final int SECTORS_PER_BLOCK = 100;
     private final SimpMessagingTemplate simpMessagingTemplate;
-    // Spring's channel to the sockets, picked by this name among its channels
     private final MessageChannel clientOutboundChannel;
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
@@ -219,9 +217,6 @@ public class ClientService extends Worker {
         sendClientUpdate(client, added, false);
     }
 
-    // Every update costs a block, and every block it sends one more, so also updates that send nothing count. The
-    // budget refills over time up to two full views, so panning and zooming fit, but a client can't keep the server
-    // encoding blocks for it. One over it is closed.
     private boolean overBudget(Client client, int blocks) {
         long now = System.nanoTime();
         double budget = Math.min(2.0 * maxCellBlocks, client.getBudget() + (now - client.getBudgetNanos()) / 1e9 * blocksPerSecond);
@@ -233,7 +228,6 @@ public class ClientService extends Worker {
         return true;
     }
 
-    // a STOMP ERROR closes the session
     public void close(String sessionId, String reason) {
         StompHeaderAccessor error = StompHeaderAccessor.create(StompCommand.ERROR);
         error.setSessionId(sessionId);
