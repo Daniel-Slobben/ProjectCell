@@ -21,6 +21,8 @@ import slobben.cells.util.BlockUtils;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
@@ -30,8 +32,9 @@ import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 @Slf4j
 public class ClientService extends Worker {
     private static final String DESTINATION = "/queue/blocks-user%s";
-    // Clients that watch sectors get the sectors of the blocks in view this often, all on the same tick, per tile of
-    // TILE x TILE blocks: one message per tile, written once and the same bytes for every client that sees the tile.
+    // Clients that watch sectors get the sectors of the blocks in view this often, per tile of TILE x TILE blocks: one
+    // message per tile, written once per period and the same bytes for every client that sees the tile. Each client
+    // has its own tick in the period, so every tick sends to about as many clients.
     private static final int SECTORS_MS = 10000;
     // as many messages as SECTOR_BLOCKS_PER_MESSAGE; tiles of 8 made the sector tick 3 times as slow (ClientUpdateBench)
     private static final int TILE = 16;
@@ -48,6 +51,9 @@ public class ClientService extends Worker {
     @Value("${cells.targetspeed}")
     private int targetSpeed;
     private int ticks = 0;
+    private final AtomicInteger connections = new AtomicInteger();
+    private volatile Map<Long, byte[]> tiles = Map.of();
+    private int tilesTick = Integer.MIN_VALUE;
 
     @Override
     public String getName() {
@@ -55,11 +61,15 @@ public class ClientService extends Worker {
     }
 
     public void execute() {
-        int tick = ticks++;
-        boolean sectorTick = tick % ticksPer(SECTORS_MS) == 0;
-        Map<Long, byte[]> tiles = sectorTick && clients.values().stream().anyMatch(Client::isSectors) ? writeTiles() : Map.of();
+        int tick = ticks++, period = ticksPer(SECTORS_MS);
+        Predicate<Client> due = client -> !client.isSectors() || client.getSectorPhase() % period == tick % period;
+        // at most a period old, and only written when a client that watches sectors is due
+        if (tick - (long) tilesTick >= period && clients.values().stream().anyMatch(client -> client.isSectors() && due.test(client))) {
+            tiles = writeTiles();
+            tilesTick = tick;
+        }
         Set<Runnable> tasks = clients.values().stream()
-                .filter(client -> sectorTick || !client.isSectors())
+                .filter(due)
                 .map(client -> (Runnable) () -> {
                     if (client.isSectors()) sendTiles(client, tiles);
                     else sendClientUpdate(client, client.getActiveBlocks(), true);
@@ -137,7 +147,9 @@ public class ClientService extends Worker {
     @EventListener
     public void onConnect(SessionConnectEvent event) {
         String sessionId = SimpMessageHeaderAccessor.getSessionId(event.getMessage().getHeaders());
-        clients.put(sessionId, new Client(sessionId));
+        Client client = new Client(sessionId);
+        client.setSectorPhase(connections.getAndIncrement());
+        clients.put(sessionId, client);
     }
 
     // Also comes when the broker closes a session that stopped sending heartbeats.

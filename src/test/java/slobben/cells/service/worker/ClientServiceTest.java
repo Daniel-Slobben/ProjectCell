@@ -129,13 +129,34 @@ class ClientServiceTest {
         sent.clear();
 
         // execute
-        for (int tick = 0; tick < 41; tick++) clientService.execute();
+        for (int tick = 0; tick < 42; tick++) clientService.execute();
 
-        // verify: sectors on ticks 0, 20 and 40 and nothing else; cells their borders, no sectors
+        // verify: the second client to connect gets its sectors on ticks 1, 21 and 41 and nothing else; cells their
+        // borders, no sectors
         assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usersectors")).map(ClientServiceTest::blocksOf))
                 .containsExactly(List.of(block.getEncodedBlockSectors()), List.of(block.getEncodedBlockSectors()), List.of(block.getEncodedBlockSectors()));
         assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usercells")).map(ClientServiceTest::blocksOf))
-                .hasSize(41).noneMatch(frame -> frame.stream().anyMatch(encoded -> encoded.type() == EncodedBlockType.SECTOR));
+                .hasSize(42).noneMatch(frame -> frame.stream().anyMatch(encoded -> encoded.type() == EncodedBlockType.SECTOR));
+    }
+
+    @Test
+    void spreadsTheSectorsOfClientsOverThePeriod() {
+        // prepare: ticks of 500 ms, a period of 20 ticks
+        ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
+        getActiveTestBlock(2, 3);
+        for (int i = 0; i < 40; i++) connect("s" + i, view(2, 2, 3, 3, true));
+        sent.clear();
+
+        // execute
+        List<Integer> perTick = new ArrayList<>();
+        for (int tick = 0; tick < 20; tick++) {
+            clientService.execute();
+            perTick.add(sent.size());
+            sent.clear();
+        }
+
+        // verify
+        assertThat(perTick).containsOnly(2);
     }
 
     @Test
@@ -220,7 +241,8 @@ class ClientServiceTest {
         connect("s2", view(15, 16, 0, 15, true));
         sent.clear();
 
-        // execute
+        // execute: s1 on tick 0, s2 on tick 1
+        clientService.execute();
         clientService.execute();
 
         // verify

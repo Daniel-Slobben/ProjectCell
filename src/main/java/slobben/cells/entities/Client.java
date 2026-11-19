@@ -22,4 +22,7 @@ public class Client {
     // set by the client's socket, read by the tick
     @Setter
     private volatile boolean sectors;
+    // the tick of the sector period on which it gets its sectors
+    @Setter
+    private int sectorPhase;
 }

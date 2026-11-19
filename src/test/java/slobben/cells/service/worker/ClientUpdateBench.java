@@ -36,8 +36,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * with -Dbench.clients=2500 -Dbench.ticks=200
  * <p>
  * sectorTick: the same in a world of 64 x 64 blocks that each have sectors, ticks of 500 ms, where
- * -Dbench.sectorClients=500 of the clients watch sectors zoomed all the way out, the whole world in view: every 20th
- * tick sends them the sectors of all blocks. Run it on its own: -Dtest=ClientUpdateBench#sectorTick
+ * -Dbench.sectorClients=500 of the clients watch sectors zoomed all the way out, the whole world in view: each gets the
+ * sectors of all blocks once every 20 ticks, a 20th of them per tick, and every 20th tick writes the tiles first. Run
+ * it on its own: -Dtest=ClientUpdateBench#sectorTick
  */
 @SpringBootTest(properties = {"cells.runmode=MANUAL", "spring.threads.virtual.enabled=true", "logging.level.slobben=WARN"})
 class ClientUpdateBench {
@@ -104,8 +105,11 @@ class ClientUpdateBench {
         List<Long> tickNanos = new ArrayList<>(), drainedNanos = new ArrayList<>();
         List<Long> sectorTickNanos = new ArrayList<>(), sectorDrainedNanos = new ArrayList<>();
         for (int tick = 1; tick <= (WARMUP_TICKS + TICKS) / sectorTicks * sectorTicks; tick++) {
-            boolean sectorTick = tick % sectorTicks == 0;
-            int expected = delivered.get() + CLIENTS - SECTOR_CLIENTS + (sectorTick ? SECTOR_CLIENTS * sectorMessages : 0);
+            // client i connected i-th, so it gets its sectors on the ticks where tick % 20 == i % 20; the first one
+            // due, on tick 1, has the tiles written
+            boolean sectorTick = tick % sectorTicks == 1;
+            int phase = tick % sectorTicks, sectorClients = (SECTOR_CLIENTS + sectorTicks - 1 - phase) / sectorTicks;
+            int expected = delivered.get() + CLIENTS - SECTOR_CLIENTS + sectorClients * sectorMessages;
             long start = System.nanoTime();
             clientService.execute();
             long executed = System.nanoTime();
@@ -122,7 +126,7 @@ class ClientUpdateBench {
 
         System.out.printf("%nRESULT %d clients of which %d watch sectors, %d blocks, %d sector messages each: tick %s, drained %s%n",
                 CLIENTS, SECTOR_CLIENTS, MAP_WORLD_BLOCKS * MAP_WORLD_BLOCKS, sectorMessages, stats(tickNanos), stats(drainedNanos));
-        System.out.printf("RESULT sector ticks (n=%d): tick %s, drained %s%n", sectorTickNanos.size(), stats(sectorTickNanos), stats(sectorDrainedNanos));
+        System.out.printf("RESULT ticks that write the tiles (n=%d): tick %s, drained %s%n", sectorTickNanos.size(), stats(sectorTickNanos), stats(sectorDrainedNanos));
     }
 
     // A world of side x side blocks with borders, and sectors if sectorBytes > 0, and the clients, each watching 2 x 2
