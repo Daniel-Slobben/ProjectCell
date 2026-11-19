@@ -98,10 +98,10 @@ class PackerTest {
         assertThat(sectors.generation()).isEqualTo(1);
         assertThat(sectors.type()).isEqualTo(EncodedBlockType.SECTOR);
         byte[] actual = decompress(sectors);
-        byte[] expected = new byte[7 * 7]; // 70 / 10 sectors per band, 70 / 10 bands
-        expected[0] = 11;         // the block at [1..2][1..2], 4 of 100 cells rounded up to 11 of 255: band 0, sector 0
-        expected[6] = 11;         // [1..2][63..64]: band 0, sector 6
-        expected[6 * 7 + 6] = 11; // [69..70][69..70]: band 6, sector 6
+        byte[] expected = new byte[(7 * 7 + 1) / 2]; // 70 / 10 sectors per band, 70 / 10 bands, two per byte
+        expected[0] = 1;  // the block at [1..2][1..2], 4 of 100 cells rounded up to level 1: band 0, sector 0
+        expected[3] = 1;  // [1..2][63..64]: band 0, sector 6
+        expected[24] = 1; // [69..70][69..70]: band 6, sector 6
         assertThat(actual).isEqualTo(expected);
     }
 

@@ -147,14 +147,17 @@ public class Packer extends Worker {
             return packed;
         }
 
-        // per band of sectors down the rows, its sectors along the row: the share of alive cells as a u8 of 0-255,
-        // rounded up so a sector with any alive cell is above 0
+        // per band of sectors down the rows, its sectors along the row: the share of alive cells in 16 levels, rounded
+        // up so a sector with any alive cell is above 0, two sectors per byte with the first in the low half
         private static byte[] getSectors(short[][] sectorCounts, int size) {
             int cells = (size / sectorCounts.length) * (size / sectorCounts.length);
-            byte[] packed = new byte[sectorCounts.length * sectorCounts.length];
+            byte[] packed = new byte[(sectorCounts.length * sectorCounts.length + 1) / 2];
             int i = 0;
             for (short[] band : sectorCounts) {
-                for (short count : band) packed[i++] = (byte) ((count * 255 + cells - 1) / cells);
+                for (short count : band) {
+                    packed[i >> 1] |= (byte) ((count * 15 + cells - 1) / cells << ((i & 1) << 2));
+                    i++;
+                }
             }
             return packed;
         }
