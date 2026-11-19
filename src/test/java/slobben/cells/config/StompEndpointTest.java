@@ -38,14 +38,14 @@ class StompEndpointTest {
     @Test
     void servesAClientThatFollowsTheRules() throws Exception {
         // prepare
-        Socket socket = connected();
+        Connection connection = connected();
 
         // execute
-        socket.send(subscribe("/user/queue/blocks"), update("{\"minX\":0,\"maxX\":0,\"minY\":0,\"maxY\":0}"));
+        connection.send(subscribe("/user/queue/blocks"), update("{\"minX\":0,\"maxX\":0,\"minY\":0,\"maxY\":0}"));
 
         // verify
-        assertThat(socket.next("MESSAGE")).contains("NO_BLOCKS");
-        assertThat(socket.closed).isNotDone();
+        assertThat(connection.next("MESSAGE")).contains("NO_BLOCKS");
+        assertThat(connection.closed).isNotDone();
     }
 
     @Test
@@ -80,27 +80,27 @@ class StompEndpointTest {
         assertThatThrownBy(() -> open("https://evil.example")).isInstanceOf(ExecutionException.class);
     }
 
-    private static void assertClosed(Socket socket, String reason, String frames) throws Exception {
-        socket.send(frames);
-        assertThat(socket.closed.get(5, SECONDS).getCode()).isEqualTo(CloseStatus.PROTOCOL_ERROR.getCode());
-        assertThat(socket.next("ERROR")).contains(reason);
+    private static void assertClosed(Connection connection, String reason, String frames) throws Exception {
+        connection.send(frames);
+        assertThat(connection.closed.get(5, SECONDS).getCode()).isEqualTo(CloseStatus.PROTOCOL_ERROR.getCode());
+        assertThat(connection.next("ERROR")).contains(reason);
     }
 
-    private Socket connected() throws Exception {
-        Socket socket = open(null);
-        socket.send(frame("CONNECT", "accept-version:1.2\nheart-beat:5000,0", ""));
-        socket.next("CONNECTED");
-        return socket;
+    private Connection connected() throws Exception {
+        Connection connection = open(null);
+        connection.send(frame("CONNECT", "accept-version:1.2\nheart-beat:5000,0", ""));
+        connection.next("CONNECTED");
+        return connection;
     }
 
-    private Socket open(String origin) throws Exception {
-        Socket socket = new Socket();
+    private Connection open(String origin) throws Exception {
+        Connection connection = new Connection();
         WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
         if (origin != null) headers.setOrigin(origin);
-        socket.session = new StandardWebSocketClient()
-                .execute(socket, headers, URI.create("ws://localhost:%d/ws".formatted(port)))
+        connection.session = new StandardWebSocketClient()
+                .execute(connection, headers, URI.create("ws://localhost:%d/ws".formatted(port)))
                 .get(5, SECONDS);
-        return socket;
+        return connection;
     }
 
     private static String subscribe(String destination) {
@@ -115,8 +115,8 @@ class StompEndpointTest {
         return command + "\n" + headers + "\n\n" + body + "\0";
     }
 
-    // the text frames a socket got, and how it was closed
-    private static final class Socket extends AbstractWebSocketHandler {
+    // the text frames a connection got, and how it was closed
+    private static final class Connection extends AbstractWebSocketHandler {
         private final BlockingQueue<String> frames = new LinkedBlockingQueue<>();
         private final CompletableFuture<CloseStatus> closed = new CompletableFuture<>();
         private WebSocketSession session;
