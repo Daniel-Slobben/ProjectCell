@@ -2,6 +2,7 @@ package slobben.cells.service.workers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -28,13 +29,19 @@ import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 @Slf4j
 public class ClientService extends Worker {
     private static final String DESTINATION = "/queue/blocks-user%s";
-    // clients that watch sectors get them every this many ticks, all on the same tick
-    private static final int SECTOR_TICKS = 4;
+    // Every client gets the sectors of every block, those that watch sectors more often: they ask for no blocks.
+    private static final int SECTOR_MAP_MS = 3000;
+    private static final int CELLS_MAP_MS = 10000;
+    // ~120 bytes a block: a message of ~30 KB, like a full block, so a slow connection sees the map come in
+    private static final int SECTOR_MAP_BLOCKS_PER_MESSAGE = 250;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
     private final Map<String, Client> clients = new ConcurrentHashMap<>();
+    @Value("${cells.targetspeed}")
+    private int targetSpeed;
     private int ticks = 0;
+    private volatile List<byte[]> sectorMap = List.of();
 
     @Override
     public String getName() {
@@ -42,13 +49,36 @@ public class ClientService extends Worker {
     }
 
     public void execute() {
-        boolean sectorTick = ticks++ % SECTOR_TICKS == 0;
+        int tick = ticks++;
+        boolean sectorMapTick = tick % ticksPer(SECTOR_MAP_MS) == 0;
+        boolean cellsMapTick = tick % ticksPer(CELLS_MAP_MS) == 0;
+        if (sectorMapTick || cellsMapTick) sectorMap = writeSectorMap();
         Set<Runnable> tasks = clients.values().stream()
-                .filter(client -> sectorTick || !client.isSectors())
-                .map(client -> (Runnable) () -> sendClientUpdate(client, client.getActiveBlocks(), true))
+                .filter(client -> sectorMapTick || !client.isSectors())
+                .map(client -> (Runnable) () -> {
+                    if (!client.isSectors()) sendClientUpdate(client, client.getActiveBlocks(), true);
+                    if (client.isSectors() ? sectorMapTick : cellsMapTick) sendSectorMap(client);
+                })
                 .collect(Collectors.toSet());
 
         executorService.executeTasksParallel(tasks, getName());
+    }
+
+    private int ticksPer(int ms) {
+        return Math.max(1, ms / Math.max(1, targetSpeed));
+    }
+
+    private List<byte[]> writeSectorMap() {
+        List<EncodedBlock> sectors = blocks.values().stream().map(Block::getEncodedBlockSectors).filter(Objects::nonNull).toList();
+        List<byte[]> messages = new ArrayList<>();
+        for (int i = 0; i < sectors.size(); i += SECTOR_MAP_BLOCKS_PER_MESSAGE) {
+            messages.add(BlockFrame.write(sectors.subList(i, Math.min(i + SECTOR_MAP_BLOCKS_PER_MESSAGE, sectors.size()))));
+        }
+        return messages;
+    }
+
+    private void sendSectorMap(Client client) {
+        for (byte[] message : sectorMap) send(client, message);
     }
 
     @EventListener
@@ -65,9 +95,7 @@ public class ClientService extends Worker {
 
     public void sendClientUpdate(Client client, Set<String> blockKeys, boolean sendBorderBlocks) {
         List<Block> watched = blockKeys.stream().map(blocks::get).filter(Objects::nonNull).toList();
-        if (client.isSectors()) {
-            send(client, BlockFrame.write(watched.stream().map(Block::getEncodedBlockSectors).filter(Objects::nonNull).toList()));
-        } else if (sendBorderBlocks) {
+        if (sendBorderBlocks) {
             send(client, BlockFrame.write(watched.stream().map(Block::getEncodedBlockBorders).filter(Objects::nonNull).toList()));
         } else {
             // Full blocks are ~30 KB each, one message per block: on a slow connection the client sees them come in,
@@ -95,10 +123,15 @@ public class ClientService extends Worker {
             return;
         }
         Set<String> clientBlocks = client.getActiveBlocks();
-        boolean firstUpdate = clientBlocks.isEmpty();
         boolean switched = client.isSectors() != clientUpdateRequest.watchesSectors();
+        boolean firstUpdate = clientBlocks.isEmpty() && !switched;
         client.setSectors(clientUpdateRequest.watchesSectors());
 
+        if (client.isSectors()) {
+            clientBlocks.clear();
+            if (switched) sendSectorMap(client);
+            return;
+        }
         Arrays.asList(clientUpdateRequest.blocksToRemove()).forEach(clientBlocks::remove);
         clientBlocks.addAll(Arrays.asList(clientUpdateRequest.blocksToAdd()));
 
@@ -107,7 +140,8 @@ public class ClientService extends Worker {
             send(client, new StatusResponse(NO_BLOCKS));
             return;
         }
-        // switching between cells and sectors, the client needs all its blocks again
-        sendClientUpdate(client, switched ? clientBlocks : Set.of(clientUpdateRequest.blocksToAdd()), false);
+        // the sectors show until the full blocks come
+        if (firstUpdate) sendSectorMap(client);
+        sendClientUpdate(client, Set.of(clientUpdateRequest.blocksToAdd()), false);
     }
 }

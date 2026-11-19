@@ -11,6 +11,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
@@ -117,65 +118,78 @@ class ClientServiceTest {
     }
 
     @Test
-    void sendsSectorsToAClientThatWatchesThem() {
-        // prepare
-        Block active = getTestBlock(0, 0);
-        nextState(algorithmGol, active);
-        Packer.packAll(active);
-        Block fresh = getTestBlock(-1, 0);
-        Packer.packAll(fresh);
-        blocks.put(active.getKey(), active);
-        blocks.put(fresh.getKey(), fresh);
-        Client client = new Client("s1");
-        client.setSectors(true);
+    void sendsTheSectorMapEveryThreeSecondsToSectorsAndEveryTenToCells() {
+        // prepare: ticks of 500 ms
+        ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
+        Block block = getActiveTestBlock(2, 3);
+        getTestBlock(3, 3); // NEW: no sectors yet
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("cells")));
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("sectors")));
+        clientService.updateClientBlocks("sectors", new ClientUpdateRequest(new String[0], new String[0], true));
 
         // execute
-        clientService.sendClientUpdate(client, Set.of(active.getKey(), fresh.getKey()), false);
+        for (int tick = 0; tick < 21; tick++) clientService.execute();
 
-        // verify: a NEW block has no sectors yet
-        assertThat(sent).hasSize(1);
-        assertThat(BlockFrameReader.read((byte[]) sent.getFirst().getPayload())).containsExactly(active.getEncodedBlockSectors());
-        assertThat(active.getEncodedBlockSectors().type()).isEqualTo(EncodedBlockType.SECTOR);
+        // verify: sectors on ticks 0, 6, 12 and 18, cells on 0 and 20, beside their borders
+        assertThat(sectorMaps("/queue/blocks-usersectors")).hasSize(4).containsOnly(List.of(block.getEncodedBlockSectors()));
+        assertThat(sectorMaps("/queue/blocks-usercells")).hasSize(2).containsOnly(List.of(block.getEncodedBlockSectors()));
+        assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usersectors"))).hasSize(4);
     }
 
     @Test
-    void sendsSectorsEveryFourTicks() {
+    void sendsTheSectorMapWithTheFirstFullBlocks() {
         // prepare
         Block block = getActiveTestBlock(2, 3);
+        clientService.execute();
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, true));
-        assertThat(sent).hasSize(1);
-        sent.clear();
 
         // execute
-        for (int tick = 0; tick < 8; tick++) clientService.execute();
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
 
         // verify
-        assertThat(sent).hasSize(2);
         assertThat(sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())))
-                .containsOnly(List.of(block.getEncodedBlockSectors()));
+                .containsExactly(List.of(block.getEncodedBlockSectors()), List.of(block.getEncodedBlock()));
     }
 
     @Test
-    void sendsAllBlocksAgainWhenSwitchingBetweenCellsAndSectors() {
+    void sendsOnlyTheSectorMapWhenSwitchingToSectorsAndTheFullBlocksWhenSwitchingBack() {
         // prepare
         Block first = getActiveTestBlock(2, 3);
         Block second = getActiveTestBlock(3, 3);
+        clientService.execute();
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
         clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{first.getKey(), second.getKey()}, false));
         sent.clear();
 
         // execute
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[0], true));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[]{first.getKey(), second.getKey()}, new String[0], true));
         List<List<EncodedBlock>> toSectors = sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())).toList();
         sent.clear();
-        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[0], false));
+        clientService.execute();
+        List<Message<?>> sectorTick = List.copyOf(sent);
+        sent.clear();
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{first.getKey()}, false));
         List<List<EncodedBlock>> toCells = sent.stream().map(message -> BlockFrameReader.read((byte[]) message.getPayload())).toList();
 
-        // verify
+        // verify: watching sectors, no borders either
         assertThat(toSectors).hasSize(1);
         assertThat(toSectors.getFirst()).containsExactlyInAnyOrder(first.getEncodedBlockSectors(), second.getEncodedBlockSectors());
-        assertThat(toCells).containsExactlyInAnyOrder(List.of(first.getEncodedBlock()), List.of(second.getEncodedBlock()));
+        assertThat(sectorTick).isEmpty();
+        assertThat(toCells).containsExactly(List.of(first.getEncodedBlock()));
+    }
+
+    @Test
+    void sendsTheSectorMapInMessagesOf250Blocks() {
+        // prepare
+        for (int x = 0; x < 251; x++) getActiveTestBlock(x, 0);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[0], true));
+
+        // execute
+        clientService.execute();
+
+        // verify
+        assertThat(sectorMaps("/queue/blocks-users1").stream().map(List::size)).containsExactly(250, 1);
     }
 
     @Test
@@ -230,6 +244,7 @@ class ClientServiceTest {
         nextState(algorithmGol, block);
         Packer.packAll(block);
         blocks.put(block.getKey(), block);
+        clientService.execute(); // the first tick sends the sector map
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
         clientService.updateClientBlocks("s1", new ClientUpdateRequest(new String[0], new String[]{block.getKey()}, false));
         sent.clear();
@@ -260,6 +275,16 @@ class ClientServiceTest {
 
         // verify
         assertThat(sent).isEmpty();
+    }
+
+    private List<List<EncodedBlock>> sectorMaps(String destination) {
+        return sent.stream().filter(message -> destination(message).equals(destination))
+                .map(message -> BlockFrameReader.read((byte[]) message.getPayload()))
+                .filter(frame -> !frame.isEmpty() && frame.getFirst().type() == EncodedBlockType.SECTOR).toList();
+    }
+
+    private static String destination(Message<?> message) {
+        return (String) message.getHeaders().get("simpDestination");
     }
 
     private static Message<byte[]> stompMessage(String sessionId) {
