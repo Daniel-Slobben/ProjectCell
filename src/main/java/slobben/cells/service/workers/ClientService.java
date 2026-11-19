@@ -27,8 +27,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 
@@ -49,6 +47,8 @@ public class ClientService extends Worker {
     private int targetSpeed;
     @Value("${cells.sectors.period-ms}")
     private int sectorPeriodMs;
+    @Value("${cells.sectors.blocks-per-tick}")
+    private int sectorBlocksPerTick;
     @Value("${cells.sectors.tile}")
     private int tileSize;
     @Value("${cells.max-cell-blocks}")
@@ -57,8 +57,7 @@ public class ClientService extends Worker {
     private int blocksPerSecond;
     private int ticks = 0;
     private final AtomicInteger connections = new AtomicInteger();
-    private volatile Map<Coordinates, byte[]> tiles = Map.of();
-    private int tilesTick = Integer.MIN_VALUE;
+    private final Map<Coordinates, Tile> tiles = new ConcurrentHashMap<>();
 
     @Override
     public String getName() {
@@ -67,47 +66,46 @@ public class ClientService extends Worker {
 
     public void execute() {
         int tick = ticks++;
-        int period = Math.max(1, sectorPeriodMs / Math.max(1, targetSpeed));
-        Predicate<Client> due = client -> !client.isSectors() || client.getSectorPhase() % period == tick % period;
-        // at most a period old, and only written when a client that watches sectors is due
-        if (tick - (long) tilesTick >= period && clients.values().stream().anyMatch(client -> client.isSectors() && due.test(client))) {
-            tiles = writeTiles();
-            tilesTick = tick;
+        int maxPeriod = Math.max(1, sectorPeriodMs / Math.max(1, targetSpeed));
+        tiles.values().removeIf(tile -> tick - tile.tick() >= maxPeriod);
+        Set<Runnable> tasks = new HashSet<>();
+        for (Client client : clients.values()) {
+            if (!client.isSectors()) {
+                tasks.add(() -> sendClientUpdate(client, client.getActiveBlocks(), true));
+                continue;
+            }
+            int period = sectorPeriod(client.getLastUpdateRequest(), maxPeriod);
+            if (client.getSectorPhase() % period == tick % period) tasks.add(() -> sendTiles(client, tick, period));
         }
-        Set<Runnable> tasks = clients.values().stream()
-                .filter(due)
-                .map(client -> (Runnable) () -> {
-                    if (client.isSectors()) sendTiles(client, tiles);
-                    else sendClientUpdate(client, client.getActiveBlocks(), true);
-                })
-                .collect(Collectors.toSet());
 
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    private Map<Coordinates, byte[]> writeTiles() {
-        Map<Coordinates, List<EncodedBlock>> sectorsPerTile = new HashMap<>();
-        for (Block block : blocks.values()) {
-            EncodedBlock sectors = block.getEncodedBlockSectors();
-            if (sectors != null) {
-                Coordinates tile = new Coordinates(Math.floorDiv(block.getX(), tileSize), Math.floorDiv(block.getY(), tileSize));
-                sectorsPerTile.computeIfAbsent(tile, key -> new ArrayList<>()).add(sectors);
-            }
-        }
-        Map<Coordinates, byte[]> newTiles = new HashMap<>();
-        sectorsPerTile.forEach((tile, sectors) -> newTiles.put(tile, BlockFrame.write(sectors)));
-        return newTiles;
+    // the fewer blocks in view, the closer to every tick
+    private int sectorPeriod(ClientUpdateRequest view, int maxPeriod) {
+        return Math.clamp(Math.ceilDiv(view.blockCount(), sectorBlocksPerTick), 1, maxPeriod);
     }
 
-    // every tile with a block in view, so also blocks around the view
-    private void sendTiles(Client client, Map<Coordinates, byte[]> tiles) {
+    // every tile with a block in view, so also blocks around the view; written again once it is as old as the period
+    private void sendTiles(Client client, int tick, int period) {
         ClientUpdateRequest view = client.getLastUpdateRequest();
         for (int tileX = Math.floorDiv(view.minX(), tileSize); tileX <= Math.floorDiv(view.maxX(), tileSize); tileX++) {
             for (int tileY = Math.floorDiv(view.minY(), tileSize); tileY <= Math.floorDiv(view.maxY(), tileSize); tileY++) {
-                byte[] tile = tiles.get(new Coordinates(tileX, tileY));
-                if (tile != null) send(client, tile);
+                Tile tile = tiles.compute(new Coordinates(tileX, tileY),
+                        (key, old) -> old != null && tick - old.tick() < period ? old : writeTile(key, tick));
+                if (tile.frame() != null) send(client, tile.frame());
             }
         }
+    }
+
+    private Tile writeTile(Coordinates tile, int tick) {
+        int minX = tile.x() * tileSize, minY = tile.y() * tileSize;
+        ClientUpdateRequest area = new ClientUpdateRequest(minX, minX + tileSize - 1, minY, minY + tileSize - 1, true, null);
+        List<EncodedBlock> sectors = blocksIn(area, null).stream().map(Block::getEncodedBlockSectors).filter(Objects::nonNull).toList();
+        return new Tile(tick, sectors.isEmpty() ? null : BlockFrame.write(sectors));
+    }
+
+    private record Tile(int tick, byte[] frame) {
     }
 
     private void sendSectors(Client client, List<Block> watched) {

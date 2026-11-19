@@ -54,6 +54,7 @@ class ClientServiceTest {
                 new StringMessageConverter(), new ByteArrayMessageConverter(), new JacksonJsonMessageConverter())));
         clientService = new ClientService(template, channel, new ExecutorService(), blocks);
         ReflectionTestUtils.setField(clientService, "sectorPeriodMs", 10000);
+        ReflectionTestUtils.setField(clientService, "sectorBlocksPerTick", 250);
         ReflectionTestUtils.setField(clientService, "tileSize", 16);
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 2000);
     }
@@ -124,14 +125,14 @@ class ClientServiceTest {
     }
 
     @Test
-    void sendsTheSectorsInViewEveryTenSecondsToSectorsOnly() {
-        // prepare: ticks of 500 ms
+    void sendsTheSectorsOfAWideViewEveryTenSecondsToSectorsOnly() {
+        // prepare: ticks of 500 ms, a view of 5000 blocks
         ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
         Block block = getActiveTestBlock(2, 3);
-        getActiveTestBlock(20, 20); // in another tile
+        getActiveTestBlock(200, 200); // out of view
         getTestBlock(3, 3); // NEW: no sectors yet
         connect("cells", view(2, 3, 3, 3, false));
-        connect("sectors", view(2, 3, 3, 3, true));
+        connect("sectors", view(0, 99, 0, 49, true));
         sent.clear();
 
         // execute
@@ -150,7 +151,7 @@ class ClientServiceTest {
         // prepare: ticks of 500 ms, a period of 20 ticks
         ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
         getActiveTestBlock(2, 3);
-        for (int i = 0; i < 40; i++) connect("s" + i, view(2, 2, 3, 3, true));
+        for (int i = 0; i < 40; i++) connect("s" + i, view(0, 99, 0, 49, true));
         sent.clear();
 
         // execute
@@ -163,6 +164,32 @@ class ClientServiceTest {
 
         // verify
         assertThat(perTick).containsOnly(2);
+    }
+
+    @Test
+    void sendsTheSectorsMoreOftenTheFewerBlocksAreInView() {
+        // prepare: ticks of 500 ms; 1, 500 and 10000 blocks in view
+        ReflectionTestUtils.setField(clientService, "targetSpeed", 500);
+        Block block = getActiveTestBlock(2, 3);
+        connect("one", view(2, 2, 3, 3, true));
+        connect("some", view(0, 49, 0, 9, true));
+        connect("many", view(0, 99, 0, 99, true));
+        sent.clear();
+
+        // execute: the block steps every tick
+        List<EncodedBlock> stepped = new ArrayList<>();
+        for (int tick = 0; tick < 40; tick++) {
+            clientService.execute();
+            stepped.add(block.getEncodedBlockSectors());
+            nextState(algorithmGol, block);
+            Packer.packAll(block);
+        }
+
+        // verify: every tick, every 2 ticks and every 20 ticks, each time the newest sectors
+        assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-userone")).map(ClientServiceTest::blocksOf))
+                .containsExactlyElementsOf(stepped.stream().map(List::of).toList());
+        assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usersome"))).hasSize(20);
+        assertThat(sent.stream().filter(message -> destination(message).equals("/queue/blocks-usermany"))).hasSize(2);
     }
 
     @Test
@@ -218,10 +245,10 @@ class ClientServiceTest {
         clientService.updateClientBlocks("s1", view(2, 2, 3, 3, false));
         List<List<EncodedBlock>> toCells = sent.stream().map(ClientServiceTest::blocksOf).toList();
 
-        // verify: watching sectors, no borders either; with ticks of 0 ms only tick 0 sends sectors
+        // verify: watching sectors, no borders either; 2 blocks in view get their sectors every tick
         assertThat(toSectors).hasSize(1);
         assertThat(toSectors.getFirst()).containsExactlyInAnyOrder(first.getEncodedBlockSectors(), second.getEncodedBlockSectors());
-        assertThat(sectorTicks).hasSize(1);
+        assertThat(sectorTicks).hasSize(2);
         assertThat(toCells).containsExactly(List.of(first.getEncodedBlock()));
     }
 
@@ -247,8 +274,7 @@ class ClientServiceTest {
         connect("s2", view(15, 16, 0, 15, true));
         sent.clear();
 
-        // execute: s1 on tick 0, s2 on tick 1
-        clientService.execute();
+        // execute: both every tick
         clientService.execute();
 
         // verify
