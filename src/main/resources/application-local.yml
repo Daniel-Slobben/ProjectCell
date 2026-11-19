@@ -1,5 +1,7 @@
 cells:
   targetspeed: '250'
+  # npm start on localhost, or a phone on the LAN
+  allowed-origins: '*'
 
   chaos:
     # ANY, or one of ChaosType: SQUARE, LETTUCE, GROWTH_PATTERN, SPACESHIP, DIAGONAL_LINES

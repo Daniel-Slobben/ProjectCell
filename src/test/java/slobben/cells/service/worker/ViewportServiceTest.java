@@ -87,6 +87,21 @@ class ViewportServiceTest {
     }
 
     @Test
+    void looksAtTheLastTenRecentViewportsAndSkipsNulls() {
+        // prepare
+        Coordinates visitedLongAgo = addBusyBlock(0, 0);
+        Coordinates other = addBusyBlock(10, 0);
+        List<Coordinates> recent = new ArrayList<>(List.of(visitedLongAgo));
+        recent.addAll(Collections.nCopies(10, null));
+
+        // execute
+        viewportService.execute();
+
+        // verify
+        assertThat(pickedViewports(recent)).containsExactlyInAnyOrder(visitedLongAgo, other);
+    }
+
+    @Test
     void picksAnyViewportWhenAllAreNearRecentOnes() {
         // prepare
         Coordinates first = addBusyBlock(0, 0);

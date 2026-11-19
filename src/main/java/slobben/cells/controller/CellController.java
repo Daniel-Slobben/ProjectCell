@@ -5,7 +5,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
@@ -16,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.dto.outgoing.Settings;
-import slobben.cells.dto.outgoing.StateInfo;
 import slobben.cells.service.workers.ClientService;
 import slobben.cells.service.workers.ViewportService;
 
@@ -58,9 +59,10 @@ public class CellController {
         clientService.updateClientBlocks(sessionId, message);
     }
 
-    @GetMapping("/state-info")
-    public ResponseEntity<StateInfo> getStateInfo() {
-        log.debug("Received request for state-info");
-        return ResponseEntity.ok(null);
+    // Broken JSON or an upside-down view: one line instead of Spring's stack trace, and the session is closed.
+    @MessageExceptionHandler
+    public void onUnreadableUpdate(MessageConversionException exception, @Header("simpSessionId") String sessionId) {
+        log.debug("Unreadable update from session {}: {}", sessionId, exception.getMessage());
+        clientService.close(sessionId, "Unreadable update");
     }
 }

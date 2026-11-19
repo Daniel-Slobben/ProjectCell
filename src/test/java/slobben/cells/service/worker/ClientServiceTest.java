@@ -10,6 +10,8 @@ import org.springframework.messaging.converter.StringMessageConverter;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.MimeTypeUtils;
@@ -50,7 +52,7 @@ class ClientServiceTest {
         // same converters as Spring's websocket broker configuration
         template.setMessageConverter(new CompositeMessageConverter(List.of(
                 new StringMessageConverter(), new ByteArrayMessageConverter(), new JacksonJsonMessageConverter())));
-        clientService = new ClientService(template, new ExecutorService(), blocks);
+        clientService = new ClientService(template, channel, new ExecutorService(), blocks);
         ReflectionTestUtils.setField(clientService, "sectorPeriodMs", 10000);
         ReflectionTestUtils.setField(clientService, "tileSize", 16);
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 2000);
@@ -403,6 +405,27 @@ class ClientServiceTest {
 
         // verify
         assertThat(sent).isEmpty();
+    }
+
+    @Test
+    void closesASessionThatAsksForMoreBlocksThanItsBudget() {
+        // prepare: a budget of 20 blocks that doesn't refill, each view costs 1 + 9
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
+        getActiveTestBlock(0, 0);
+        getActiveTestBlock(20, 0);
+        connect("s1", view(0, 2, 0, 2, false));
+        clientService.updateClientBlocks("s1", view(10, 12, 0, 2, false));
+        sent.clear();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(20, 22, 0, 2, false));
+
+        // verify: no blocks, only the ERROR that closes the session
+        assertThat(sent).singleElement().satisfies(message -> {
+            StompHeaderAccessor error = StompHeaderAccessor.wrap(message);
+            assertThat(error.getCommand()).isEqualTo(StompCommand.ERROR);
+            assertThat(error.getSessionId()).isEqualTo("s1");
+        });
     }
 
     private void connect(String sessionId, ClientUpdateRequest view) {

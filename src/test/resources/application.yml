@@ -22,6 +22,8 @@ cells:
   runmode: AUTO
   targetspeed: '250'
   max-cell-blocks: 2000
+  client-blocks-per-second: 100
+  allowed-origins: '*'
   sectors:
     period-ms: 10000
     tile: 16
