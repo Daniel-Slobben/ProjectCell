@@ -184,6 +184,7 @@ public class ClientService extends Worker {
             log.debug("Update for a closed session {}", sessionId);
             return;
         }
+        if (overBudget(client, 1)) return;
         long blockCount = view.blockCount();
         if (blockCount > (view.watchesSectors() ? MAX_VIEW_BLOCKS : maxCellBlocks)) {
             log.debug("Session {} asks for {} blocks, sectors {}", sessionId, blockCount, view.watchesSectors());
@@ -218,12 +219,13 @@ public class ClientService extends Worker {
         sendClientUpdate(client, added, false);
     }
 
-    // Every update costs a block plus the blocks it sends. The budget refills over time up to two full views, so
-    // panning and zooming fit, but a client can't keep the server encoding blocks for it. One over it is closed.
+    // Every update costs a block, and every block it sends one more, so also updates that send nothing count. The
+    // budget refills over time up to two full views, so panning and zooming fit, but a client can't keep the server
+    // encoding blocks for it. One over it is closed.
     private boolean overBudget(Client client, int blocks) {
         long now = System.nanoTime();
         double budget = Math.min(2.0 * maxCellBlocks, client.getBudget() + (now - client.getBudgetNanos()) / 1e9 * blocksPerSecond);
-        client.setBudget(budget - 1 - blocks);
+        client.setBudget(budget - blocks);
         client.setBudgetNanos(now);
         if (client.getBudget() >= 0) return false;
         log.debug("Session {} is over its budget with {} blocks", client.getSessionId(), blocks);

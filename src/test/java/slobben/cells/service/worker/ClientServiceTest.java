@@ -428,6 +428,58 @@ class ClientServiceTest {
         });
     }
 
+    @Test
+    void chargesUpdatesThatSendNothing() {
+        // prepare: a budget of 20 that doesn't refill, an empty world
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
+        clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
+        for (int i = 0; i < 20; i++) clientService.updateClientBlocks("s1", view(0, 0, 0, 0, false));
+        assertThat(closed("s1")).isFalse();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(0, 0, 0, 0, false));
+
+        // verify
+        assertThat(closed("s1")).isTrue();
+    }
+
+    @Test
+    void chargesSectorsAsAHundredthOfABlock() {
+        // prepare: as full blocks these 1900 would be far over the budget of 20; as sectors they cost 1 + 19
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
+        for (int x = 0; x < 1900; x++) blocks.put(BlockUtils.getKey(x, 0), getTestBlock(x, 0));
+        connect("s1", view(0, 1899, 0, 0, true));
+        assertThat(closed("s1")).isFalse();
+
+        // execute: the budget is spent, so the next update is one too many
+        clientService.updateClientBlocks("s1", view(0, 1899, 0, 0, true));
+
+        // verify
+        assertThat(closed("s1")).isTrue();
+    }
+
+    @Test
+    void chargesResentBlocks() {
+        // prepare: a budget of 20, of which the first view costs 1 + 9 and resending its 9 blocks another 1 + 9
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 10);
+        getActiveTestBlock(0, 0);
+        connect("s1", view(0, 2, 0, 2, false));
+        String[] inView = {"0/0", "0/1", "0/2", "1/0", "1/1", "1/2", "2/0", "2/1", "2/2"};
+        clientService.updateClientBlocks("s1", new ClientUpdateRequest(0, 2, 0, 2, false, inView));
+        assertThat(closed("s1")).isFalse();
+
+        // execute
+        clientService.updateClientBlocks("s1", view(0, 2, 0, 2, false));
+
+        // verify
+        assertThat(closed("s1")).isTrue();
+    }
+
+    private boolean closed(String sessionId) {
+        return sent.stream().map(StompHeaderAccessor::wrap)
+                .anyMatch(accessor -> accessor.getCommand() == StompCommand.ERROR && sessionId.equals(accessor.getSessionId()));
+    }
+
     private void connect(String sessionId, ClientUpdateRequest view) {
         clientService.onConnect(new SessionConnectEvent(this, stompMessage(sessionId)));
         clientService.updateClientBlocks(sessionId, view);
