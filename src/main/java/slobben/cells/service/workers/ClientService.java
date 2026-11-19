@@ -61,7 +61,8 @@ public class ClientService extends Worker {
     }
 
     public void execute() {
-        int tick = ticks++, period = ticksPer(SECTORS_MS);
+        int tick = ticks++;
+        int period = Math.max(1, ClientService.SECTORS_MS / Math.max(1, targetSpeed));
         Predicate<Client> due = client -> !client.isSectors() || client.getSectorPhase() % period == tick % period;
         // at most a period old, and only written when a client that watches sectors is due
         if (tick - (long) tilesTick >= period && clients.values().stream().anyMatch(client -> client.isSectors() && due.test(client))) {
@@ -79,10 +80,6 @@ public class ClientService extends Worker {
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    private int ticksPer(int ms) {
-        return Math.max(1, ms / Math.max(1, targetSpeed));
-    }
-
     private Map<Long, byte[]> writeTiles() {
         Map<Long, List<EncodedBlock>> sectorsPerTile = new HashMap<>();
         for (Block block : blocks.values()) {
@@ -92,9 +89,9 @@ public class ClientService extends Worker {
                 sectorsPerTile.computeIfAbsent(tile, key -> new ArrayList<>()).add(sectors);
             }
         }
-        Map<Long, byte[]> tiles = new HashMap<>();
-        sectorsPerTile.forEach((tile, sectors) -> tiles.put(tile, BlockFrame.write(sectors)));
-        return tiles;
+        Map<Long, byte[]> newTiles = new HashMap<>();
+        sectorsPerTile.forEach((tile, sectors) -> newTiles.put(tile, BlockFrame.write(sectors)));
+        return newTiles;
     }
 
     // every tile with a block in view, so also blocks around the view
@@ -163,9 +160,6 @@ public class ClientService extends Worker {
         if (sendBorderBlocks) {
             send(client, BlockFrame.write(watched.stream().map(Block::getEncodedBlockBorders).filter(Objects::nonNull).toList()));
         } else {
-            // Full blocks are ~30 KB each, one message per block: on a slow connection the client sees them come in,
-            // instead of nothing until a message of megabytes has arrived and its watchdog gives up. Each block is
-            // encoded in its own thread, so the first one goes out after one encoding instead of after all of them.
             try (var virtualExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
                 for (Block block : watched) {
                     virtualExecutor.execute(() -> {
