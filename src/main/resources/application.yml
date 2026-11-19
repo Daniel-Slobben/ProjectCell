@@ -22,6 +22,11 @@ cells:
 
   runmode: AUTO
   targetspeed: '500'
+  max-cell-blocks: 2000
+
+  sectors:
+    period-ms: 10000
+    tile: 16
 
   recording:
     max-recording-depth: 4
