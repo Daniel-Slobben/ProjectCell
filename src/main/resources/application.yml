@@ -27,7 +27,7 @@ cells:
   # what a client's block budget refills by; see ClientService.overBudget
   client-blocks-per-second: 100
   # browsers only; the load test sends no Origin
-  allowed-origins: https://world-of-cells.net, https://www.world-of-cells.net
+  allowed-origins: https://world-of-cells.net, https://www.world-of-cells.net, https://dewereldvancellen.nl, https://www.dewereldvancellen.nl
 
   sectors:
     period-ms: 10000
