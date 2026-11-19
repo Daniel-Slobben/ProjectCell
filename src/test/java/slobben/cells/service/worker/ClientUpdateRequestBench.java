@@ -6,6 +6,7 @@ import org.springframework.messaging.converter.JacksonJsonMessageConverter;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
@@ -35,6 +36,12 @@ class ClientUpdateRequestBench {
     private final ClientService clientService =
             new ClientService(new SimpMessagingTemplate((message, timeout) -> true), new ExecutorService(), blocks);
     private int sessions = 0;
+
+    {
+        ReflectionTestUtils.setField(clientService, "sectorPeriodMs", 10000);
+        ReflectionTestUtils.setField(clientService, "tileSize", 16);
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 2000);
+    }
 
     @Test
     @Disabled("Benchmark")

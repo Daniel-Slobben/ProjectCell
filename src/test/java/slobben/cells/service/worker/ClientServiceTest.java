@@ -33,6 +33,7 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static slobben.cells.TestUtils.createAlgorithmGol;
 import static slobben.cells.TestUtils.nextState;
 
@@ -50,6 +51,9 @@ class ClientServiceTest {
         template.setMessageConverter(new CompositeMessageConverter(List.of(
                 new StringMessageConverter(), new ByteArrayMessageConverter(), new JacksonJsonMessageConverter())));
         clientService = new ClientService(template, new ExecutorService(), blocks);
+        ReflectionTestUtils.setField(clientService, "sectorPeriodMs", 10000);
+        ReflectionTestUtils.setField(clientService, "tileSize", 16);
+        ReflectionTestUtils.setField(clientService, "maxCellBlocks", 2000);
     }
 
     @Test
@@ -283,7 +287,7 @@ class ClientServiceTest {
     }
 
     @Test
-    void ignoresViewsThatAreUpsideDownOrTooBig() {
+    void ignoresViewsThatAreTooBig() {
         // prepare
         getActiveTestBlock(2, 3);
         clientService.onConnect(new SessionConnectEvent(this, stompMessage("s1")));
@@ -291,10 +295,15 @@ class ClientServiceTest {
         // execute: an int subtraction would wrap these to small counts
         clientService.updateClientBlocks("s1", view(Integer.MIN_VALUE, Integer.MAX_VALUE, 0, 0, false));
         clientService.updateClientBlocks("s1", view(Integer.MIN_VALUE, Integer.MAX_VALUE, 0, 0, true));
-        clientService.updateClientBlocks("s1", view(3, 2, 3, 3, false));
 
         // verify
         assertThat(sent).isEmpty();
+    }
+
+    @Test
+    void rejectsUpsideDownViews() {
+        assertThatThrownBy(() -> view(3, 2, 3, 3, false)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> view(3, 3, 3, 2, true)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

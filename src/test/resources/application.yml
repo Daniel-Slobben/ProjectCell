@@ -21,4 +21,8 @@ cells:
     sectorSize: '20'
   runmode: AUTO
   targetspeed: '250'
+  max-cell-blocks: 2000
+  sectors:
+    period-ms: 10000
+    tile: 16
 

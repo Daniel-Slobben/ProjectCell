@@ -32,17 +32,7 @@ import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 @Slf4j
 public class ClientService extends Worker {
     private static final String DESTINATION = "/queue/blocks-user%s";
-    // Clients that watch sectors get the sectors of the blocks in view this often, per tile of TILE x TILE blocks: one
-    // message per tile, written once per period and the same bytes for every client that sees the tile. Each client
-    // has its own tick in the period, so every tick sends to about as many clients.
-    private static final int SECTORS_MS = 10000;
-    // as many messages as SECTOR_BLOCKS_PER_MESSAGE; tiles of 8 made the sector tick 3 times as slow (ClientUpdateBench)
-    private static final int TILE = 16;
-    // ~300 bytes a block: a message of up to ~75 KB, so a slow connection sees the sectors come in
     private static final int SECTOR_BLOCKS_PER_MESSAGE = 250;
-    // the frontend watches sectors long before this many blocks are in view; more full blocks would only be a burden
-    private static final int MAX_CELL_BLOCKS = 2000;
-    // an 8K screen zoomed all the way out sees ~130k
     private static final int MAX_VIEW_BLOCKS = 1_000_000;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ExecutorService executorService;
@@ -50,6 +40,12 @@ public class ClientService extends Worker {
     private final Map<String, Client> clients = new ConcurrentHashMap<>();
     @Value("${cells.targetspeed}")
     private int targetSpeed;
+    @Value("${cells.sectors.period-ms}")
+    private int sectorPeriodMs;
+    @Value("${cells.sectors.tile}")
+    private int tileSize;
+    @Value("${cells.max-cell-blocks}")
+    private int maxCellBlocks;
     private int ticks = 0;
     private final AtomicInteger connections = new AtomicInteger();
     private volatile Map<Long, byte[]> tiles = Map.of();
@@ -62,7 +58,7 @@ public class ClientService extends Worker {
 
     public void execute() {
         int tick = ticks++;
-        int period = Math.max(1, ClientService.SECTORS_MS / Math.max(1, targetSpeed));
+        int period = Math.max(1, sectorPeriodMs / Math.max(1, targetSpeed));
         Predicate<Client> due = client -> !client.isSectors() || client.getSectorPhase() % period == tick % period;
         // at most a period old, and only written when a client that watches sectors is due
         if (tick - (long) tilesTick >= period && clients.values().stream().anyMatch(client -> client.isSectors() && due.test(client))) {
@@ -85,7 +81,7 @@ public class ClientService extends Worker {
         for (Block block : blocks.values()) {
             EncodedBlock sectors = block.getEncodedBlockSectors();
             if (sectors != null) {
-                long tile = tile(Math.floorDiv(block.getX(), TILE), Math.floorDiv(block.getY(), TILE));
+                long tile = tile(Math.floorDiv(block.getX(), tileSize), Math.floorDiv(block.getY(), tileSize));
                 sectorsPerTile.computeIfAbsent(tile, key -> new ArrayList<>()).add(sectors);
             }
         }
@@ -96,9 +92,9 @@ public class ClientService extends Worker {
 
     // every tile with a block in view, so also blocks around the view
     private void sendTiles(Client client, Map<Long, byte[]> tiles) {
-        ClientUpdateRequest view = client.getView();
-        for (int tileX = Math.floorDiv(view.minX(), TILE); tileX <= Math.floorDiv(view.maxX(), TILE); tileX++) {
-            for (int tileY = Math.floorDiv(view.minY(), TILE); tileY <= Math.floorDiv(view.maxY(), TILE); tileY++) {
+        ClientUpdateRequest view = client.getLastUpdateRequest();
+        for (int tileX = Math.floorDiv(view.minX(), tileSize); tileX <= Math.floorDiv(view.maxX(), tileSize); tileX++) {
+            for (int tileY = Math.floorDiv(view.minY(), tileSize); tileY <= Math.floorDiv(view.maxY(), tileSize); tileY++) {
                 byte[] tile = tiles.get(tile(tileX, tileY));
                 if (tile != null) send(client, tile);
             }
@@ -182,11 +178,11 @@ public class ClientService extends Worker {
             return;
         }
         long blockCount = view.blockCount();
-        if (blockCount == 0 || blockCount > (view.watchesSectors() ? MAX_VIEW_BLOCKS : MAX_CELL_BLOCKS)) {
+        if (blockCount > (view.watchesSectors() ? MAX_VIEW_BLOCKS : maxCellBlocks)) {
             log.debug("Session {} asks for {} blocks, sectors {}", sessionId, blockCount, view.watchesSectors());
             return;
         }
-        ClientUpdateRequest oldView = client.getView();
+        ClientUpdateRequest oldView = client.getLastUpdateRequest();
         // A client that comes back to a part of the world that was pruned in the meantime finds nothing there. Its view
         // stays unset, so the next update starts over.
         if (oldView == null && blocksIn(view, null).isEmpty()) {
@@ -194,7 +190,7 @@ public class ClientService extends Worker {
             return;
         }
         boolean switched = client.isSectors() != view.watchesSectors();
-        client.setView(view);
+        client.setLastUpdateRequest(view);
         client.setSectors(view.watchesSectors());
 
         // only the blocks that come into view or go out of it, not every block in view
