@@ -17,11 +17,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static slobben.cells.service.workers.ChaosService.HITS_AT_START;
+import static slobben.cells.service.workers.ChaosService.TICKS_BETWEEN_NEW_HITS;
 
 // every maker is replaced by one that writes no cells, so the tests fill the world with blocks by hand
 class ChaosServiceTest {
     private static final int MAX_BLOCKS = 3;
-    private static final int HITS_AT_START = 10;
 
     private final Map<String, Block> blocks = new HashMap<>();
     private final Map<String, Block> newBlocks = new HashMap<>();
@@ -43,11 +44,11 @@ class ChaosServiceTest {
     }
 
     @Test
-    void startsWithABurstOfHitsThenSpawnsOneEveryFiveHundredTicks() {
+    void startsWithABurstOfHitsThenSpawnsOneAtATime() {
         // execute
         tick(1);
         int hitsAtStart = chaosHits.size();
-        tick(499);
+        tick(TICKS_BETWEEN_NEW_HITS - 1);
         int hitsBeforeTheNextOne = chaosHits.size();
         tick(1);
 
@@ -74,7 +75,7 @@ class ChaosServiceTest {
     void resetsTheWorldWhenAllHitsAgedOut() {
         // prepare
         hitAge = 50;
-        final int addedBlocks = 2;
+        final int addedBlocks = MAX_BLOCKS;
         tick(1);
         addBlocks(addedBlocks);
         tick(hitAge);
