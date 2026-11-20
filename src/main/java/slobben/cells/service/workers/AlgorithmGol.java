@@ -51,7 +51,6 @@ public class AlgorithmGol extends Worker {
     private int edgeWord;
     private long[] innerMask;
     private long[] emptyRow;
-    // a row without cells is stepped in a spare row of the thread, which takes its place when it gets cells
     private final ThreadLocal<long[][]> spareRows = ThreadLocal.withInitial(() -> new long[2][words + 2]);
     // per word i the segments segmentStart[i] .. segmentStart[i + 1]: the bits of one sector within that word
     private int[] segmentStart;

@@ -15,9 +15,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Runs the world with real chaos hits as fast as it can and reports the heap and what repeats: every WINDOW_EVERY
- * ticks it hashes every block and every tile of TILE x TILE cells for WINDOW ticks and looks for the shortest period.
- * Run with: mvn test -Dtest=RepeatingBlocksTest -Djunit.jupiter.conditions.deactivate='org.junit.*DisabledCondition'
+ * Runs the world with real chaos hits and reports the heap and the blocks and tiles that repeat. Run with: mvn test
+ * -Dtest=RepeatingBlocksTest -Djunit.jupiter.conditions.deactivate='org.junit.*DisabledCondition'
  * -DargLine="-Xmx4g -XX:ActiveProcessorCount=4" -Drepeating.minutes=45
  */
 @SpringBootTest(properties = {
@@ -55,7 +54,6 @@ class RepeatingBlocksTest {
     private Map<String, Set<Long>> lastPhases = new HashMap<>();
     private Map<String, Integer> streaks = new HashMap<>();
 
-    // per tile over the window: empty, and repeating with period 1 or 2
     private static final class Tiles {
         final boolean[] empty;
         final boolean[] repeating;
@@ -131,7 +129,7 @@ class RepeatingBlocksTest {
         Map<String, Integer> newStreaks = new HashMap<>();
         for (var entry : hashes.entrySet()) {
             long[] history = entry.getValue();
-            int period = period(history);
+            int period = shortestPeriod(history);
             if (period == 0) {
                 notRepeating++;
             } else if (period == 1 && history[0] == 0) {
@@ -183,8 +181,7 @@ class RepeatingBlocksTest {
                 100.0 * (tileCount - emptyTiles - repeatingTiles) / tileCount);
     }
 
-    // the shortest period that the whole window follows, 0 for none
-    private static int period(long[] history) {
+    private static int shortestPeriod(long[] history) {
         for (int period = 1; period <= MAX_PERIOD; period++) {
             int t = 0;
             while (t + period < WINDOW && history[t] == history[t + period]) t++;
@@ -193,7 +190,6 @@ class RepeatingBlocksTest {
         return 0;
     }
 
-    // per tile of TILE rows and one word of columns
     private long[] tileHashes(long[][] cells) {
         int words = cells[0].length - 2;
         long[] tileHashes = new long[(blockSize + TILE - 1) / TILE * words];
