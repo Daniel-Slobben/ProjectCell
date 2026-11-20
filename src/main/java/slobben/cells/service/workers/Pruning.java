@@ -6,7 +6,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import slobben.cells.entities.Block;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +20,7 @@ public class Pruning extends Worker {
     private int counter = 0;
     @Value("${cells.pruning-per-generation}")
     private int pruningPerGeneration;
+    private Set<Block> emptyBefore = new HashSet<>();
 
     @Override
     public String getName() {
@@ -33,12 +37,12 @@ public class Pruning extends Worker {
         }
     }
 
-    /**
-     * Removes all blocks that don't have any living cells.
-     * @param blocks -> the blocks to check for pruning
-     */
+    // empty at two prunings in a row, so every client watching sectors got them empty
     public void pruneBlocks(Map<String, Block> blocks) {
-        blocks.values().removeIf(block -> !hasTrueValue(block));
+        Set<Block> empty = blocks.values().stream().filter(block -> !hasTrueValue(block)).collect(Collectors.toSet());
+        blocks.values().removeIf(block -> empty.contains(block) && emptyBefore.contains(block));
+        empty.removeAll(emptyBefore);
+        emptyBefore = empty;
     }
 
     // the borders count as well, they still make cells in this block come alive
