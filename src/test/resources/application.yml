@@ -26,5 +26,5 @@ cells:
   allowed-origins: '*'
   sectors:
     period-ms: 10000
-    tile: 16
+    blocks-per-tick: 250
 

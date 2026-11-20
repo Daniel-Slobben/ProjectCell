@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import slobben.cells.dto.incoming.ClientUpdateRequest;
-import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.dto.outgoing.BlockFrame;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.StatusResponse;
@@ -27,8 +26,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static slobben.cells.dto.outgoing.StatusResponse.Type.NO_BLOCKS;
 
@@ -49,16 +46,14 @@ public class ClientService extends Worker {
     private int targetSpeed;
     @Value("${cells.sectors.period-ms}")
     private int sectorPeriodMs;
-    @Value("${cells.sectors.tile}")
-    private int tileSize;
+    @Value("${cells.sectors.blocks-per-tick}")
+    private int sectorBlocksPerTick;
     @Value("${cells.max-cell-blocks}")
     private int maxCellBlocks;
     @Value("${cells.client-blocks-per-second}")
     private int blocksPerSecond;
     private int ticks = 0;
     private final AtomicInteger connections = new AtomicInteger();
-    private volatile Map<Coordinates, byte[]> tiles = Map.of();
-    private int tilesTick = Integer.MIN_VALUE;
 
     @Override
     public String getName() {
@@ -67,47 +62,23 @@ public class ClientService extends Worker {
 
     public void execute() {
         int tick = ticks++;
-        int period = Math.max(1, sectorPeriodMs / Math.max(1, targetSpeed));
-        Predicate<Client> due = client -> !client.isSectors() || client.getSectorPhase() % period == tick % period;
-        // at most a period old, and only written when a client that watches sectors is due
-        if (tick - (long) tilesTick >= period && clients.values().stream().anyMatch(client -> client.isSectors() && due.test(client))) {
-            tiles = writeTiles();
-            tilesTick = tick;
+        int maxPeriod = Math.max(1, sectorPeriodMs / Math.max(1, targetSpeed));
+        Set<Runnable> tasks = new HashSet<>();
+        for (Client client : clients.values()) {
+            if (!client.isSectors()) {
+                tasks.add(() -> sendClientUpdate(client, client.getActiveBlocks(), true));
+                continue;
+            }
+            ClientUpdateRequest view = client.getLastUpdateRequest();
+            int period = sectorPeriod(view, maxPeriod);
+            if (client.getSectorPhase() % period == tick % period) tasks.add(() -> sendSectors(client, blocksIn(view, null)));
         }
-        Set<Runnable> tasks = clients.values().stream()
-                .filter(due)
-                .map(client -> (Runnable) () -> {
-                    if (client.isSectors()) sendTiles(client, tiles);
-                    else sendClientUpdate(client, client.getActiveBlocks(), true);
-                })
-                .collect(Collectors.toSet());
 
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    private Map<Coordinates, byte[]> writeTiles() {
-        Map<Coordinates, List<EncodedBlock>> sectorsPerTile = new HashMap<>();
-        for (Block block : blocks.values()) {
-            EncodedBlock sectors = block.getEncodedBlockSectors();
-            if (sectors != null) {
-                Coordinates tile = new Coordinates(Math.floorDiv(block.getX(), tileSize), Math.floorDiv(block.getY(), tileSize));
-                sectorsPerTile.computeIfAbsent(tile, key -> new ArrayList<>()).add(sectors);
-            }
-        }
-        Map<Coordinates, byte[]> newTiles = new HashMap<>();
-        sectorsPerTile.forEach((tile, sectors) -> newTiles.put(tile, BlockFrame.write(sectors)));
-        return newTiles;
-    }
-
-    // every tile with a block in view, so also blocks around the view
-    private void sendTiles(Client client, Map<Coordinates, byte[]> tiles) {
-        ClientUpdateRequest view = client.getLastUpdateRequest();
-        for (int tileX = Math.floorDiv(view.minX(), tileSize); tileX <= Math.floorDiv(view.maxX(), tileSize); tileX++) {
-            for (int tileY = Math.floorDiv(view.minY(), tileSize); tileY <= Math.floorDiv(view.maxY(), tileSize); tileY++) {
-                byte[] tile = tiles.get(new Coordinates(tileX, tileY));
-                if (tile != null) send(client, tile);
-            }
-        }
+    private int sectorPeriod(ClientUpdateRequest view, int maxPeriod) {
+        return Math.clamp(Math.ceilDiv(view.blockCount(), sectorBlocksPerTick), 1, maxPeriod);
     }
 
     private void sendSectors(Client client, List<Block> watched) {

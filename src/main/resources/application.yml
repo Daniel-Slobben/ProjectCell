@@ -28,7 +28,7 @@ cells:
 
   sectors:
     period-ms: 10000
-    tile: 16
+    blocks-per-tick: 250
 
   recording:
     max-recording-depth: 4
