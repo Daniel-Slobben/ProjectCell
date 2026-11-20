@@ -14,6 +14,7 @@ import slobben.cells.service.workers.ChaosService;
 import slobben.cells.service.workers.chaosmakers.SquareMaker;
 import slobben.cells.util.PackedRows;
 
+import java.lang.management.ManagementFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -32,7 +33,7 @@ import java.util.TreeMap;
 })
 class SimulationLoadTest {
 
-    private static final int GENERATIONS = 3000;
+    private static final int GENERATIONS = Integer.getInteger("simulation.generations", 3000);
     private static final int HIT_SIZE = 50000;
     private static final List<Coordinates> HITS = List.of(new Coordinates(0, 0));
 
@@ -68,6 +69,8 @@ class SimulationLoadTest {
 
         System.out.printf("RESULT %d generations in %dms (%.1fms/gen), %s%n", GENERATIONS, millis, (double) millis / GENERATIONS, getFingerprint());
         serverInfoService.getAverageWorkTimes().forEach((worker, ms) -> System.out.printf("WORKER %-30s %.3fms%n", worker, ms));
+        System.gc();
+        System.out.printf("HEAP %d MB after GC%n", ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed() >> 20);
     }
 
     // the inner cells only, so versions that handle the borders differently still compare
