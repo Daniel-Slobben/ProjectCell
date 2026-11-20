@@ -69,6 +69,7 @@ class CycleTest {
             if (generation > 1) expected = nextGeneration(expected);
             if (!hit.isEmpty()) expected = applyChaosHit(expected, hit);
             assertThat(findDifferences(readActualCells(), expected)).as("generation %d", generation).isEmpty();
+            assertThat(PackedRows.emptyRow(size)).as("generation %d empty row", generation).containsOnly(0L);
             encodings = getExpectedEncodings(generation);
         }
     }

@@ -1,8 +1,10 @@
 package slobben.cells.util;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.List;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +35,25 @@ class PackedRowsTest {
             }
             assertThat(packed[x][0]).isZero();
             assertThat(packed[x][packed[x].length - 1]).isZero();
+            if (x % 4 == 0) assertThat(packed[x]).isSameAs(PackedRows.emptyRow(size));
         }
+    }
+
+    @Test
+    void aWrittenRowGetsItsOwnCellsAndSharesTheEmptyRowWhenEmptyAgain() {
+        // prepare
+        long[] emptyRow = PackedRows.emptyRow(100);
+        long[][] rows = PackedRows.create(100);
+
+        // execute
+        PackedRows.set(rows, 5, 7);
+        long[] written = rows[5];
+        PackedRows.clear(rows[5], 7);
+        PackedRows.shareEmptyRows(rows, emptyRow, 0, 1);
+
+        // verify
+        assertThat(written).isNotSameAs(emptyRow);
+        assertThat(List.of(rows)).allSatisfy(row -> assertThat(row).isSameAs(emptyRow));
+        assertThat(emptyRow).containsOnly(0L);
     }
 }

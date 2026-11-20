@@ -34,6 +34,7 @@ public class AlgorithmGol extends Worker {
     private static final long MIN_STRIP_LIVE_CELLS = 12000L;
     // a block that was not stepped last tick is computed in full twice, until both arrays hold a stepped generation
     private static final int FULL_STEPS = 2;
+    private static final int SHARE_EMPTY_ROWS_EVERY = 64;
 
     private final ExecutorService executorService;
     private final Map<String, Block> blocks;
@@ -49,6 +50,8 @@ public class AlgorithmGol extends Worker {
     // the word of column size
     private int edgeWord;
     private long[] innerMask;
+    private long[] emptyRow;
+    private final ThreadLocal<long[][]> spareRows = ThreadLocal.withInitial(() -> new long[2][words + 2]);
     // per word i the segments segmentStart[i] .. segmentStart[i + 1]: the bits of one sector within that word
     private int[] segmentStart;
     private long[] segmentMask;
@@ -105,6 +108,7 @@ public class AlgorithmGol extends Worker {
         words = PackedRows.words(blockSize);
         edgeWord = (blockSize >>> 6) + 1;
         innerMask = PackedRows.innerMask(blockSize);
+        emptyRow = PackedRows.emptyRow(blockSize);
         segmentStart = new int[words + 2];
         List<Long> masks = new ArrayList<>();
         List<Integer> sectorOfMask = new ArrayList<>();
@@ -222,6 +226,9 @@ public class AlgorithmGol extends Worker {
         block.setPackedCells(next.cells);
         block.setSectorCounts(next.sectorCounts);
         block.blockUpdated();
+        int first = block.getGeneration() % SHARE_EMPTY_ROWS_EVERY;
+        PackedRows.shareEmptyRows(frames.current.cells, emptyRow, first, SHARE_EMPTY_ROWS_EVERY);
+        PackedRows.shareEmptyRows(frames.previous.cells, emptyRow, first, SHARE_EMPTY_ROWS_EVERY);
         block.setEdges(new Columns(next.cells, block.getGeneration(), next.leftEdge, next.rightEdge));
         frames.generation = block.getGeneration();
     }
@@ -288,6 +295,7 @@ public class AlgorithmGol extends Worker {
     private void stepFast(Frame source, Frame target, int first, int last, boolean full) {
         long[][] cells = source.cells, next = target.cells;
         long[] changed = source.changed, nextChanged = target.changed;
+        long[][] spares = spareRows.get();
         for (int x = first; x < last; ) {
             int band = (x - 1) / sectorSize;
             // the first and the last row pair of a band look at a row of the band next to it
@@ -306,13 +314,23 @@ public class AlgorithmGol extends Worker {
                 if (marks == 0L) {
                     nextChanged[x] = nextChanged[x + 1] = 0L;
                 } else {
-                    changedWords |= stepRowPair(cells[x - 1], cells[x], cells[x + 1], cells[x + 2], next[x],
-                            next[x + 1], wordsNear(marks), nextChanged, x);
+                    long[] upper = next[x] == emptyRow ? spares[0] : next[x];
+                    long[] lower = next[x + 1] == emptyRow ? spares[1] : next[x + 1];
+                    changedWords |= stepRowPair(cells[x - 1], cells[x], cells[x + 1], cells[x + 2], upper, lower,
+                            wordsNear(marks), nextChanged, x);
+                    if (upper == spares[0] && nextChanged[x] != 0L) next[x] = takeSpare(spares, 0);
+                    if (lower == spares[1] && nextChanged[x + 1] != 0L) next[x + 1] = takeSpare(spares, 1);
                 }
             }
             target.changedBands[band] = changedWords != 0L;
             if ((changedWords & wordBits) != 0L) recount(target, band, changedWords & wordBits);
         }
+    }
+
+    private static long[] takeSpare(long[][] spares, int i) {
+        long[] spare = spares[i];
+        spares[i] = new long[spare.length];
+        return spare;
     }
 
     // steps the given words of rows x (upper) and x + 1 (lower), marks and returns the words that differ from the
@@ -490,12 +508,16 @@ public class AlgorithmGol extends Worker {
     }
 
     private void stepSimple(Frame source, Frame target) {
+        long[][] spares = spareRows.get();
         for (int x = 1; x <= blockSize; x++) {
             long[] above = source.cells[x - 1], row = source.cells[x], below = source.cells[x + 1];
-            long[] next = target.cells[x];
+            long[] next = target.cells[x] == emptyRow ? spares[0] : target.cells[x];
+            long cells = 0L;
             for (int i = 1; i <= words; i++) {
                 next[i] ^= (nextState(above, row, below, i) ^ next[i]) & innerMask[i];
+                cells |= next[i];
             }
+            if (next == spares[0] && cells != 0L) target.cells[x] = takeSpare(spares, 0);
         }
         for (int band = 0; band < sectors; band++) {
             short[] sectorRow = target.sectorCounts[band];
