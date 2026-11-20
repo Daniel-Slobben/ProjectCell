@@ -12,26 +12,17 @@ import slobben.cells.util.PackedRows;
 
 import java.util.*;
 
-/**
- * Finds the blocks whose cells and borders come back after a number of generations, and lets them hibernate: they
- * keep the encodings, edges and borders of each generation of the loop instead of their cells, and the workers play
- * the loop back. A hibernating block wakes up when a neighbour writes other borders than those of its loop.
- * <p>
- * Every checkEvery generations the cells of a block are hashed. Cells that are the same as checkEvery generations
- * before are hashed every generation until they come back, which gives the period. The next period is recorded, and
- * the block hibernates when the generation after it is the first one again.
- */
 @Service
 @RequiredArgsConstructor
 public class LoopService extends Worker {
     private final Map<String, Block> blocks;
     @Value("${cells.size.blockSize}")
     private int blockSize;
-    // a multiple of the periods of common oscillators: 1, 2, 3, 4, 5, 6, 8, 15 and 30 among them
+    // a multiple of the common oscillator periods
     @Value("${cells.loops.check-every:120}")
-    private int checkEvery = 120;
+    private int checkEvery;
     private long[] emptyRow;
-    private final Map<Block, Long> hashes = new IdentityHashMap<>();
+    private final Map<Block, Long> sectorHashes = new IdentityHashMap<>();
     private final Map<Block, Recording> recordings = new IdentityHashMap<>();
     private int ticks = 0;
     @Getter
@@ -76,21 +67,20 @@ public class LoopService extends Worker {
                 check(block);
             }
         }
-        recordings.entrySet().removeIf(entry -> !record(entry.getKey(), entry.getValue()));
+        recordings.entrySet().removeIf(entry -> !keepRecording(entry.getKey(), entry.getValue()));
         hibernating = count;
-        if (++ticks % checkEvery == 0) hashes.keySet().removeIf(block -> blocks.get(block.getKey()) != block);
+        if (++ticks % checkEvery == 0) sectorHashes.keySet().removeIf(block -> blocks.get(block.getKey()) != block);
     }
 
     private void check(Block block) {
-        long hash = hash(block.getPackedCells());
-        Long before = hashes.put(block, hash);
-        if (before != null && before == hash && hasCells(block.getSectorCounts())) {
-            recordings.put(block, new Recording(hash, block.getGeneration()));
+        long hash = hash(block.getSectorCounts());
+        Long before = sectorHashes.put(block, hash);
+        if (hash != 0 && before != null && before == hash) {
+            recordings.put(block, new Recording(hash(block.getPackedCells()), block.getGeneration()));
         }
     }
 
-    // false once the block hibernates or turns out not to loop
-    private boolean record(Block block, Recording recording) {
+    private boolean keepRecording(Block block, Recording recording) {
         if (blocks.get(block.getKey()) != block) return false;
         long[][] cells = block.getPackedCells();
         if (recording.period == 0) {
@@ -99,12 +89,7 @@ public class LoopService extends Worker {
             recording.period = generations;
         }
         if (recording.phases.size() < recording.period) {
-            recording.phases.add(new Loop.Phase(block.getEncodedBlock().encodedCells(),
-                    block.getEncodedBlockBorders().encodedCells(), block.getEncodedBlockSectors().encodedCells(),
-                    Arrays.stream(block.getSectorCounts()).map(short[]::clone).toArray(short[][]::new),
-                    new Loop.Outline(row(cells, 1), row(cells, blockSize), PackedRows.column(cells, 1),
-                            PackedRows.column(cells, blockSize)),
-                    borders(cells)));
+            recording.phases.add(phase(block, cells));
             return true;
         }
         Loop.Phase first = recording.phases.getFirst();
@@ -112,6 +97,15 @@ public class LoopService extends Worker {
             block.hibernate(new Loop(recording.phases, blockSize));
         }
         return false;
+    }
+
+    private Loop.Phase phase(Block block, long[][] cells) {
+        return new Loop.Phase(block.getEncodedBlock().encodedCells(), block.getEncodedBlockBorders().encodedCells(),
+                block.getEncodedBlockSectors().encodedCells(),
+                Arrays.stream(block.getSectorCounts()).map(short[]::clone).toArray(short[][]::new),
+                new Loop.Outline(row(cells, 1), row(cells, blockSize), PackedRows.column(cells, 1),
+                        PackedRows.column(cells, blockSize)),
+                borders(cells));
     }
 
     private void wake(Block block) {
@@ -142,7 +136,6 @@ public class LoopService extends Worker {
         }
     }
 
-    // all cells, the borders too
     private long hash(long[][] cells) {
         long hash = 0;
         for (long[] row : cells) {
@@ -155,12 +148,11 @@ public class LoopService extends Worker {
         return hash;
     }
 
-    private static boolean hasCells(short[][] sectorCounts) {
+    private static long hash(short[][] sectorCounts) {
+        long hash = 0;
         for (short[] band : sectorCounts) {
-            for (short count : band) {
-                if (count != 0) return true;
-            }
+            for (short count : band) hash = (hash + count) * 0x9E3779B97F4A7C15L;
         }
-        return false;
+        return hash;
     }
 }

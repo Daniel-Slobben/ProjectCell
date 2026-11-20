@@ -3,10 +3,6 @@ package slobben.cells.entities;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * The generations of a hibernating block, which come back after the last one. A phase keeps what the workers ask of
- * a block: its encodings, its sector counts, its edges for the neighbours and the borders it got from them.
- */
 public final class Loop {
     private final List<Phase> phases;
     private final Outline received;
@@ -21,15 +17,14 @@ public final class Loop {
         return phases.get(phase);
     }
 
-    public int period() {
-        return phases.size();
+    public List<Phase> phases() {
+        return phases;
     }
 
     public void next() {
         phase = (phase + 1) % phases.size();
     }
 
-    // the borders the neighbours wrote in this tick
     public Outline received() {
         return received;
     }
@@ -38,10 +33,6 @@ public final class Loop {
                         Outline borders) {
     }
 
-    /**
-     * Two rows (packed, like the rows of the cells) and two columns (bit x for row x) of a block: rows 1 and size and
-     * columns 1 and size for its edges, rows 0 and size + 1 and columns 0 and size + 1 for its borders.
-     */
     public record Outline(long[] top, long[] bottom, long[] left, long[] right) {
 
         static Outline empty(int size) {

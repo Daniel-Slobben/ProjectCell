@@ -106,7 +106,6 @@ class CycleTest {
             hibernated |= blocks.get(BlockUtils.getKey(0, 0)).getBlockState() == BlockState.HIBERNATION;
         }
         assertThat(hibernated).isTrue();
-        // the glider woke it
         assertThat(blocks.get(BlockUtils.getKey(0, 0)).getBlockState()).isEqualTo(BlockState.ACTIVE);
     }
 

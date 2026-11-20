@@ -46,7 +46,6 @@ public class Packer extends Worker {
         pack(block, snapshot);
     }
 
-    // a hibernating block has the encodings of its phase
     private static void packHibernating(Block block) {
         Loop.Phase phase = block.getLoop().phase();
         int x = block.getX(), y = block.getY(), generation = block.getGeneration();
@@ -58,7 +57,6 @@ public class Packer extends Worker {
         block.setEncodedBlockSectors(() -> sectors);
     }
 
-    // the cells of a FULL encoding, see getFull
     public static long[][] readFull(byte[] encoded, int size) {
         Cursor in = new Cursor(Zstd.decompress(encoded, (int) Zstd.getFrameContentSize(encoded)));
         long[][] rows = PackedRows.create(size);
@@ -134,7 +132,7 @@ public class Packer extends Worker {
         void take(Block block) {
             lock.lock();
             try {
-                // a block that went into hibernation keeps the cells it had, nothing writes them anymore
+                // hibernating: its last cells are not written anymore
                 if (block.getPackedCells() == null) return;
                 rows = block.getPackedCells();
                 sectorCounts = block.getSectorCounts();

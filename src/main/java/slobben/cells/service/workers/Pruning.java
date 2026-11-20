@@ -45,7 +45,7 @@ public class Pruning extends Worker {
         emptyBefore = empty;
     }
 
-    // the borders count as well, they still make cells in this block come alive; a hibernating block has cells
+    // the borders count as well, they still make cells in this block come alive
     private boolean hasTrueValue(Block block) {
         if (block.getLoop() != null) return true;
         for (long[] row : block.getPackedCells()) {

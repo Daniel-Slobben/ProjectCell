@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
 import slobben.cells.entities.Loop;
@@ -25,8 +24,7 @@ import java.util.*;
 /**
  * Runs the full cycle on the same chaos hits every time, so runs of different versions can be compared
  * on both speed and outcome. Run with: mvn test -Dtest=SimulationLoadTest -DargLine=-Xmx12g
- * With -Dsimulation.chaosHits=N it starts from N hits of the chaos sizes and types that draw the same every time,
- * one per spot of a grid, and gets no hits after that, like a world at its maximum of blocks.
+ * With -Dsimulation.chaosHits=N it starts from N seeded hits of the chaos sizes and types instead.
  */
 @SpringBootTest(properties = {
         "cells.size.blockSize=2000",
@@ -87,32 +85,20 @@ class SimulationLoadTest {
         System.gc();
         System.gc();
         List<Loop> loops = blocks.values().stream().map(Block::getLoop).filter(Objects::nonNull).toList();
-        System.out.printf("LOOPS %d of %d blocks hibernating, %.1f phases and %.0f KB per hibernating block%n", loops.size(), blocks.size(),
-                loops.stream().mapToInt(Loop::period).average().orElse(0), loops.stream().mapToLong(SimulationLoadTest::bytes).average().orElse(0) / 1024);
+        long loopBytes = loops.stream().flatMap(loop -> loop.phases().stream()).mapToLong(SimulationLoadTest::bytes).sum();
+        System.out.printf("LOOPS %d of %d blocks hibernating, %.1f phases and %d KB per hibernating block%n", loops.size(), blocks.size(),
+                loops.stream().mapToInt(loop -> loop.phases().size()).average().orElse(0), loops.isEmpty() ? 0 : loopBytes / loops.size() >> 10);
         System.out.printf("HEAP %d MB after GC%n", ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed() >> 20);
     }
 
-    // shallow sizes with compressed oops, every array once
-    @SuppressWarnings("unchecked")
-    private static long bytes(Loop loop) {
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-        long bytes = 32 + outline(loop.received(), seen);
-        for (Loop.Phase phase : (List<Loop.Phase>) ReflectionTestUtils.getField(loop, "phases")) {
-            bytes += 32 + array(phase.full(), phase.full().length, seen) + array(phase.border(), phase.border().length, seen)
-                    + array(phase.sectors(), phase.sectors().length, seen) + array(phase.sectorCounts(), 4L * phase.sectorCounts().length, seen)
-                    + outline(phase.edges(), seen) + outline(phase.borders(), seen);
-            for (short[] band : phase.sectorCounts()) bytes += array(band, 2L * band.length, seen);
-        }
-        return bytes;
+    private static long bytes(Loop.Phase phase) {
+        return phase.full().length + phase.border().length + phase.sectors().length
+                + Arrays.stream(phase.sectorCounts()).mapToLong(band -> 2L * band.length).sum()
+                + bytes(phase.edges()) + bytes(phase.borders());
     }
 
-    private static long outline(Loop.Outline outline, Set<Object> seen) {
-        return 24 + array(outline.top(), 8L * outline.top().length, seen) + array(outline.bottom(), 8L * outline.bottom().length, seen)
-                + array(outline.left(), 8L * outline.left().length, seen) + array(outline.right(), 8L * outline.right().length, seen);
-    }
-
-    private static long array(Object array, long payload, Set<Object> seen) {
-        return seen.add(array) ? (16 + payload + 7) / 8 * 8 : 0;
+    private static long bytes(Loop.Outline outline) {
+        return 8L * (outline.top().length + outline.bottom().length + outline.left().length + outline.right().length);
     }
 
     private long hibernating() {

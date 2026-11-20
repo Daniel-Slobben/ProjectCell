@@ -58,7 +58,6 @@ public final class TestUtils {
         algorithmGol.setNextState(block);
     }
 
-    // the packed cells of a block; of a hibernating block those of its phase, without borders
     public static long[][] getCells(Block block, int size) {
         Loop loop = block.getLoop();
         return loop == null ? block.getPackedCells() : Packer.readFull(loop.phase().full(), size);
