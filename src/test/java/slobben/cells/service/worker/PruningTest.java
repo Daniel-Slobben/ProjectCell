@@ -3,6 +3,7 @@ package slobben.cells.service.worker;
 import org.junit.jupiter.api.Test;
 import slobben.cells.entities.Block;
 import slobben.cells.service.workers.Pruning;
+import slobben.cells.util.PackedRows;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +26,7 @@ class PruningTest {
         // execute
         pruning.pruneBlocks(blocks);
         Map<String, Block> afterFirst = Map.copyOf(blocks);
-        revived.getPackedCells()[1][0] = 1;
+        PackedRows.set(revived.getPackedCells(), 1, 0);
         pruning.pruneBlocks(blocks);
 
         // verify
@@ -38,9 +39,9 @@ class PruningTest {
         // prepare
         Block block = block(0, 0, false);
         pruning.pruneBlocks(blocks);
-        block.getPackedCells()[1][0] = 1;
+        PackedRows.set(block.getPackedCells(), 1, 0);
         pruning.pruneBlocks(blocks);
-        block.getPackedCells()[1][0] = 0;
+        PackedRows.clear(block.getPackedCells()[1], 0);
 
         // execute
         pruning.pruneBlocks(blocks);
@@ -54,7 +55,7 @@ class PruningTest {
 
     private Block block(int x, int y, boolean alive) {
         Block block = new Block(x, y, UUID.randomUUID(), 20);
-        if (alive) block.getPackedCells()[1][0] = 1;
+        if (alive) PackedRows.set(block.getPackedCells(), 1, 0);
         blocks.put(block.getKey(), block);
         return block;
     }

@@ -114,7 +114,7 @@ class FullBlockEncodeBench {
                 byte[] bits = Zstd.decompress(Files.readAllBytes(file), (SIZE * SIZE + 7) / 8);
                 long[][] rows = PackedRows.create(SIZE);
                 for (int i = 0; i < SIZE * SIZE; i++) {
-                    if ((bits[i >>> 3] >> (i & 7) & 1) != 0) PackedRows.set(rows[i / SIZE + 1], i % SIZE + 1);
+                    if ((bits[i >>> 3] >> (i & 7) & 1) != 0) PackedRows.set(rows, i / SIZE + 1, i % SIZE + 1);
                 }
                 saved.add(new Saved(file.getParent().getFileName().toString(), rows, bits));
             }

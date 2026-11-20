@@ -44,6 +44,7 @@ public class Stitching extends Worker {
     @Value("${cells.size.blockSize}")
     private int blockSize;
     private long[] innerMask;
+    private long[] emptyRow;
 
     private final IdentityHashMap<Block, State> states = new IdentityHashMap<>();
     private int tick = 0;
@@ -90,6 +91,7 @@ public class Stitching extends Worker {
     @PostConstruct
     void init() {
         innerMask = PackedRows.innerMask(blockSize);
+        emptyRow = PackedRows.emptyRow(blockSize);
     }
 
     @Override
@@ -185,8 +187,8 @@ public class Stitching extends Worker {
         received.tick = tick;
         received.leftPushed = received.rightPushed = false;
         state.current = received;
-        if (!known || received.top) Arrays.fill(cells[0], 0L);
-        if (!known || received.bottom) Arrays.fill(cells[blockSize + 1], 0L);
+        if ((!known || received.top) && cells[0] != emptyRow) Arrays.fill(cells[0], 0L);
+        if ((!known || received.bottom) && cells[blockSize + 1] != emptyRow) Arrays.fill(cells[blockSize + 1], 0L);
         received.top = received.bottom = false;
         // cells that were not seen two ticks ago: what their border columns hold is read, the pushes fix it
         if (!known) {
@@ -263,7 +265,7 @@ public class Stitching extends Worker {
     private void setCell(Block target, int row, int column) {
         State state = currentState(target);
         synchronized (target) {
-            PackedRows.set(target.getPackedCells()[row], column);
+            PackedRows.set(target.getPackedCells(), row, column);
             if (state != null) markReceivedRow(state.current, row);
         }
     }
@@ -271,7 +273,7 @@ public class Stitching extends Worker {
     private void copyRow(Block target, long[] edge, int row) {
         State state = currentState(target);
         synchronized (target) {
-            long[] border = target.getPackedCells()[row];
+            long[] border = PackedRows.writable(target.getPackedCells(), row, emptyRow);
             for (int i = 0; i < border.length; i++) {
                 border[i] |= edge[i] & innerMask[i];
             }
@@ -296,7 +298,7 @@ public class Stitching extends Worker {
             for (int w = 0; w < edge.length; w++) {
                 long rows = border == null ? edge[w] : edge[w] ^ border[w];
                 for (; rows != 0; rows &= rows - 1) {
-                    cells[(w << 6) + Long.numberOfTrailingZeros(rows)][word] ^= mask;
+                    PackedRows.writable(cells, (w << 6) + Long.numberOfTrailingZeros(rows), emptyRow)[word] ^= mask;
                 }
                 if (border != null) border[w] = edge[w];
             }

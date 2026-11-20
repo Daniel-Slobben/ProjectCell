@@ -181,7 +181,7 @@ class PackerTest {
             for (int y = 0; y <= size + 1; y++) {
                 boolean inner = x >= 1 && x <= size && y >= 1 && y <= size;
                 if (inner && random.nextDouble() >= density) continue;
-                PackedRows.set(rows[x], y);
+                PackedRows.set(rows, x, y);
                 if (inner) setBit(expected, (x - 1) * size + y - 1);
             }
         }
@@ -208,7 +208,7 @@ class PackerTest {
             boolean[] row = pool[random.nextInt(pool.length)];
             for (int y = 0; y < size; y++) {
                 if (!row[y]) continue;
-                PackedRows.set(block.getPackedCells()[x + 1], y + 1);
+                PackedRows.set(block.getPackedCells(), x + 1, y + 1);
                 setBit(expected, x * size + y);
             }
         }

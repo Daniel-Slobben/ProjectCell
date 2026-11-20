@@ -1,12 +1,16 @@
 package slobben.cells.util;
 
 import java.util.Arrays;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Bit rows of a block: one long[] per row x, column y is a bit.
  * Word i + 1 holds columns 64i .. 64i + 63, words 0 and words + 1 are always-zero padding.
+ * Rows without cells are all the same empty row, which is never written: a write takes a row of its own first.
  */
 public final class PackedRows {
+    private static final Map<Integer, long[]> EMPTY_ROWS = new ConcurrentHashMap<>();
 
     private PackedRows() {
     }
@@ -15,8 +19,32 @@ public final class PackedRows {
         return (size + 2 + 63) >>> 6;
     }
 
+    public static long[] emptyRow(int size) {
+        return EMPTY_ROWS.computeIfAbsent(words(size) + 2, long[]::new);
+    }
+
     public static long[][] create(int size) {
-        return new long[size + 2][words(size) + 2];
+        long[][] rows = new long[size + 2][];
+        Arrays.fill(rows, emptyRow(size));
+        return rows;
+    }
+
+    public static long[] writable(long[][] rows, int x, long[] emptyRow) {
+        if (rows[x] == emptyRow) rows[x] = new long[emptyRow.length];
+        return rows[x];
+    }
+
+    public static void shareEmptyRows(long[][] rows, long[] emptyRow, int first, int step) {
+        for (int x = first; x < rows.length; x += step) {
+            if (rows[x] != emptyRow && isEmpty(rows[x])) rows[x] = emptyRow;
+        }
+    }
+
+    private static boolean isEmpty(long[] row) {
+        for (long word : row) {
+            if (word != 0) return false;
+        }
+        return true;
     }
 
     // per word: the bits of columns 1 .. size, so the border columns 0 and size + 1 don't count
@@ -32,8 +60,8 @@ public final class PackedRows {
         return (row[(col >>> 6) + 1] >>> col & 1) != 0;
     }
 
-    public static void set(long[] row, int col) {
-        row[(col >>> 6) + 1] |= 1L << col;
+    public static void set(long[][] rows, int x, int col) {
+        writable(rows, x, emptyRow(rows.length - 2))[(col >>> 6) + 1] |= 1L << col;
     }
 
     public static void clear(long[] row, int col) {
@@ -51,6 +79,7 @@ public final class PackedRows {
 
     public static long[][] pack(boolean[][] cells) {
         long[][] packed = create(cells.length - 2);
+        long[] emptyRow = emptyRow(cells.length - 2);
         boolean[] empty = new boolean[cells.length];
         for (int x = 0; x < cells.length; x++) {
             boolean[] row = cells[x];
@@ -59,7 +88,7 @@ public final class PackedRows {
                 int found = Arrays.mismatch(row, from, row.length, empty, from, row.length);
                 if (found < 0) break;
                 int to = Math.min(row.length, ((from + found) | 63) + 1);
-                packRange(row, packed[x], from + found, to);
+                packRange(row, writable(packed, x, emptyRow), from + found, to);
                 from = to;
             }
         }
