@@ -28,7 +28,7 @@ public class ChaosService extends Worker {
     private final List<ChaosHit> chaosHits;
 
     private static final int MIN_SIZE = 2000;
-    private static final int MAX_SIZE = 16000;
+    private static final int MAX_SIZE = 20000;
 
     private final Random random = new Random();
 
@@ -43,8 +43,8 @@ public class ChaosService extends Worker {
     @Value("${cells.chaos.max-cycle-share:0}")
     private double maxCycleShare;
 
-    private static final int HITS_AT_START = 10;
-    private static final int TICKS_BETWEEN_NEW_HITS = 500;
+    private static final int HITS_AT_START = 30;
+    private static final int TICKS_BETWEEN_NEW_HITS = 200;
     private static final int OVERLOADED_CYCLES_BEFORE_RESET = 20;
     private int tickCounter = 0;
 
