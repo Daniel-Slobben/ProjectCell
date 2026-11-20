@@ -70,6 +70,7 @@ class SimulationLoadTest {
         System.out.printf("RESULT %d generations in %dms (%.1fms/gen), %s%n", GENERATIONS, millis, (double) millis / GENERATIONS, getFingerprint());
         serverInfoService.getAverageWorkTimes().forEach((worker, ms) -> System.out.printf("WORKER %-30s %.3fms%n", worker, ms));
         System.gc();
+        System.gc();
         System.out.printf("HEAP %d MB after GC%n", ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed() >> 20);
     }
 
