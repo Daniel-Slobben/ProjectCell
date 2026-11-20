@@ -81,12 +81,11 @@ public class ClientService extends Worker {
         executorService.executeTasksParallel(tasks, getName());
     }
 
-    // the fewer blocks in view, the closer to every tick
     private int sectorPeriod(ClientUpdateRequest view, int maxPeriod) {
         return Math.clamp(Math.ceilDiv(view.blockCount(), sectorBlocksPerTick), 1, maxPeriod);
     }
 
-    // every tile with a block in view, so also blocks around the view; written again once it is as old as the period
+    // every tile with a block in view, so also blocks around the view
     private void sendTiles(Client client, int tick, int period) {
         ClientUpdateRequest view = client.getLastUpdateRequest();
         for (int tileX = Math.floorDiv(view.minX(), tileSize); tileX <= Math.floorDiv(view.maxX(), tileSize); tileX++) {
