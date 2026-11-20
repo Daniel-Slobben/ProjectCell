@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
+import slobben.cells.entities.Loop;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.PackedRows;
 
@@ -45,6 +46,63 @@ public class Packer extends Worker {
         pack(block, snapshot);
     }
 
+    // a hibernating block has the encodings of its phase
+    private static void packHibernating(Block block) {
+        Loop.Phase phase = block.getLoop().phase();
+        int x = block.getX(), y = block.getY(), generation = block.getGeneration();
+        EncodedBlock full = new EncodedBlock(x, y, generation, EncodedBlockType.FULL, phase.full());
+        EncodedBlock border = new EncodedBlock(x, y, generation, EncodedBlockType.BORDER, phase.border());
+        EncodedBlock sectors = new EncodedBlock(x, y, generation, EncodedBlockType.SECTOR, phase.sectors());
+        block.setEncodedBlock(() -> full);
+        block.setEncodedBlockBorders(() -> border);
+        block.setEncodedBlockSectors(() -> sectors);
+    }
+
+    // the cells of a FULL encoding, see getFull
+    public static long[][] readFull(byte[] encoded, int size) {
+        Cursor in = new Cursor(Zstd.decompress(encoded, (int) Zstd.getFrameContentSize(encoded)));
+        long[][] rows = PackedRows.create(size);
+        List<int[]> copies = new ArrayList<>();
+        for (int x = 0, distance = 0; in.bytes[in.at] != 0; ) {
+            x += in.varint();
+            int further = in.varint();
+            distance += further >>> 1 ^ -(further & 1);
+            copies.add(new int[]{x, x - distance});
+        }
+        int columns = (size + 7) >>> 3;
+        in.at++;
+        for (int position = 0; in.at < in.bytes.length; in.at++) {
+            position += in.varint();
+            int strip = position >>> 6, column = 8 * (strip % columns) + 1;
+            for (int x = (strip / columns << 6) + (position & 63) + 1; in.bytes[in.at] != 0; in.at++, x++, position++) {
+                long[] row = PackedRows.writable(rows, x, rows[0]);
+                long cells = in.bytes[in.at] & 0xFFL;
+                row[(column >>> 6) + 1] |= cells << column;
+                row[(column >>> 6) + 2] |= cells >>> (64 - (column & 63));
+            }
+        }
+        for (int[] copy : copies) rows[copy[0] + 1] = rows[copy[1] + 1].clone();
+        return rows;
+    }
+
+    private static final class Cursor {
+        final byte[] bytes;
+        int at;
+
+        Cursor(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
+        int varint() {
+            int value = 0;
+            for (int shift = 0; ; shift += 7) {
+                byte next = bytes[at++];
+                value |= (next & 0x7F) << shift;
+                if (next >= 0) return value;
+            }
+        }
+    }
+
     // the encodings of the cells the snapshot has just taken
     private static void pack(Block block, Snapshot snapshot) {
         LazyEncodedBlock full = new LazyEncodedBlock(block, snapshot, EncodedBlockType.FULL);
@@ -76,6 +134,8 @@ public class Packer extends Worker {
         void take(Block block) {
             lock.lock();
             try {
+                // a block that went into hibernation keeps the cells it had, nothing writes them anymore
+                if (block.getPackedCells() == null) return;
                 rows = block.getPackedCells();
                 sectorCounts = block.getSectorCounts();
                 generation = block.getGeneration();
@@ -299,6 +359,10 @@ public class Packer extends Worker {
         Map<Block, Snapshot> current = new IdentityHashMap<>();
         List<Block> busy = new ArrayList<>();
         for (Block block : blocks.values()) {
+            if (block.getLoop() != null) {
+                packHibernating(block);
+                continue;
+            }
             Snapshot snapshot = Objects.requireNonNullElseGet(snapshots.get(block), Snapshot::new);
             current.put(block, snapshot);
             if (snapshot.tryTake(block)) {

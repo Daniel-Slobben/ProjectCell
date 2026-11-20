@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import slobben.cells.entities.Block;
 import slobben.cells.service.RunnerService;
 import slobben.cells.service.ServerInfoService;
+import slobben.cells.service.workers.LoopService;
 import slobben.cells.util.PackedRows;
 
 import java.lang.management.ManagementFactory;
@@ -45,6 +46,8 @@ class RepeatingBlocksTest {
     private ServerInfoService serverInfoService;
     @Autowired
     private Map<String, Block> blocks;
+    @Autowired
+    private LoopService loopService;
     @Value("${cells.size.blockSize}")
     private int blockSize;
 
@@ -105,7 +108,7 @@ class RepeatingBlocksTest {
 
     private void record(int index) {
         Map<String, long[]> now = blocks.values().parallelStream()
-                .collect(Collectors.toConcurrentMap(Block::getKey, block -> tileHashes(block.getPackedCells())));
+                .collect(Collectors.toConcurrentMap(Block::getKey, block -> tileHashes(TestUtils.getCells(block, blockSize))));
         if (index == 0) {
             hashes.clear();
             tiles.clear();
@@ -161,8 +164,8 @@ class RepeatingBlocksTest {
         long frozenBytes = repeating.entrySet().parallelStream()
                 .mapToLong(entry -> (long) entry.getKey().getEncodedBlock().encodedCells().length * entry.getValue())
                 .sum();
-        long liveCells = blocks.values().parallelStream().mapToLong(block -> liveCells(block.getPackedCells())).sum();
-        long rowsWithCells = blocks.values().parallelStream().mapToLong(block -> rowsWithCells(block.getPackedCells())).sum();
+        long liveCells = blocks.values().parallelStream().mapToLong(block -> liveCells(TestUtils.getCells(block, blockSize))).sum();
+        long rowsWithCells = blocks.values().parallelStream().mapToLong(block -> rowsWithCells(TestUtils.getCells(block, blockSize))).sum();
         System.gc();
         long heap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
         double heapPerBlock = (double) heap / blocks.size();
@@ -170,8 +173,8 @@ class RepeatingBlocksTest {
         System.out.printf("tick %d (%.1f min, %.0f ms per tick): %d blocks, %d live cells, heap %d MB after GC (%.2f MB per block), rows with cells %.1f%%%n",
                 tick, minutes, averageTick, blocks.size(), liveCells, heap >> 20, heapPerBlock / (1 << 20),
                 100.0 * rowsWithCells / ((long) blocks.size() * blockSize));
-        System.out.printf("  %d blocks through the window: empty %d, repeating %d %s, not repeating %d%n",
-                hashes.size(), empty, repeating.size(), periods, notRepeating);
+        System.out.printf("  %d blocks through the window: empty %d, repeating %d %s, not repeating %d; hibernating %d%n",
+                hashes.size(), empty, repeating.size(), periods, notRepeating, loopService.getHibernating());
         System.out.printf("  repeating: same as %d ticks ago %d, same for %d+ ticks %d; FULL x period %d MB (%.0f KB per block), frees ~%d MB%n",
                 WINDOW_EVERY, stayed, (LONG_STREAK - 1) * WINDOW_EVERY, longStayed, frozenBytes >> 20,
                 repeating.isEmpty() ? 0 : frozenBytes / 1024.0 / repeating.size(),
