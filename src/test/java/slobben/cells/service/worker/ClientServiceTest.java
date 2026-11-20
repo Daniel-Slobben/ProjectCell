@@ -55,7 +55,6 @@ class ClientServiceTest {
         clientService = new ClientService(template, channel, new ExecutorService(), blocks);
         ReflectionTestUtils.setField(clientService, "sectorPeriodMs", 10000);
         ReflectionTestUtils.setField(clientService, "sectorBlocksPerTick", 250);
-        ReflectionTestUtils.setField(clientService, "tileSize", 16);
         ReflectionTestUtils.setField(clientService, "maxCellBlocks", 2000);
     }
 
@@ -265,25 +264,20 @@ class ClientServiceTest {
     }
 
     @Test
-    void sendsTheSectorsPerTileWithTheSameBytesForEveryClient() {
-        // prepare: tile 0/0 has 0/0 and 15/15, tile 1/0 has 16/0; the view only touches 15/15 and 16/0
-        Block first = getActiveTestBlock(0, 0);
-        Block second = getActiveTestBlock(15, 15);
-        Block third = getActiveTestBlock(16, 0);
+    void sendsOnlyTheSectorsOfTheBlocksInView() {
+        // prepare
+        getActiveTestBlock(0, 0);
+        Block first = getActiveTestBlock(15, 15);
+        Block second = getActiveTestBlock(16, 0);
         connect("s1", view(15, 16, 0, 15, true));
-        connect("s2", view(15, 16, 0, 15, true));
         sent.clear();
 
-        // execute: both every tick
+        // execute
         clientService.execute();
 
         // verify
-        List<Message<?>> s1 = sent.stream().filter(message -> destination(message).equals("/queue/blocks-users1")).toList();
-        List<Message<?>> s2 = sent.stream().filter(message -> destination(message).equals("/queue/blocks-users2")).toList();
-        assertThat(s1.stream().map(ClientServiceTest::blocksOf)).containsExactlyInAnyOrder(
-                List.of(first.getEncodedBlockSectors(), second.getEncodedBlockSectors()), List.of(third.getEncodedBlockSectors()));
-        assertThat(s1.stream().map(Message::getPayload).toList()).hasSize(2)
-                .allMatch(payload -> s2.stream().anyMatch(message -> message.getPayload() == payload));
+        assertThat(sent).hasSize(1);
+        assertThat(blocksOf(sent.getFirst())).containsExactlyInAnyOrder(first.getEncodedBlockSectors(), second.getEncodedBlockSectors());
     }
 
     @Test
