@@ -29,6 +29,7 @@ import java.util.Map;
         "logging.level.slobben.cells.service.workers.ChaosService=INFO"
 })
 @ActiveProfiles("local")
+@Disabled("Runs for many minutes")
 class ChaosResetsTest {
 
     private static final int RESETS = Integer.getInteger("resets", 2);
@@ -42,7 +43,6 @@ class ChaosResetsTest {
     private LoopService loopService;
 
     @Test
-    @Disabled("Runs for many minutes")
     @SuppressWarnings("java:S2699")
     void chaosResets() {
         long start = System.currentTimeMillis();
