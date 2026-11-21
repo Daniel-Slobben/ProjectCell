@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import slobben.cells.dto.internal.Columns;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.BlockUtils;
@@ -85,7 +86,7 @@ public class Block {
         this.loop = loop;
         blockState = BlockState.HIBERNATION;
         packedCells = null;
-        sectorCounts = loop.phase().sectorCounts();
+        sectorCounts = loop.getCurrentPhase().sectorCounts();
         edges = null;
         borders = null;
     }
@@ -98,7 +99,7 @@ public class Block {
 
     public void setNextHibernationState() {
         loop.next();
-        sectorCounts = loop.phase().sectorCounts();
+        sectorCounts = loop.getCurrentPhase().sectorCounts();
         generation++;
     }
 

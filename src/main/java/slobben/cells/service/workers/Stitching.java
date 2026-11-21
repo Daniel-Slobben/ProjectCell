@@ -4,10 +4,11 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.internal.Outline;
 import slobben.cells.dto.internal.Columns;
 import slobben.cells.dto.internal.Coordinates;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.Loop;
 import slobben.cells.enums.BlockState;
 import slobben.cells.enums.Direction;
 import slobben.cells.service.ExecutorService;
@@ -184,8 +185,8 @@ public class Stitching extends Worker {
         if (loop == null) {
             prepareCells(block, state);
         } else {
-            Loop.Outline edges = loop.phase().edges();
-            loop.received().clear();
+            Outline edges = loop.getCurrentPhase().edges();
+            loop.getReceived().clear();
             state.received[0].cells = state.received[1].cells = null;
             state.current = null;
             state.top = edges.top();
@@ -287,7 +288,7 @@ public class Stitching extends Worker {
         State state = currentState(target);
         synchronized (target) {
             if (target.getLoop() != null) {
-                target.getLoop().received().row(row)[(column >>> 6) + 1] |= 1L << column;
+                target.getLoop().getReceived().row(row)[(column >>> 6) + 1] |= 1L << column;
                 return;
             }
             PackedRows.set(target.getPackedCells(), row, column);
@@ -299,7 +300,7 @@ public class Stitching extends Worker {
         State state = currentState(target);
         synchronized (target) {
             Loop loop = target.getLoop();
-            long[] border = loop != null ? loop.received().row(row) : PackedRows.writable(target.getPackedCells(), row, emptyRow);
+            long[] border = loop != null ? loop.getReceived().row(row) : PackedRows.writable(target.getPackedCells(), row, emptyRow);
             for (int i = 0; i < border.length; i++) {
                 border[i] |= edge[i] & innerMask[i];
             }
@@ -319,7 +320,7 @@ public class Stitching extends Worker {
         long mask = 1L << column;
         synchronized (target) {
             if (target.getLoop() != null) {
-                System.arraycopy(edge, 0, target.getLoop().received().column(column), 0, edge.length);
+                System.arraycopy(edge, 0, target.getLoop().getReceived().column(column), 0, edge.length);
                 return;
             }
             long[][] cells = target.getPackedCells();

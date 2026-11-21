@@ -5,8 +5,9 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.internal.Outline;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.Loop;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.PackedRows;
 
@@ -56,7 +57,7 @@ public class LoopService extends Worker {
         for (Block block : blocks.values()) {
             if (block.getBlockState() == BlockState.HIBERNATION) {
                 Loop loop = block.getLoop();
-                if (loop.received().same(loop.phase().borders())) {
+                if (loop.getReceived().same(loop.getCurrentPhase().borders())) {
                     count++;
                 } else {
                     wake(block);
@@ -103,15 +104,15 @@ public class LoopService extends Worker {
         return new Loop.Phase(block.getEncodedBlock().encodedCells(), block.getEncodedBlockBorders().encodedCells(),
                 block.getEncodedBlockSectors().encodedCells(),
                 Arrays.stream(block.getSectorCounts()).map(short[]::clone).toArray(short[][]::new),
-                new Loop.Outline(row(cells, 1), row(cells, blockSize), PackedRows.column(cells, 1),
+                new Outline(row(cells, 1), row(cells, blockSize), PackedRows.column(cells, 1),
                         PackedRows.column(cells, blockSize)),
                 borders(cells));
     }
 
     private void wake(Block block) {
         Loop loop = block.getLoop();
-        long[][] cells = Packer.readFull(loop.phase().full(), blockSize);
-        Loop.Outline received = loop.received();
+        long[][] cells = Packer.decodeFull(loop.getCurrentPhase().full(), blockSize);
+        Outline received = loop.getReceived();
         cells[0] = received.top().clone();
         cells[blockSize + 1] = received.bottom().clone();
         setColumn(cells, received.left(), 0);
@@ -119,8 +120,8 @@ public class LoopService extends Worker {
         block.wake(cells);
     }
 
-    private Loop.Outline borders(long[][] cells) {
-        return new Loop.Outline(row(cells, 0), row(cells, blockSize + 1), PackedRows.column(cells, 0),
+    private Outline borders(long[][] cells) {
+        return new Outline(row(cells, 0), row(cells, blockSize + 1), PackedRows.column(cells, 0),
                 PackedRows.column(cells, blockSize + 1));
     }
 

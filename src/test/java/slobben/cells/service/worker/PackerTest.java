@@ -17,12 +17,7 @@ import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.service.workers.Packer;
 import slobben.cells.util.PackedRows;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -245,7 +240,7 @@ class PackerTest {
 
         // execute
         Packer.packAll(block);
-        long[][] cells = Packer.readFull(block.getEncodedBlock().encodedCells(), size);
+        long[][] cells = Packer.decodeFull(block.getEncodedBlock().encodedCells(), size);
 
         // verify
         assertThat(cells).isDeepEqualTo(expected);

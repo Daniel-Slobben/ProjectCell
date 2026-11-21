@@ -1,24 +1,19 @@
 package slobben.cells.service.workers;
 
-import lombok.RequiredArgsConstructor;
 import com.github.luben.zstd.Zstd;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.Loop;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.PackedRows;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
@@ -46,8 +41,8 @@ public class Packer extends Worker {
         pack(block, snapshot);
     }
 
-    private static void packHibernating(Block block) {
-        Loop.Phase phase = block.getLoop().phase();
+    private static void usePhaseEncodings(Block block) {
+        Loop.Phase phase = block.getLoop().getCurrentPhase();
         int x = block.getX(), y = block.getY(), generation = block.getGeneration();
         EncodedBlock full = new EncodedBlock(x, y, generation, EncodedBlockType.FULL, phase.full());
         EncodedBlock border = new EncodedBlock(x, y, generation, EncodedBlockType.BORDER, phase.border());
@@ -57,8 +52,8 @@ public class Packer extends Worker {
         block.setEncodedBlockSectors(() -> sectors);
     }
 
-    public static long[][] readFull(byte[] encoded, int size) {
-        Cursor in = new Cursor(Zstd.decompress(encoded, (int) Zstd.getFrameContentSize(encoded)));
+    public static long[][] decodeFull(byte[] encoded, int size) {
+        ByteReader in = new ByteReader(Zstd.decompress(encoded, (int) Zstd.getFrameContentSize(encoded)));
         long[][] rows = PackedRows.create(size);
         List<int[]> copies = new ArrayList<>();
         for (int x = 0, distance = 0; in.bytes[in.at] != 0; ) {
@@ -83,11 +78,11 @@ public class Packer extends Worker {
         return rows;
     }
 
-    private static final class Cursor {
+    private static final class ByteReader {
         final byte[] bytes;
         int at;
 
-        Cursor(byte[] bytes) {
+        ByteReader(byte[] bytes) {
             this.bytes = bytes;
         }
 
@@ -358,7 +353,7 @@ public class Packer extends Worker {
         List<Block> busy = new ArrayList<>();
         for (Block block : blocks.values()) {
             if (block.getLoop() != null) {
-                packHibernating(block);
+                usePhaseEncodings(block);
                 continue;
             }
             Snapshot snapshot = Objects.requireNonNullElseGet(snapshots.get(block), Snapshot::new);

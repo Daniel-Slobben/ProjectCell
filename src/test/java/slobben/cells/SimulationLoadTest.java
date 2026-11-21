@@ -6,9 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import slobben.cells.dto.internal.Outline;
 import slobben.cells.dto.internal.Coordinates;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.entities.Block;
-import slobben.cells.entities.Loop;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.RunnerService;
 import slobben.cells.service.ServerInfoService;
@@ -85,9 +86,9 @@ class SimulationLoadTest {
         System.gc();
         System.gc();
         List<Loop> loops = blocks.values().stream().map(Block::getLoop).filter(Objects::nonNull).toList();
-        long loopBytes = loops.stream().flatMap(loop -> loop.phases().stream()).mapToLong(SimulationLoadTest::bytes).sum();
+        long loopBytes = loops.stream().flatMap(loop -> loop.getPhases().stream()).mapToLong(SimulationLoadTest::bytes).sum();
         System.out.printf("LOOPS %d of %d blocks hibernating, %.1f phases and %d KB per hibernating block%n", loops.size(), blocks.size(),
-                loops.stream().mapToInt(loop -> loop.phases().size()).average().orElse(0), loops.isEmpty() ? 0 : loopBytes / loops.size() >> 10);
+                loops.stream().mapToInt(loop -> loop.getPhases().size()).average().orElse(0), loops.isEmpty() ? 0 : loopBytes / loops.size() >> 10);
         System.out.printf("HEAP %d MB after GC%n", ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed() >> 20);
     }
 
@@ -97,7 +98,7 @@ class SimulationLoadTest {
                 + bytes(phase.edges()) + bytes(phase.borders());
     }
 
-    private static long bytes(Loop.Outline outline) {
+    private static long bytes(Outline outline) {
         return 8L * (outline.top().length + outline.bottom().length + outline.left().length + outline.right().length);
     }
 
