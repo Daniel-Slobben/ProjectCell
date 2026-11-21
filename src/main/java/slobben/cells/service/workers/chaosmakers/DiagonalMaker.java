@@ -13,9 +13,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DiagonalMaker implements Maker {
 
-    private static final Random random = new Random();
-
     private final WorldEditor worldEditor;
+    private final Random random;
 
     @Override
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {

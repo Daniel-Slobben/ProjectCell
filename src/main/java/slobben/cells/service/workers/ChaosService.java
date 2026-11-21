@@ -26,11 +26,10 @@ public class ChaosService extends Worker {
     private final Map<String, Block> newBlocks;
     private final BeanFactory beanFactory;
     private final List<ChaosHit> chaosHits;
+    private final Random random;
 
     private static final int MIN_SIZE = 2000;
     private static final int MAX_SIZE = 20000;
-
-    private final Random random = new Random();
 
     @Value("${cells.chaos.type:NULL}")
     private String preferredType = null;
@@ -117,7 +116,7 @@ public class ChaosService extends Worker {
         try {
             return ChaosType.valueOf(this.preferredType);
         } catch (IllegalArgumentException _) {
-            return ChaosType.getRandomType();
+            return ChaosType.getRandomType(random);
         }
     }
 

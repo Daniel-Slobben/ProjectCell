@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import slobben.cells.entities.Block;
 import slobben.cells.service.RunnerService;
 import slobben.cells.service.workers.LoopService;
@@ -12,7 +13,7 @@ import java.lang.management.ManagementFactory;
 import java.util.Map;
 
 /**
- * Runs real chaos hits uncapped until the world resets a number of times and reports blocks, hibernating blocks,
+ * Runs the seeded chaos hits of the local profile uncapped until the world resets a number of times and reports blocks, hibernating blocks,
  * heap and tick time. Run with: mvn test -Dtest=ChaosResetsTest -Djunit.jupiter.conditions.deactivate='org.junit.*DisabledCondition'
  * -DargLine="-Xmx8g" -Dresets=2, and with -Dcells.loops.check-every=1000000000 for the same run without hibernation.
  */
@@ -27,6 +28,7 @@ import java.util.Map;
         "logging.level.slobben=WARN",
         "logging.level.slobben.cells.service.workers.ChaosService=INFO"
 })
+@ActiveProfiles("local")
 class ChaosResetsTest {
 
     private static final int RESETS = Integer.getInteger("resets", 2);

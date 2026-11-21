@@ -1,3 +1,5 @@
 cells:
   targetspeed: '250'
   allowed-origins: '*'
+  chaos:
+    seed: 42
