@@ -17,8 +17,8 @@ import java.util.UUID;
 public class GrowthMaker implements Maker {
     private static final String[] PATTERNS = {"spacefiller1", "spacefiller2"};
 
-    private final Random random = new Random();
     private final RleReader rleReader;
+    private final Random random;
 
     @Override
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {

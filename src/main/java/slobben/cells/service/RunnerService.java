@@ -21,6 +21,7 @@ public class RunnerService {
     private final Stitching stitching;
     private final Pruning pruning;
     private final Packer packingService;
+    private final LoopService loopService;
     private final ClientService clientService;
 
     private final ServerInfoService serverInfoService;
@@ -46,6 +47,7 @@ public class RunnerService {
         addNewBlocks.tic();
 
         packingService.tic();
+        loopService.tic();
         clientService.tic();
 
         pruning.tic();

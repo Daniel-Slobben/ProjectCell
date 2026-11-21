@@ -2,10 +2,12 @@ package slobben.cells;
 
 import com.github.luben.zstd.Zstd;
 import org.springframework.test.util.ReflectionTestUtils;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.service.ExecutorService;
 import slobben.cells.service.workers.AlgorithmGol;
+import slobben.cells.service.workers.Packer;
 import slobben.cells.util.PackedRows;
 
 import java.util.*;
@@ -54,6 +56,11 @@ public final class TestUtils {
             block.setPackedCells(PackedRows.pack(block.getCells()));
         }
         algorithmGol.setNextState(block);
+    }
+
+    public static long[][] getCells(Block block, int size) {
+        Loop loop = block.getLoop();
+        return loop == null ? block.getPackedCells() : Packer.decodeFull(loop.getCurrentPhase().full(), size);
     }
 
     public static void drawPattern(Block block, int x, int y, String pattern) {

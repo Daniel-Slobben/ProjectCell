@@ -12,7 +12,6 @@ public enum ChaosType {
     SPACESHIP(SpaceshipMaker.class, 5),
     DIAGONAL_LINES(DiagonalMaker.class, 3);
 
-    private static final Random random = new Random();
     private static final int TOTAL_WEIGHT = Arrays.stream(values()).mapToInt(type -> type.weight).sum();
 
     public final Class<? extends Maker> maker;
@@ -24,7 +23,7 @@ public enum ChaosType {
         this.weight = weight;
     }
 
-    public static ChaosType getRandomType() {
+    public static ChaosType getRandomType(Random random) {
         int roll = random.nextInt(TOTAL_WEIGHT);
         for (ChaosType type : values()) {
             roll -= type.weight;

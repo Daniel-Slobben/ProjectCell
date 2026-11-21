@@ -1,8 +1,9 @@
 package slobben.cells.service.workers;
 
-import lombok.RequiredArgsConstructor;
 import com.github.luben.zstd.Zstd;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.dto.outgoing.EncodedBlockType;
 import slobben.cells.entities.Block;
@@ -12,12 +13,7 @@ import slobben.cells.util.PackedRows;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
@@ -43,6 +39,61 @@ public class Packer extends Worker {
         Snapshot snapshot = new Snapshot();
         snapshot.take(block);
         pack(block, snapshot);
+    }
+
+    private static void usePhaseEncodings(Block block) {
+        Loop.Phase phase = block.getLoop().getCurrentPhase();
+        int x = block.getX(), y = block.getY(), generation = block.getGeneration();
+        EncodedBlock full = new EncodedBlock(x, y, generation, EncodedBlockType.FULL, phase.full());
+        EncodedBlock border = new EncodedBlock(x, y, generation, EncodedBlockType.BORDER, phase.border());
+        EncodedBlock sectors = new EncodedBlock(x, y, generation, EncodedBlockType.SECTOR, phase.sectors());
+        block.setEncodedBlock(() -> full);
+        block.setEncodedBlockBorders(() -> border);
+        block.setEncodedBlockSectors(() -> sectors);
+    }
+
+    public static long[][] decodeFull(byte[] encoded, int size) {
+        ByteReader in = new ByteReader(Zstd.decompress(encoded, (int) Zstd.getFrameContentSize(encoded)));
+        long[][] rows = PackedRows.create(size);
+        List<int[]> copies = new ArrayList<>();
+        for (int x = 0, distance = 0; in.bytes[in.at] != 0; ) {
+            x += in.varint();
+            int further = in.varint();
+            distance += further >>> 1 ^ -(further & 1);
+            copies.add(new int[]{x, x - distance});
+        }
+        int columns = (size + 7) >>> 3;
+        in.at++;
+        for (int position = 0; in.at < in.bytes.length; in.at++) {
+            position += in.varint();
+            int strip = position >>> 6, column = 8 * (strip % columns) + 1;
+            for (int x = (strip / columns << 6) + (position & 63) + 1; in.bytes[in.at] != 0; in.at++, x++, position++) {
+                long[] row = PackedRows.writable(rows, x, rows[0]);
+                long cells = in.bytes[in.at] & 0xFFL;
+                row[(column >>> 6) + 1] |= cells << column;
+                row[(column >>> 6) + 2] |= cells >>> (64 - (column & 63));
+            }
+        }
+        for (int[] copy : copies) rows[copy[0] + 1] = rows[copy[1] + 1].clone();
+        return rows;
+    }
+
+    private static final class ByteReader {
+        final byte[] bytes;
+        int at;
+
+        ByteReader(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
+        int varint() {
+            int value = 0;
+            for (int shift = 0; ; shift += 7) {
+                byte next = bytes[at++];
+                value |= (next & 0x7F) << shift;
+                if (next >= 0) return value;
+            }
+        }
     }
 
     // the encodings of the cells the snapshot has just taken
@@ -76,6 +127,8 @@ public class Packer extends Worker {
         void take(Block block) {
             lock.lock();
             try {
+                // hibernating: its last cells are not written anymore
+                if (block.getPackedCells() == null) return;
                 rows = block.getPackedCells();
                 sectorCounts = block.getSectorCounts();
                 generation = block.getGeneration();
@@ -299,6 +352,10 @@ public class Packer extends Worker {
         Map<Block, Snapshot> current = new IdentityHashMap<>();
         List<Block> busy = new ArrayList<>();
         for (Block block : blocks.values()) {
+            if (block.getLoop() != null) {
+                usePhaseEncodings(block);
+                continue;
+            }
             Snapshot snapshot = Objects.requireNonNullElseGet(snapshots.get(block), Snapshot::new);
             current.put(block, snapshot);
             if (snapshot.tryTake(block)) {

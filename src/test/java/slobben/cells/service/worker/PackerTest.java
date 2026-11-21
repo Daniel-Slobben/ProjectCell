@@ -17,12 +17,7 @@ import slobben.cells.service.workers.AlgorithmGol;
 import slobben.cells.service.workers.Packer;
 import slobben.cells.util.PackedRows;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -218,6 +213,37 @@ class PackerTest {
 
         // verify
         assertThat(decodeFull(block.getEncodedBlock().encodedCells(), size)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2000, 0.03", "2000, 0.5", "130, 0.3", "70, 1", "64, 0.5", "63, 0.5", "62, 1", "1, 1"})
+    void fullBlockReadsBackToItsInnerCells(int size, double density) {
+        // prepare
+        Random random = new Random(size + (long) (density * 1000));
+        Block block = new Block(0, 0, UUID.randomUUID(), size);
+        long[][] expected = PackedRows.create(size);
+        for (int x = 0; x <= size + 1; x++) {
+            for (int y = 0; y <= size + 1; y++) {
+                boolean inner = x >= 1 && x <= size && y >= 1 && y <= size;
+                if (inner && random.nextDouble() >= density) continue;
+                PackedRows.set(block.getPackedCells(), x, y);
+                if (inner) PackedRows.set(expected, x, y);
+            }
+        }
+        // rows the same as an earlier row
+        for (int x = 3; x <= size; x += 3) {
+            block.getPackedCells()[x] = block.getPackedCells()[x / 3].clone();
+            expected[x] = expected[x / 3].clone();
+            PackedRows.clear(expected[x], 0);
+            PackedRows.clear(expected[x], size + 1);
+        }
+
+        // execute
+        Packer.packAll(block);
+        long[][] cells = Packer.decodeFull(block.getEncodedBlock().encodedCells(), size);
+
+        // verify
+        assertThat(cells).isDeepEqualTo(expected);
     }
 
     private Block getActiveBlock() {

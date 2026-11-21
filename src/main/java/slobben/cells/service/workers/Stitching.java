@@ -4,8 +4,10 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import slobben.cells.dto.internal.Outline;
 import slobben.cells.dto.internal.Columns;
 import slobben.cells.dto.internal.Coordinates;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.entities.Block;
 import slobben.cells.enums.BlockState;
 import slobben.cells.enums.Direction;
@@ -52,9 +54,11 @@ public class Stitching extends Worker {
     private static final class State {
         final Block[] neighbours = new Block[Direction.values().length];
         final Received[] received = {new Received(), new Received()};
-        // of the cells of the block in this tick
+        // of the cells of the block in this tick, none while it hibernates
         Received current;
-        // column 1 and column size, bit x for row x
+        // row 1 and row size, column 1 and column size with bit x for row x
+        long[] top;
+        long[] bottom;
         long[] left;
         long[] right;
         int tick = Integer.MIN_VALUE;
@@ -113,7 +117,7 @@ public class Stitching extends Worker {
             State state = states.computeIfAbsent(block, b -> new State());
             state.tick = currentTick;
             blockStates[i] = state;
-            if (!known(block, state)) fullReads++;
+            if (block.getLoop() == null && !known(block, state)) fullReads++;
         }
         if (states.size() > blockArray.length + 32 || currentTick % PRUNE_INTERVAL == 0) {
             prune(currentTick);
@@ -177,6 +181,26 @@ public class Stitching extends Worker {
     }
 
     private void prepare(Block block, State state) {
+        Loop loop = block.getLoop();
+        if (loop == null) {
+            prepareCells(block, state);
+        } else {
+            Outline edges = loop.getCurrentPhase().edges();
+            loop.getReceived().clear();
+            state.received[0].cells = state.received[1].cells = null;
+            state.current = null;
+            state.top = edges.top();
+            state.bottom = edges.bottom();
+            state.left = edges.left();
+            state.right = edges.right();
+        }
+        state.topEdge = hasInnerCells(state.top);
+        state.bottomEdge = hasInnerCells(state.bottom);
+        state.leftEdge = hasBits(state.left);
+        state.rightEdge = hasBits(state.right);
+    }
+
+    private void prepareCells(Block block, State state) {
         if (block.getBlockState() == BlockState.NEW) {
             block.setPackedCells(PackedRows.pack(block.getCells()));
         }
@@ -198,21 +222,18 @@ public class Stitching extends Worker {
         // the edge columns of the GoL, or else from the rows
         Columns edges = block.getEdges();
         boolean stepped = edges != null && edges.of(block);
+        state.top = cells[1];
+        state.bottom = cells[blockSize];
         state.left = stepped ? edges.left() : PackedRows.column(cells, 1);
         state.right = stepped ? edges.right() : PackedRows.column(cells, blockSize);
-        state.topEdge = hasInnerCells(cells[1]);
-        state.bottomEdge = hasInnerCells(cells[blockSize]);
-        state.leftEdge = hasBits(state.left);
-        state.rightEdge = hasBits(state.right);
         block.setBorders(new Columns(cells, block.getGeneration(), received.left, received.right));
     }
 
     private void push(Block block, State state) {
         if (!state.hasEdges()) return;
-        long[][] cells = block.getPackedCells();
         int border = blockSize + 1;
-        if (state.topEdge) copyRow(neighbour(block, state, LOW_X_MID_Y), cells[1], border);
-        if (state.bottomEdge) copyRow(neighbour(block, state, HIGH_X_MID_Y), cells[blockSize], 0);
+        if (state.topEdge) copyRow(neighbour(block, state, LOW_X_MID_Y), state.top, border);
+        if (state.bottomEdge) copyRow(neighbour(block, state, HIGH_X_MID_Y), state.bottom, 0);
         if (state.leftEdge) {
             copyColumn(neighbour(block, state, MID_X_LOW_Y), state.left, border);
             if (bit(state.left, 1)) setCell(neighbour(block, state, LOW_X_LOW_Y), border, border);
@@ -228,6 +249,7 @@ public class Stitching extends Worker {
     // a border column that no neighbour pushed to still has the cells of two ticks ago
     private void clearUnpushed(Block block, State state) {
         Received received = state.current;
+        if (received == null) return;
         long[][] cells = block.getPackedCells();
         if (!received.leftPushed) clearColumn(cells, received.left, 0);
         if (!received.rightPushed) clearColumn(cells, received.right, blockSize + 1);
@@ -265,6 +287,10 @@ public class Stitching extends Worker {
     private void setCell(Block target, int row, int column) {
         State state = currentState(target);
         synchronized (target) {
+            if (target.getLoop() != null) {
+                target.getLoop().getReceived().row(row)[(column >>> 6) + 1] |= 1L << column;
+                return;
+            }
             PackedRows.set(target.getPackedCells(), row, column);
             if (state != null) markReceivedRow(state.current, row);
         }
@@ -273,11 +299,12 @@ public class Stitching extends Worker {
     private void copyRow(Block target, long[] edge, int row) {
         State state = currentState(target);
         synchronized (target) {
-            long[] border = PackedRows.writable(target.getPackedCells(), row, emptyRow);
+            Loop loop = target.getLoop();
+            long[] border = loop != null ? loop.getReceived().row(row) : PackedRows.writable(target.getPackedCells(), row, emptyRow);
             for (int i = 0; i < border.length; i++) {
                 border[i] |= edge[i] & innerMask[i];
             }
-            if (state != null) markReceivedRow(state.current, row);
+            if (state != null && state.current != null) markReceivedRow(state.current, row);
         }
     }
 
@@ -292,6 +319,10 @@ public class Stitching extends Worker {
         int word = (column >>> 6) + 1;
         long mask = 1L << column;
         synchronized (target) {
+            if (target.getLoop() != null) {
+                System.arraycopy(edge, 0, target.getLoop().getReceived().column(column), 0, edge.length);
+                return;
+            }
             long[][] cells = target.getPackedCells();
             // a block that was created in this tick has no border cells yet
             long[] border = state == null ? null : column == 0 ? state.current.left : state.current.right;

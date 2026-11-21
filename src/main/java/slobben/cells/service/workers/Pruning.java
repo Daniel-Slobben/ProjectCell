@@ -47,6 +47,7 @@ public class Pruning extends Worker {
 
     // the borders count as well, they still make cells in this block come alive
     private boolean hasTrueValue(Block block) {
+        if (block.getLoop() != null) return true;
         for (long[] row : block.getPackedCells()) {
             for (long word : row) {
                 if (word != 0) return true;

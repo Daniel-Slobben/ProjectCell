@@ -4,13 +4,12 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import slobben.cells.dto.internal.Columns;
+import slobben.cells.dto.internal.Loop;
 import slobben.cells.dto.outgoing.EncodedBlock;
 import slobben.cells.enums.BlockState;
 import slobben.cells.util.BlockUtils;
 import slobben.cells.util.PackedRows;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -41,8 +40,7 @@ public class Block {
     @Getter(AccessLevel.NONE)
     private Supplier<EncodedBlock> encodedBlockSectors;
 
-    private List<long[][]> recordings = new ArrayList<>();
-    private int recordingIndex = 0;
+    private Loop loop;
 
     public Block(int x, int y, UUID responsibleChaosHit, int blockSize) {
         this.x = x;
@@ -84,12 +82,24 @@ public class Block {
         return BlockUtils.getKey(x, y);
     }
 
+    public void hibernate(Loop loop) {
+        this.loop = loop;
+        blockState = BlockState.HIBERNATION;
+        packedCells = null;
+        sectorCounts = loop.getCurrentPhase().sectorCounts();
+        edges = null;
+        borders = null;
+    }
+
+    public void wake(long[][] cells) {
+        loop = null;
+        blockState = BlockState.ACTIVE;
+        packedCells = cells;
+    }
+
     public void setNextHibernationState() {
-        recordingIndex++;
-        if (recordingIndex >= recordings.size()) {
-            recordingIndex = 0;
-        }
-        packedCells = recordings.get(recordingIndex);
+        loop.next();
+        sectorCounts = loop.getCurrentPhase().sectorCounts();
         generation++;
     }
 

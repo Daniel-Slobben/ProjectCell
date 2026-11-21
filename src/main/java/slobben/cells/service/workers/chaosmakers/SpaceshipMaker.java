@@ -23,14 +23,15 @@ public class SpaceshipMaker implements Maker {
     private static final int MAX_GAP = 30;
     private static final int MAX_FLEET_SIZE = 5000;
 
-    private final Random random = new Random();
     private final RleReader rleReader;
+    private final Random random;
     // where each ship heads on screen when written at rotation 0
     private final Map<String, Direction> directions;
     private final List<String> patterns;
 
-    public SpaceshipMaker(RleReader rleReader) {
+    public SpaceshipMaker(RleReader rleReader, Random random) {
         this.rleReader = rleReader;
+        this.random = random;
         this.directions = readDirections();
         this.patterns = List.copyOf(directions.keySet());
         log.info("Loaded {} spaceship patterns", patterns.size());

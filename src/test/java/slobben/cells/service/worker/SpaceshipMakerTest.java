@@ -11,6 +11,7 @@ import slobben.cells.enums.Direction;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,7 +32,7 @@ class SpaceshipMakerTest {
         RleReader rleReader = recordingReader(patterns, corners);
 
         // execute
-        ChaosHit hit = new SpaceshipMaker(rleReader).getChaosHit(100, 200, HIT_SIZE);
+        ChaosHit hit = new SpaceshipMaker(rleReader, new Random()).getChaosHit(100, 200, HIT_SIZE);
 
         // verify
         assertThat(corners).hasSizeGreaterThan(1);
@@ -55,7 +56,7 @@ class SpaceshipMakerTest {
         RleReader rleReader = recordingReader(new ArrayList<>(), corners);
 
         // execute
-        new SpaceshipMaker(rleReader).getChaosHit(0, 0, 16_000);
+        new SpaceshipMaker(rleReader, new Random()).getChaosHit(0, 0, 16_000);
 
         // verify
         assertThat(corners).allSatisfy(corner -> {
@@ -70,7 +71,7 @@ class SpaceshipMakerTest {
         RleReader rleReader = recordingReader(new ArrayList<>(), new ArrayList<>());
 
         // execute
-        ChaosHit hit = new SpaceshipMaker(rleReader).getChaosHit(-50_000, 10, HIT_SIZE);
+        ChaosHit hit = new SpaceshipMaker(rleReader, new Random()).getChaosHit(-50_000, 10, HIT_SIZE);
 
         // verify
         String heading = hit.getName().substring(hit.getName().lastIndexOf(' ') + 1);

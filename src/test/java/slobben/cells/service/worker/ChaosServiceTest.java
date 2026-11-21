@@ -28,7 +28,7 @@ class ChaosServiceTest {
     private final Map<String, Block> newBlocks = new HashMap<>();
     private final List<ChaosHit> chaosHits = new ArrayList<>();
     private final BeanFactory beanFactory = mock(BeanFactory.class);
-    private final ChaosService chaosService = new ChaosService(blocks, newBlocks, beanFactory, chaosHits);
+    private final ChaosService chaosService = new ChaosService(blocks, newBlocks, beanFactory, chaosHits, new Random());
     private final ServerInfoService serverInfoService = new ServerInfoService();
     private int hitAge = 10_000;
 

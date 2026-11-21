@@ -16,9 +16,8 @@ public class LettuceMaker implements Maker {
     private static final int MAX_AMOUNT_OF_LINES = 12;
     private static final int LINE_WIDTH = 2;
 
-    private static final Random random = new Random();
-
     private final WorldEditor worldEditor;
+    private final Random random;
 
     @Override
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {
