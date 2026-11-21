@@ -11,7 +11,7 @@ cells:
 
   chaos:
     type: ANY
-    max-blocks: 10000
+    max-blocks: 3000
 
   size:
     x: '0'
