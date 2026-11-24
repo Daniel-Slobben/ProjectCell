@@ -23,10 +23,11 @@ public class DiagonalLettuceMaker implements Maker {
         final int startY = worldY - size / 2;
 
         int hitsHize = random.nextInt(2, 10);
+        int distanceBetweenCrosses = size / hitsHize;
 
         for (int i = 0; i < hitsHize; i++) {
             for (int j = 0; j < hitsHize; j++) {
-                setCells(startX + i * 500 + size / hitsHize, startY + j * 500 + size / hitsHize, size, chaosHitId);
+                setCells(startX + i * distanceBetweenCrosses + size / hitsHize, startY + j * distanceBetweenCrosses + size / hitsHize, size / hitsHize, chaosHitId);
             }
         }
 
