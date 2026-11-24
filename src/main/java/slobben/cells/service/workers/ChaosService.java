@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
 import slobben.cells.entities.ChaosHit;
+import slobben.cells.enums.ChaosCycle;
 import slobben.cells.enums.ChaosType;
 import slobben.cells.service.workers.chaosmakers.Maker;
 import slobben.cells.util.BlockUtils;
@@ -28,11 +29,10 @@ public class ChaosService extends Worker {
     private final List<ChaosHit> chaosHits;
     private final Random random;
 
-    private static final int MIN_SIZE = 2000;
-    private static final int MAX_SIZE = 20000;
-
     @Value("${cells.chaos.type:NULL}")
     private String preferredType = null;
+    @Value("${cells.chaos.cycle:NULL}")
+    private String preferredCycle = null;
     @Value("${cells.size.blockSize}")
     private int blockSize;
     @Value("${cells.chaos.max-blocks:500}")
@@ -46,6 +46,7 @@ public class ChaosService extends Worker {
     public static final int TICKS_BETWEEN_NEW_HITS = 200;
     private static final int OVERLOADED_CYCLES_BEFORE_RESET = 20;
     private int tickCounter = 0;
+    private ChaosCycle cycle = ChaosCycle.MIXED;
 
     @PostConstruct
     void init() {
@@ -90,6 +91,8 @@ public class ChaosService extends Worker {
 
     // an empty world gets a burst of hits, after that they come slowly
     private void kickstart() {
+        cycle = getCycle();
+        log.info("Starting chaos cycle {}", cycle);
         for (int i = 0; i < HITS_AT_START; i++) {
             createChaosHit();
         }
@@ -99,10 +102,7 @@ public class ChaosService extends Worker {
     private void createChaosHit() {
         ChaosType type = getRandomType();
         Maker maker = beanFactory.getBean(type.maker);
-
-        double uniform = random.nextDouble();
-        double skewed = Math.pow(uniform, 3.0);
-        int size = MIN_SIZE + (int) (skewed * (MAX_SIZE - MIN_SIZE));
+        int size = cycle.getRandomSize(type, random);
 
         Coordinates coordinates = findFreeSpot(size);
 
@@ -116,7 +116,15 @@ public class ChaosService extends Worker {
         try {
             return ChaosType.valueOf(this.preferredType);
         } catch (IllegalArgumentException _) {
-            return ChaosType.getRandomType(random);
+            return cycle.getRandomType(random);
+        }
+    }
+
+    private @NonNull ChaosCycle getCycle() {
+        try {
+            return ChaosCycle.valueOf(this.preferredCycle);
+        } catch (IllegalArgumentException _) {
+            return ChaosCycle.getRandomCycle(random);
         }
     }
 
