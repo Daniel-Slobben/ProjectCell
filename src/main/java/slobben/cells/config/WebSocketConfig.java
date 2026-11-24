@@ -22,8 +22,6 @@ import slobben.cells.service.workers.ClientService;
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer, ChannelInterceptor {
 
-    // Every tick already sends each client a message, so the server's heartbeat only tells clients to expect
-    // one every 2 s. Clients send theirs every 5 s; a session silent for 3 of those is closed.
     private static final long[] HEARTBEAT = {2000, 5000};
 
     // Spring's own scheduler for the broker; lazy, because this configuration helps create it.
