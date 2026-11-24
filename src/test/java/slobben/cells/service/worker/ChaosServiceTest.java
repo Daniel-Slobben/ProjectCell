@@ -7,6 +7,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import slobben.cells.dto.internal.Coordinates;
 import slobben.cells.entities.Block;
 import slobben.cells.entities.ChaosHit;
+import slobben.cells.enums.ChaosCycle;
 import slobben.cells.service.ServerInfoService;
 import slobben.cells.service.workers.ChaosService;
 import slobben.cells.service.workers.chaosmakers.Maker;
@@ -17,7 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static slobben.cells.service.workers.ChaosService.HITS_AT_START;
 import static slobben.cells.service.workers.ChaosService.TICKS_BETWEEN_NEW_HITS;
 
 // every maker is replaced by one that writes no cells, so the tests fill the world with blocks by hand
@@ -37,7 +37,7 @@ class ChaosServiceTest {
         Maker maker = (x, y, size) -> new ChaosHit("test", UUID.randomUUID(), new Coordinates(x, y), hitAge);
         when(beanFactory.getBean(any(Class.class))).thenReturn(maker);
         ReflectionTestUtils.setField(chaosService, "preferredType", "ANY");
-        ReflectionTestUtils.setField(chaosService, "preferredCycle", "ANY");
+        ReflectionTestUtils.setField(chaosService, "preferredCycle", "MIXED");
         ReflectionTestUtils.setField(chaosService, "blockSize", 20);
         ReflectionTestUtils.setField(chaosService, "maxBlocks", MAX_BLOCKS);
         ReflectionTestUtils.setField(chaosService, "targetSpeed", 100);
@@ -54,9 +54,9 @@ class ChaosServiceTest {
         tick(1);
 
         // verify
-        assertThat(hitsAtStart).isEqualTo(HITS_AT_START);
-        assertThat(hitsBeforeTheNextOne).isEqualTo(HITS_AT_START);
-        assertThat(chaosHits).hasSize(HITS_AT_START + 1);
+        assertThat(hitsAtStart).isEqualTo(ChaosCycle.MIXED.hitsAtStart);
+        assertThat(hitsBeforeTheNextOne).isEqualTo(ChaosCycle.MIXED.hitsAtStart);
+        assertThat(chaosHits).hasSize(ChaosCycle.MIXED.hitsAtStart + 1);
     }
 
     @Test
@@ -69,7 +69,7 @@ class ChaosServiceTest {
         tick(1000);
 
         // verify
-        assertThat(chaosHits).hasSize(HITS_AT_START);
+        assertThat(chaosHits).hasSize(ChaosCycle.MIXED.hitsAtStart);
     }
 
     @Test
@@ -88,7 +88,7 @@ class ChaosServiceTest {
         // verify
         assertThat(blocksAtMaxAge).isEqualTo(addedBlocks);
         assertThat(blocks).isEmpty();
-        assertThat(chaosHits).hasSize(HITS_AT_START).extracting(ChaosHit::getAge).containsOnly(0);
+        assertThat(chaosHits).hasSize(ChaosCycle.MIXED.hitsAtStart).extracting(ChaosHit::getAge).containsOnly(0);
     }
 
     @Test

@@ -6,32 +6,34 @@ import java.util.Random;
 import static slobben.cells.enums.ChaosType.*;
 
 public enum ChaosCycle {
-    MIXED(Map.of(
+    MIXED(30, Map.of(
             SQUARE, new SizeRange(2000, 20000),
             LETTUCE, new SizeRange(2000, 20000),
             GROWTH_PATTERN, new SizeRange(2000, 20000),
             SPACESHIP, new SizeRange(2000, 20000),
             DIAGONAL_LINES, new SizeRange(2000, 20000))),
-    SMALL_SWARM(Map.of(
+    SMALL_SWARM(60, Map.of(
             SQUARE, new SizeRange(1000, 5000),
             LETTUCE, new SizeRange(1000, 5000),
             GROWTH_PATTERN, new SizeRange(1000, 5000),
             SPACESHIP, new SizeRange(1000, 5000),
             DIAGONAL_LINES, new SizeRange(1000, 5000))),
-    GIANTS(Map.of(
+    GIANTS(5, Map.of(
             SQUARE, new SizeRange(10000, 30000),
             LETTUCE, new SizeRange(10000, 30000),
             DIAGONAL_LINES, new SizeRange(10000, 30000))),
-    FLEET(Map.of(
+    FLEET(30, Map.of(
             SPACESHIP, new SizeRange(4000, 20000),
             GROWTH_PATTERN, new SizeRange(2000, 6000)));
 
     private static final SizeRange DEFAULT_SIZE = new SizeRange(2000, 20000);
 
+    public final int hitsAtStart;
     private final Map<ChaosType, SizeRange> sizes;
     private final int totalWeight;
 
-    ChaosCycle(Map<ChaosType, SizeRange> sizes) {
+    ChaosCycle(int hitsAtStart, Map<ChaosType, SizeRange> sizes) {
+        this.hitsAtStart = hitsAtStart;
         this.sizes = sizes;
         this.totalWeight = sizes.keySet().stream().mapToInt(type -> type.weight).sum();
     }
