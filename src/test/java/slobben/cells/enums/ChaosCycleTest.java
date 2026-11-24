@@ -15,17 +15,34 @@ class ChaosCycleTest {
 
         // execute and verify
         for (int i = 0; i < 1000; i++) {
-            ChaosType type = ChaosCycle.FLEET.getRandomType(random);
-            int size = ChaosCycle.FLEET.getRandomSize(type, random);
-            assertThat(type).isIn(ChaosType.SPACESHIP, ChaosType.GROWTH_PATTERN);
-            assertThat(size).isBetween(type == ChaosType.SPACESHIP ? 4000 : 2000, type == ChaosType.SPACESHIP ? 20000 : 6000);
+            ChaosType type = ChaosCycle.GIANTS.getRandomType(random);
+            int size = ChaosCycle.GIANTS.getRandomSize(type, random);
+            assertThat(type).isIn(ChaosType.SQUARE, ChaosType.SPACESHIP, ChaosType.DIAGONAL_LINES);
+            assertThat(size).isBetween(type == ChaosType.SPACESHIP ? 1000 : 10000, type == ChaosType.SPACESHIP ? 3000 : 30000);
         }
+    }
+
+    @Test
+    void picksTypesByTheirWeight() {
+        // prepare
+        Random random = new Random(42);
+        int spaceships = 0;
+
+        // execute
+        for (int i = 0; i < 14000; i++) {
+            if (ChaosCycle.GIANTS.getRandomType(random) == ChaosType.SPACESHIP) {
+                spaceships++;
+            }
+        }
+
+        // verify
+        assertThat(spaceships).isBetween(7500, 8500);
     }
 
     @Test
     void aTypeOutsideTheCycleGetsTheDefaultSize() {
         // execute
-        int size = ChaosCycle.FLEET.getRandomSize(ChaosType.SQUARE, new Random(42));
+        int size = ChaosCycle.GIANTS.getRandomSize(ChaosType.LETTUCE, new Random(42));
 
         // verify
         assertThat(size).isBetween(2000, 20000);

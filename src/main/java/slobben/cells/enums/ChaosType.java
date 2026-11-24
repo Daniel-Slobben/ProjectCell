@@ -3,19 +3,16 @@ package slobben.cells.enums;
 import slobben.cells.service.workers.chaosmakers.*;
 
 public enum ChaosType {
-    SQUARE(SquareMaker.class, 3),
-    DIAGONAL_LETTUCE(DiagonalLettuceMaker.class, 3),
-    LETTUCE(LettuceMaker.class, 3),
-    DIAGONAL_LINES(DiagonalMaker.class, 3),
-    GROWTH_PATTERN(GrowthMaker.class, 8),
-    SPACESHIP(SpaceshipMaker.class, 8);
+    SQUARE(SquareMaker.class),
+    DIAGONAL_LETTUCE(DiagonalLettuceMaker.class),
+    LETTUCE(LettuceMaker.class),
+    DIAGONAL_LINES(DiagonalMaker.class),
+    GROWTH_PATTERN(GrowthMaker.class),
+    SPACESHIP(SpaceshipMaker.class);
 
     public final Class<? extends Maker> maker;
-    // higher weight -> higher chance to ChaosCycle.getRandomType
-    public final int weight;
 
-    ChaosType(Class<? extends Maker> maker, int weight) {
+    ChaosType(Class<? extends Maker> maker) {
         this.maker = maker;
-        this.weight = weight;
     }
 }

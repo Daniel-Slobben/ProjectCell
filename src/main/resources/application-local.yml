@@ -3,4 +3,4 @@ cells:
   allowed-origins: '*'
   chaos:
     seed: 42
-    type: DIAGONAL_LETTUCE
+    type: ANY
