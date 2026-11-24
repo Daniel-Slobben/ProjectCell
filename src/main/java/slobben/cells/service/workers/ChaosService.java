@@ -42,7 +42,7 @@ public class ChaosService extends Worker {
     @Value("${cells.chaos.max-cycle-share:0}")
     private double maxCycleShare;
 
-    public static final int HITS_AT_START = 30;
+    public static final int HITS_AT_START = 15;
     public static final int TICKS_BETWEEN_NEW_HITS = 200;
     private static final int OVERLOADED_CYCLES_BEFORE_RESET = 20;
     private int tickCounter = 0;
