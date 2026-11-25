@@ -35,7 +35,6 @@ class ChaosServiceTest {
     void setUp() {
         Maker maker = (x, y, size) -> new ChaosHit("test", UUID.randomUUID(), new Coordinates(x, y), hitAge);
         when(beanFactory.getBean(any(Class.class))).thenReturn(maker);
-        ReflectionTestUtils.setField(chaosService, "preferredType", "ANY");
         ReflectionTestUtils.setField(chaosService, "preferredCycle", "MIXED");
         ReflectionTestUtils.setField(chaosService, "blockSize", 20);
         ReflectionTestUtils.setField(chaosService, "maxBlocks", MAX_BLOCKS);

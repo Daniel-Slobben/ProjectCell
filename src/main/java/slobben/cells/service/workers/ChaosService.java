@@ -29,9 +29,7 @@ public class ChaosService extends Worker {
     private final List<ChaosHit> chaosHits;
     private final Random random;
 
-    @Value("${cells.chaos.type:NULL}")
-    private String preferredType = null;
-    @Value("${cells.chaos.cycle:NULL}")
+    @Value("${cells.cycle.type:NULL}")
     private String preferredCycle = null;
     @Value("${cells.size.blockSize}")
     private int blockSize;
@@ -98,7 +96,7 @@ public class ChaosService extends Worker {
     }
 
     private void createChaosHit() {
-        ChaosType type = getRandomType();
+        ChaosType type = cycle.getRandomType(random);
         Maker maker = beanFactory.getBean(type.maker);
         int size = cycle.getRandomSize(type, random);
 
@@ -108,14 +106,6 @@ public class ChaosService extends Worker {
         chaosHit.setType(type);
         chaosHits.addFirst(chaosHit);
         log.info("New chaos hit: {}, {} blocks in the world", chaosHit.getName(), blocks.size());
-    }
-
-    private @NonNull ChaosType getRandomType() {
-        try {
-            return ChaosType.valueOf(this.preferredType);
-        } catch (IllegalArgumentException _) {
-            return cycle.getRandomType(random);
-        }
     }
 
     private @NonNull ChaosCycle getCycle() {

@@ -1,5 +1,5 @@
 cells:
-  targetspeed: '250'
+  targetspeed: '100'
   allowed-origins: '*'
-  chaos:
-    type: ANY
+  cycle:
+    type: BIG_SQUARE

@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
         "cells.pruning-per-generation=100",
         "cells.runmode=MANUAL",
         "cells.targetspeed=0",
-        "cells.chaos.type=ANY",
+        "cells.cycle.type=ANY",
         "cells.chaos.max-blocks=1000",
         "logging.level.slobben=WARN",
         "logging.level.slobben.cells.service.workers.ChaosService=INFO"

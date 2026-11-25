@@ -38,13 +38,4 @@ class ChaosCycleTest {
         // verify
         assertThat(spaceships).isBetween(7500, 8500);
     }
-
-    @Test
-    void aTypeOutsideTheCycleGetsTheDefaultSize() {
-        // execute
-        int size = ChaosCycle.GIANTS.getRandomSize(ChaosType.LETTUCE, new Random(42));
-
-        // verify
-        assertThat(size).isBetween(2000, 20000);
-    }
 }

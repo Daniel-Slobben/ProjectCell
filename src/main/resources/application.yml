@@ -10,8 +10,10 @@ cells:
   pruning-per-generation: '100'
 
   chaos:
-    type: DIAGONAL_LETTUCE
     max-blocks: 3000
+
+  cycle:
+    type: ANY
 
   size:
     x: '0'
