@@ -22,11 +22,7 @@ public enum ChaosCycle {
             DIAGONAL_LINES, new Hit(3, 1000, 5000))),
     BIG_SQUARE(1, 0, Map.of(
             SQUARE, new Hit(1, 60000, 70000))
-    ),
-    GIANTS(5, 250, Map.of(
-            SQUARE, new Hit(3, 10000, 30000),
-            SPACESHIP, new Hit(8, 1000, 3000),
-            DIAGONAL_LINES, new Hit(3, 10000, 30000)));
+    );
 
     public final int hitsAtStart;
     public final int ticksBetweenNewHits;

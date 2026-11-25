@@ -2,4 +2,4 @@ cells:
   targetspeed: '100'
   allowed-origins: '*'
   cycle:
-    type: BIG_SQUARE
+    type: ANY
