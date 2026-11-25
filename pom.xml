@@ -17,7 +17,7 @@
 
     <properties>
         <java.version>25</java.version>
-        <zstd.version>1.5.7-28</zstd.version>
+        <zstd.version>1.6.0-1</zstd.version>
     </properties>
     <dependencies>
 
