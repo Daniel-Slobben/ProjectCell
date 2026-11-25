@@ -19,7 +19,7 @@ cells:
     sectorSize: '50'
 
   runmode: AUTO
-  targetspeed: '100'
+  targetspeed: '250'
   max-cell-blocks: 600
   client-blocks-per-second: 100
   allowed-origins: https://world-of-cells.net, https://www.world-of-cells.net, https://dewereldvancellen.nl, https://www.dewereldvancellen.nl
