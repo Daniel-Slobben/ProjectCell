@@ -42,7 +42,6 @@ public class ChaosService extends Worker {
     @Value("${cells.chaos.max-cycle-share:0}")
     private double maxCycleShare;
 
-    public static final int TICKS_BETWEEN_NEW_HITS = 200;
     private static final int OVERLOADED_CYCLES_BEFORE_RESET = 20;
     private int tickCounter = 0;
     private ChaosCycle cycle = ChaosCycle.MIXED;
@@ -69,7 +68,7 @@ public class ChaosService extends Worker {
             reset();
         }
 
-        if (tickCounter >= TICKS_BETWEEN_NEW_HITS && blocks.size() < maxBlocks) {
+        if (cycle.ticksBetweenNewHits > 0 && tickCounter >= cycle.ticksBetweenNewHits && blocks.size() < maxBlocks) {
             tickCounter = 0;
             createChaosHit();
         }

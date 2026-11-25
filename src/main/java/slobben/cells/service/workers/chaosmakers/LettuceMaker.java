@@ -12,8 +12,8 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class LettuceMaker implements Maker {
-    private static final int MIN_GAP = 300;
-    private static final int MAX_GAP = 1500;
+    private static final int MIN_GAP = 500;
+    private static final int MAX_GAP = 3000;
     private static final int LINE_WIDTH = 2;
 
     private final WorldEditor worldEditor;

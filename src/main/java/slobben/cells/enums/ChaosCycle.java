@@ -6,21 +6,24 @@ import java.util.Random;
 import static slobben.cells.enums.ChaosType.*;
 
 public enum ChaosCycle {
-    MIXED(30, Map.of(
+    MIXED(30, 200, Map.of(
             SQUARE, new Hit(3, 2000, 20000),
             LETTUCE, new Hit(3, 2000, 20000),
             GROWTH_PATTERN, new Hit(8, 2000, 20000),
             DIAGONAL_LETTUCE, new Hit(3, 2000, 20000),
             SPACESHIP, new Hit(8, 2000, 20000),
             DIAGONAL_LINES, new Hit(3, 2000, 20000))),
-    SMALL_SWARM(60, Map.of(
-            SQUARE, new Hit(3, 1000, 5000),
+    SMALL_SWARM(60, 200, Map.of(
+            SQUARE, new Hit(3, 1000, 10000),
             DIAGONAL_LETTUCE, new Hit(3, 2000, 5000),
             LETTUCE, new Hit(3, 1000, 5000),
             GROWTH_PATTERN, new Hit(8, 1000, 5000),
             SPACESHIP, new Hit(8, 1000, 5000),
             DIAGONAL_LINES, new Hit(3, 1000, 5000))),
-    GIANTS(5, Map.of(
+    BIG_SQUARE(1, 0, Map.of(
+            SQUARE, new Hit(1, 60000, 70000))
+    ),
+    GIANTS(5, 200, Map.of(
             SQUARE, new Hit(3, 10000, 30000),
             SPACESHIP, new Hit(8, 1000, 3000),
             DIAGONAL_LINES, new Hit(3, 10000, 30000)));
@@ -28,11 +31,14 @@ public enum ChaosCycle {
     private static final Hit DEFAULT_HIT = new Hit(1, 2000, 20000);
 
     public final int hitsAtStart;
+    // 0 -> no hits after the start
+    public final int ticksBetweenNewHits;
     private final Map<ChaosType, Hit> hits;
     private final int totalWeight;
 
-    ChaosCycle(int hitsAtStart, Map<ChaosType, Hit> hits) {
+    ChaosCycle(int hitsAtStart, int ticksBetweenNewHits, Map<ChaosType, Hit> hits) {
         this.hitsAtStart = hitsAtStart;
+        this.ticksBetweenNewHits = ticksBetweenNewHits;
         this.hits = hits;
         this.totalWeight = hits.values().stream().mapToInt(Hit::weight).sum();
     }

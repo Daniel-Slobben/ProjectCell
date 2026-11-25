@@ -18,7 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static slobben.cells.service.workers.ChaosService.TICKS_BETWEEN_NEW_HITS;
 
 // every maker is replaced by one that writes no cells, so the tests fill the world with blocks by hand
 class ChaosServiceTest {
@@ -49,7 +48,7 @@ class ChaosServiceTest {
         // execute
         tick(1);
         int hitsAtStart = chaosHits.size();
-        tick(TICKS_BETWEEN_NEW_HITS - 1);
+        tick(ChaosCycle.MIXED.ticksBetweenNewHits - 1);
         int hitsBeforeTheNextOne = chaosHits.size();
         tick(1);
 
@@ -57,6 +56,18 @@ class ChaosServiceTest {
         assertThat(hitsAtStart).isEqualTo(ChaosCycle.MIXED.hitsAtStart);
         assertThat(hitsBeforeTheNextOne).isEqualTo(ChaosCycle.MIXED.hitsAtStart);
         assertThat(chaosHits).hasSize(ChaosCycle.MIXED.hitsAtStart + 1);
+    }
+
+    @Test
+    void aCycleWithoutIntervalOnlyHasItsHitsAtStart() {
+        // prepare
+        ReflectionTestUtils.setField(chaosService, "preferredCycle", "BIG_SQUARE");
+
+        // execute
+        tick(1000);
+
+        // verify
+        assertThat(chaosHits).hasSize(ChaosCycle.BIG_SQUARE.hitsAtStart);
     }
 
     @Test
