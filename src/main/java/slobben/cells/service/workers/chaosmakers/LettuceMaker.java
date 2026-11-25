@@ -12,8 +12,8 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class LettuceMaker implements Maker {
-    private static final int MIN_AMOUNT_OF_LINES = 4;
-    private static final int MAX_AMOUNT_OF_LINES = 12;
+    private static final int MIN_GAP = 300;
+    private static final int MAX_GAP = 1500;
     private static final int LINE_WIDTH = 2;
 
     private final WorldEditor worldEditor;
@@ -21,7 +21,8 @@ public class LettuceMaker implements Maker {
 
     @Override
     public ChaosHit getChaosHit(int worldX, int worldY, int size) {
-        return getChaosHit(worldX, worldY, size, random.nextInt(MIN_AMOUNT_OF_LINES, MAX_AMOUNT_OF_LINES + 1));
+        int gap = random.nextInt(MIN_GAP, MAX_GAP + 1);
+        return getChaosHit(worldX, worldY, size, Math.max(2, size / gap + 1));
     }
 
     public ChaosHit getChaosHit(int worldX, int worldY, int size, int amountOfLines) {
