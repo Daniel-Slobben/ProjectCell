@@ -15,10 +15,10 @@ class ChaosCycleTest {
 
         // execute and verify
         for (int i = 0; i < 1000; i++) {
-            ChaosType type = ChaosCycle.GIANTS.getRandomType(random);
-            int size = ChaosCycle.GIANTS.getRandomSize(type, random);
-            assertThat(type).isIn(ChaosType.SQUARE, ChaosType.SPACESHIP, ChaosType.DIAGONAL_LINES);
-            assertThat(size).isBetween(type == ChaosType.SPACESHIP ? 1000 : 10000, type == ChaosType.SPACESHIP ? 3000 : 30000);
+            ChaosType type = ChaosCycle.BIG_SQUARE.getRandomType(random);
+            int size = ChaosCycle.BIG_SQUARE.getRandomSize(type, random);
+            assertThat(type).isEqualTo(ChaosType.SQUARE);
+            assertThat(size).isBetween(60000, 70000);
         }
     }
 
@@ -29,8 +29,8 @@ class ChaosCycleTest {
         int spaceships = 0;
 
         // execute
-        for (int i = 0; i < 14000; i++) {
-            if (ChaosCycle.GIANTS.getRandomType(random) == ChaosType.SPACESHIP) {
+        for (int i = 0; i < 28000; i++) {
+            if (ChaosCycle.MIXED.getRandomType(random) == ChaosType.SPACESHIP) {
                 spaceships++;
             }
         }

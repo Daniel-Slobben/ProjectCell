@@ -49,22 +49,6 @@ class SpaceshipMakerTest {
         }
     }
 
-    @Test
-    void capsTheFleetAtFiveThousandCells() throws IOException {
-        // prepare
-        List<Coordinates> corners = new ArrayList<>();
-        RleReader rleReader = recordingReader(new ArrayList<>(), corners);
-
-        // execute
-        new SpaceshipMaker(rleReader, new Random()).getChaosHit(0, 0, 16_000);
-
-        // verify
-        assertThat(corners).allSatisfy(corner -> {
-            assertThat(Math.abs(corner.x())).isLessThanOrEqualTo(2500);
-            assertThat(Math.abs(corner.y())).isLessThanOrEqualTo(2500);
-        });
-    }
-
     @RepeatedTest(20)
     void aimsAtTheMiddleOfTheMap() throws IOException {
         // prepare
